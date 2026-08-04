@@ -44,10 +44,3 @@ logs/
 .vscode/
 .DS_Store
 Thumbs.db
-
-# Legacy files containing plaintext credentials.
-# Remove each entry only after rotating credentials and sanitizing the file.
-/rq_wind_replica.py
-/Wind取数尝试.ipynb
-/windquery/windquery/SKILL.md
-/windquery/windquery/agents/researcher.md

@@ -1,0 +1,49 @@
+[project]
+name = "factor-platform"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "xi.chen", email = "xi.chen@pbtccn.com" }
+]
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "alembic>=1.18.5",
+    "fastapi>=0.141.1",
+    "httpx>=0.28.1",
+    "itsdangerous>=2.2.0",
+    "jieba>=0.42.1",
+    "jinja2>=3.1.6",
+    "numpy>=2.4.6",
+    "pandas>=3.0.5",
+    "pillow>=12.3.0",
+    "pwdlib>=0.3.0",
+    "pyarrow>=25.0.0",
+    "pydantic-settings>=2.14.2",
+    "pymupdf>=1.28.0",
+    "pymysql>=1.2.0",
+    "python-multipart>=0.0.32",
+    "rank-bm25>=0.2.2",
+    "rapidocr-onnxruntime>=1.4.4",
+    "sqlalchemy>=2.0.51",
+    "sse-starlette>=3.4.6",
+    "typer>=0.27.1",
+    "uvicorn[standard]>=0.52.1",
+]
+
+[project.scripts]
+factor-platform = "factor_platform:main"
+
+[build-system]
+requires = ["uv_build>=0.11.7,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "respx>=0.23.1",
+    "ruff>=0.16.1",
+]
