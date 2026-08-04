@@ -31,9 +31,16 @@ class Settings(BaseSettings):
         if (self.kimi_coding_api_key or self.kimi_metered_api_key) and not self.kimi_model:
             raise ValueError("kimi_model is required when a Kimi provider is configured")
         if self.wind_enabled:
-            required = (self.wind_host, self.wind_user, self.wind_password, self.wind_database)
+            required = (
+                self.wind_host,
+                self.wind_user,
+                self.wind_password,
+                self.wind_database,
+            )
             if any(value is None for value in required):
-                raise ValueError("wind_host, wind_user, wind_password and wind_database are required")
+                raise ValueError(
+                    "wind_host, wind_user, wind_password and wind_database are required"
+                )
         return self
 
     def worker_environment(self) -> dict[str, str]:
