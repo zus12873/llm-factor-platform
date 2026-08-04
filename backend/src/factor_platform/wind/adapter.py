@@ -1,49 +1,70 @@
 import bisect
-import os
+import contextlib
 import datetime as dt
 import re
 import time
 from collections import OrderedDict
 from types import SimpleNamespace
+from typing import Any
 
 import numpy as np
-import pandas as pd
-import pymysql
+import pandas as pd  # type: ignore[import-untyped]
+import pymysql  # type: ignore[import-untyped]
 
-
-MYSQL_CONFIG = dict(
-    host=os.environ.get("WIND_HOST"),
-    port=int(os.environ.get("WIND_PORT", "3306")),
-    user=os.environ.get("WIND_USER"),
-    password=os.environ.get("WIND_PASSWORD"),
-    database=os.environ.get("WIND_DATABASE"),
-    charset="utf8mb4",
-    connect_timeout=10,
-    read_timeout=60,
-    write_timeout=60,
-    cursorclass=pymysql.cursors.DictCursor,
+from factor_platform.settings import get_settings
+from factor_platform.wind.connection import (
+    TRANSIENT_MYSQL_ERROR_CODES as _TRANSIENT_MYSQL_ERROR_CODES,
+)
+from factor_platform.wind.connection import (
+    WindConnectionFactory,
 )
 
+# Module-level connection factory singleton. Lazily built from Settings on
+# first use (via ``_get_factory()``), or explicitly injected via
+# ``configure_factory(...)`` for tests / explicit ops configuration.
+# Constructing/importing the module does NOT touch ``_FACTORY`` — no socket,
+# no credentials, no Settings read at import time.
+_FACTORY: WindConnectionFactory | None = None
+
 WIND_CONN = None
-MISSING_INFO = []
-_TRADING_DATES_CACHE = {}
-_INDUSTRY_CODE_CACHE = {}
-_INSTRUMENT_CACHE = {}
-_LATEST_ADJFACTOR_CACHE = {}
+MISSING_INFO: list[dict[str, str]] = []
+_TRADING_DATES_CACHE: dict[str, list[str]] = {}
+_INDUSTRY_CODE_CACHE: dict[str, dict[str, Any]] = {}
+_INSTRUMENT_CACHE: dict[str, dict[str, Any] | None] = {}
+_LATEST_ADJFACTOR_CACHE: dict[str, float | None] = {}
 _PRICE_CACHE_MAXSIZE = 16
-_PRICE_CACHE = OrderedDict()
+_PRICE_CACHE: OrderedDict[Any, Any] = OrderedDict()
 _QUERY_MAX_ATTEMPTS = 2
-_TRANSIENT_MYSQL_ERROR_CODES = {2006, 2013}
 
 
 def add_missing_info(function, item, detail):
     MISSING_INFO.append({"function": function, "item": item, "detail": detail})
 
 
+def configure_factory(factory: WindConnectionFactory) -> None:
+    """Inject a connection factory.
+
+    Closes any connection opened by the previous factory so the next
+    ``query_df``/``init`` call opens a fresh connection from ``factory``.
+    Used by tests and by ops code that constructs ``Settings`` explicitly
+    instead of relying on the env-driven default.
+    """
+    global _FACTORY
+    close_wind_conn()
+    _FACTORY = factory
+
+
+def _get_factory() -> WindConnectionFactory:
+    global _FACTORY
+    if _FACTORY is None:
+        _FACTORY = WindConnectionFactory(get_settings())
+    return _FACTORY
+
+
 def get_wind_conn():
     global WIND_CONN
     if WIND_CONN is None or not getattr(WIND_CONN, "open", False):
-        WIND_CONN = pymysql.connect(**MYSQL_CONFIG)
+        WIND_CONN = _get_factory().connect()
     return WIND_CONN
 
 
@@ -158,10 +179,10 @@ def _trading_day_strings(market="cn"):
 
 
 try:
-    from rqdatac.services.basic import Instrument as RQInstrument
+    from rqdatac.services.basic import Instrument as RQInstrument  # type: ignore[import-not-found]
 except Exception:
 
-    class RQInstrument:
+    class RQInstrument:  # type: ignore[no-redef]
         def __init__(self, data):
             self.__dict__ = data
 
@@ -198,7 +219,9 @@ def _int_or_none(value):
 
 def _make_instrument(row):
     wind_code = row.get("s_info_windcode")
-    exchange = "SH" if str(wind_code).endswith(".SH") else "SZ" if str(wind_code).endswith(".SZ") else "BJ"
+    exchange = (
+        "SH" if str(wind_code).endswith(".SH") else "SZ" if str(wind_code).endswith(".SZ") else "BJ"
+    )
     pinyin = row.get("s_info_pinyin")
     data = {
         "order_book_id": wind_to_rq(wind_code),
@@ -259,7 +282,8 @@ def instruments(order_book_ids, market="cn"):
               on d.s_info_windcode = sector.s_info_windcode
              and sector.cur_sign = '1'
             left join ashareindustriescode sector_code
-              on concat(substr(sector.wind_ind_code, 1, 3), '0000000000000') = sector_code.industriescode
+              on concat(substr(sector.wind_ind_code, 1, 3), '0000000000000')
+                 = sector_code.industriescode
             left join ashareipo ipo
               on d.s_info_windcode = ipo.s_info_windcode
             left join ashareintroductionzl intro
@@ -269,15 +293,14 @@ def instruments(order_book_ids, market="cn"):
             where d.s_info_windcode in {clause}
         """
         df = query_df(sql, params)
-        fetched = {
-            row["s_info_windcode"]: row
-            for row in df.to_dict("records")
-        }
+        fetched = {row["s_info_windcode"]: row for row in df.to_dict("records")}
         for code in missing_ids:
             _INSTRUMENT_CACHE[code] = fetched.get(rq_to_wind(code))
 
     result = [
-        _make_instrument(_INSTRUMENT_CACHE[code].copy()) if _INSTRUMENT_CACHE.get(code) is not None else None
+        _make_instrument(_INSTRUMENT_CACHE[code].copy())
+        if _INSTRUMENT_CACHE.get(code) is not None
+        else None
         for code in ids
     ]
     return result[0] if single else result
@@ -337,7 +360,9 @@ def is_st_stock(order_book_ids, start_date=None, end_date=None, market="cn"):
 
     start = _to_yyyymmdd(start_date)
     end = _to_yyyymmdd(end_date)
-    out = pd.DataFrame(False, index=_date_index(start, end, market=market), columns=display_ids, dtype=bool)
+    out = pd.DataFrame(
+        False, index=_date_index(start, end, market=market), columns=display_ids, dtype=bool
+    )
 
     wind_codes = [rq_to_wind(code) for code in ids]
     clause, params = _in_clause(wind_codes, "code")
@@ -355,7 +380,11 @@ def is_st_stock(order_book_ids, start_date=None, end_date=None, market="cn"):
         code = wind_to_rq(row.s_info_windcode)
         entry = pd.to_datetime(row.entry_dt, format="%Y%m%d")
         remove_raw = row.remove_dt
-        remove = pd.to_datetime(remove_raw, format="%Y%m%d") if pd.notna(remove_raw) and str(remove_raw) else pd.Timestamp.max
+        remove = (
+            pd.to_datetime(remove_raw, format="%Y%m%d")
+            if pd.notna(remove_raw) and str(remove_raw)
+            else pd.Timestamp.max
+        )
         if code in out.columns:
             out.loc[(out.index >= entry) & (out.index < remove), code] = True
     return out
@@ -373,7 +402,9 @@ def is_suspended(order_book_ids, start_date=None, end_date=None, market="cn"):
 
     start = _to_yyyymmdd(start_date)
     end = _to_yyyymmdd(end_date)
-    out = pd.DataFrame(False, index=_date_index(start, end, market=market), columns=display_ids, dtype=bool)
+    out = pd.DataFrame(
+        False, index=_date_index(start, end, market=market), columns=display_ids, dtype=bool
+    )
 
     wind_codes = [rq_to_wind(code) for code in ids]
     clause, params = _in_clause(wind_codes, "code")
@@ -509,7 +540,9 @@ def _numeric_column(frame, column):
 
 
 def _latest_adjfactors(wind_codes):
-    missing_codes = [code for code in dict.fromkeys(wind_codes) if code not in _LATEST_ADJFACTOR_CACHE]
+    missing_codes = [
+        code for code in dict.fromkeys(wind_codes) if code not in _LATEST_ADJFACTOR_CACHE
+    ]
     if not missing_codes:
         return {code: _LATEST_ADJFACTOR_CACHE.get(code) for code in wind_codes}
 
@@ -572,11 +605,15 @@ def get_price(
     **kwargs,
 ):
     if frequency != "1d":
-        raise NotImplementedError("Only daily frequency is implemented for this factor_analysis replica.")
+        raise NotImplementedError(
+            "Only daily frequency is implemented for this factor_analysis replica."
+        )
     if time_slice is not None:
         raise NotImplementedError("time_slice is not implemented for this daily-data replica.")
     if not expect_df:
-        add_missing_info("get_price", "expect_df=False", "Replica still returns a pandas DataFrame.")
+        add_missing_info(
+            "get_price", "expect_df=False", "Replica still returns a pandas DataFrame."
+        )
 
     ids, _ = _as_list(order_book_ids)
     start_date = start_date or dt.date.today()
@@ -641,17 +678,16 @@ def get_price(
         stock_raw = stock_raw.copy()
         stock_raw["_source"] = "stock"
 
-    found_stock_codes = set(stock_raw["s_info_windcode"].astype(str).unique()) if not stock_raw.empty else set()
+    found_stock_codes = (
+        set(stock_raw["s_info_windcode"].astype(str).unique()) if not stock_raw.empty else set()
+    )
     index_codes = list(
         dict.fromkeys(
-            hinted_index_codes
-            + [code for code in stock_codes if code not in found_stock_codes]
+            hinted_index_codes + [code for code in stock_codes if code not in found_stock_codes]
         )
     )
     index_fields = [
-        INDEX_PRICE_FIELD_MAP[field]
-        for field in fields_list
-        if field in INDEX_PRICE_FIELD_MAP
+        INDEX_PRICE_FIELD_MAP[field] for field in fields_list if field in INDEX_PRICE_FIELD_MAP
     ]
     index_select_cols = ["s_info_windcode", "trade_dt"] + index_fields
     index_select_cols = list(dict.fromkeys(index_select_cols))
@@ -666,19 +702,23 @@ def get_price(
         _price_cache_set(cache_key, result)
         return result
 
-    if False and adjust_type in {"pre", "pre_volume"}:
-        add_missing_info(
-            "get_price adjust_type='pre'",
-            "复权因子归一化",
-            "Replica normalizes by max s_dq_adjfactor inside the requested date range to avoid querying outside input dates.",
-        )
-
-    if False and adjust_type in {"pre", "pre_volume"}:
-        add_missing_info(
-            "get_price adjust_type='pre'",
-            "adjustment_factor_precision",
-            "Uses Wind ashareeodprices.s_dq_adjfactor normalized by the latest available Wind factor; small differences vs RiceQuant can remain when their factor chains differ.",
-        )
+    # NOTE: the two blocks below used to be guarded by ``if False and
+    # adjust_type in {"pre", "pre_volume"}`` (dead code kept for documentation).
+    # They are preserved as comments so the original limitation notes are not
+    # lost; re-enable explicitly if/when pre-adjustment normalization is added.
+    # add_missing_info(
+    #     "get_price adjust_type='pre'",
+    #     "复权因子归一化",
+    #     "Replica normalizes by max s_dq_adjfactor inside the requested "
+    #     "date range to avoid querying outside input dates.",
+    # )
+    # add_missing_info(
+    #     "get_price adjust_type='pre'",
+    #     "adjustment_factor_precision",
+    #     "Uses Wind ashareeodprices.s_dq_adjfactor normalized by the latest "
+    #     "available Wind factor; small differences vs RiceQuant can remain "
+    #     "when their factor chains differ.",
+    # )
 
     if skip_suspended:
         status = _numeric_column(raw, "s_dq_tradestatuscode")
@@ -728,7 +768,9 @@ def get_price(
     return result
 
 
-def index_components(order_book_id, date=None, start_date=None, end_date=None, return_create_tm=False, market="cn"):
+def index_components(
+    order_book_id, date=None, start_date=None, end_date=None, return_create_tm=False, market="cn"
+):
     def components_from_frame(raw, date_str):
         if raw.empty:
             stocks = []
@@ -737,8 +779,15 @@ def index_components(order_book_id, date=None, start_date=None, end_date=None, r
         in_date = raw["s_con_indate"].astype(str)
         out_date = raw["s_con_outdate"].where(raw["s_con_outdate"].notna(), "99999999").astype(str)
         active = raw.loc[(in_date <= date_str) & (out_date >= date_str)]
-        stocks = [wind_to_rq(value) for value in active.get("s_con_windcode", pd.Series(dtype=object)).tolist()]
-        create_tm = pd.Timestamp(active["opdate"].max()) if return_create_tm and len(active) and "opdate" in active else pd.NaT
+        stocks = [
+            wind_to_rq(value)
+            for value in active.get("s_con_windcode", pd.Series(dtype=object)).tolist()
+        ]
+        create_tm = (
+            pd.Timestamp(active["opdate"].max())
+            if return_create_tm and len(active) and "opdate" in active
+            else pd.NaT
+        )
         return stocks, create_tm
 
     def component_events(start_str, end_str):
@@ -750,7 +799,9 @@ def index_components(order_book_id, date=None, start_date=None, end_date=None, r
               and (s_con_outdate is null or s_con_outdate >= %(start)s)
             order by s_con_windcode
         """
-        return query_df(sql, {"index_code": rq_to_wind(order_book_id), "start": start_str, "end": end_str})
+        return query_df(
+            sql, {"index_code": rq_to_wind(order_book_id), "start": start_str, "end": end_str}
+        )
 
     if date is not None and (start_date is not None or end_date is not None):
         raise ValueError("date can not be used with start_date/end_date at the same time")
@@ -814,7 +865,9 @@ def _industry_code_lookup(raw_code):
     }
 
 
-def _industry_filters(order_book_ids=None, start_date=None, end_date=None, code_field="s_info_windcode"):
+def _industry_filters(
+    order_book_ids=None, start_date=None, end_date=None, code_field="s_info_windcode"
+):
     where = []
     params = {}
     if order_book_ids is not None:
@@ -853,8 +906,12 @@ class WindClient:
                 out.append(
                     {
                         "order_book_id": wind_to_rq(row["s_info_windcode"]),
-                        "start_date": pd.to_datetime(row["entry_dt"], format="%Y%m%d").to_pydatetime(),
-                        "cancel_date": pd.to_datetime(row["remove_dt"], format="%Y%m%d").to_pydatetime()
+                        "start_date": pd.to_datetime(
+                            row["entry_dt"], format="%Y%m%d"
+                        ).to_pydatetime(),
+                        "cancel_date": pd.to_datetime(
+                            row["remove_dt"], format="%Y%m%d"
+                        ).to_pydatetime()
                         if row.get("remove_dt")
                         else dt.datetime(2200, 12, 31),
                         "first_industry_code": info["first_code"],
@@ -880,8 +937,12 @@ class WindClient:
                 out.append(
                     {
                         "order_book_id": wind_to_rq(row["s_info_windcode"]),
-                        "start_date": pd.to_datetime(row["entry_dt"], format="%Y%m%d").to_pydatetime(),
-                        "cancel_date": pd.to_datetime(row["remove_dt"], format="%Y%m%d").to_pydatetime()
+                        "start_date": pd.to_datetime(
+                            row["entry_dt"], format="%Y%m%d"
+                        ).to_pydatetime(),
+                        "cancel_date": pd.to_datetime(
+                            row["remove_dt"], format="%Y%m%d"
+                        ).to_pydatetime()
                         if row.get("remove_dt")
                         else dt.datetime(2200, 12, 31),
                         "version": 2,
@@ -1042,9 +1103,7 @@ def execute_generic_query_plan(plan):
     }[query_shape]
     missing_roles = sorted(required_roles - set(role_fields))
     if missing_roles:
-        raise ValueError(
-            f"Query shape {query_shape} is missing roles: {missing_roles}"
-        )
+        raise ValueError(f"Query shape {query_shape} is missing roles: {missing_roles}")
 
     columns = _generic_table_columns(table_name)
     requested_columns = {code_field, *selected_fields, *role_fields.values()}
@@ -1059,9 +1118,7 @@ def execute_generic_query_plan(plan):
     end_value = plan.get("end_date")
     if query_shape != "static_lookup":
         if start_value is None or end_value is None:
-            raise ValueError(
-                f"Query shape {query_shape} requires start_date and end_date"
-            )
+            raise ValueError(f"Query shape {query_shape} requires start_date and end_date")
         params.update(
             {
                 "start": _to_yyyymmdd(start_value),
@@ -1093,10 +1150,7 @@ def execute_generic_query_plan(plan):
         conditions.extend(
             [
                 f"{start_field} <= %(end)s",
-                (
-                    f"({end_field} is null or {end_field} = '' "
-                    f"or {end_field} >= %(start)s)"
-                ),
+                (f"({end_field} is null or {end_field} = '' or {end_field} >= %(start)s)"),
             ]
         )
         order_fields = [code_field, start_field, end_field]
@@ -1107,9 +1161,7 @@ def execute_generic_query_plan(plan):
     else:
         order_fields = [code_field]
 
-    select_columns = list(
-        dict.fromkeys([code_field, *role_fields.values(), *selected_fields])
-    )
+    select_columns = list(dict.fromkeys([code_field, *role_fields.values(), *selected_fields]))
     sql = (
         f"select {', '.join(select_columns)} "
         f"from {table_name} "
@@ -1151,10 +1203,8 @@ def execute_generic_query_plan(plan):
         else:
             raw[role] = pd.to_datetime(text, errors="coerce")
     for field in selected_fields:
-        try:
+        with contextlib.suppress(TypeError, ValueError):
             raw[field] = pd.to_numeric(raw[field])
-        except (TypeError, ValueError):
-            pass
     raw["source_table"] = table_name
     raw["source_fields"] = ",".join(selected_fields)
     output_columns = [
@@ -1174,8 +1224,16 @@ RQ_WIND_CAPABILITIES = {
         "purpose": "初始化并验证 Wind MySQL 连接。",
         "asset_types": ["all"],
         "parameters": {
-            "username": {"required": False, "default": None, "meaning": "兼容 rqdatac.init，不用于 Wind MySQL 登录。"},
-            "password": {"required": False, "default": None, "meaning": "兼容 rqdatac.init，不用于 Wind MySQL 登录。"},
+            "username": {
+                "required": False,
+                "default": None,
+                "meaning": "兼容 rqdatac.init，不用于 Wind MySQL 登录。",
+            },
+            "password": {
+                "required": False,
+                "default": None,
+                "meaning": "兼容 rqdatac.init，不用于 Wind MySQL 登录。",
+            },
             "addr": {
                 "required": False,
                 "default": ("rqdatad-pro.ricequant.com", 16011),
@@ -1184,7 +1242,9 @@ RQ_WIND_CAPABILITIES = {
         },
         "source_dependencies": [],
         "exact_outputs": [],
-        "semantic_outputs": [{"name": "connection_ready", "type": "none", "meaning": "连接验证成功时返回 None。"}],
+        "semantic_outputs": [
+            {"name": "connection_ready", "type": "none", "meaning": "连接验证成功时返回 None。"}
+        ],
         "return_schema": {"kind": "none"},
         "constraints": ["由生成器自动调用，不作为用户数据字段匹配目标。"],
         "planner": "lifecycle",
@@ -1196,34 +1256,135 @@ RQ_WIND_CAPABILITIES = {
         "asset_types": ["stock"],
         "parameters": {
             "order_book_ids": {"required": True, "meaning": "RQ/Wind 证券代码或代码列表。"},
-            "market": {"required": False, "default": "cn", "meaning": "当前基础信息实现面向中国股票市场。"},
+            "market": {
+                "required": False,
+                "default": "cn",
+                "meaning": "当前基础信息实现面向中国股票市场。",
+            },
         },
         "source_dependencies": [
-            {"table": "asharedescription", "fields": ["s_info_windcode", "s_info_code", "s_info_name", "s_info_exchmarket", "s_info_listdate", "s_info_delistdate", "s_info_listboard", "s_info_listboardname", "is_delisted", "s_info_pinyin"]},
-            {"table": "asharesecnindustriesclass", "fields": ["s_info_windcode", "sec_ind_code", "wind_ind_code", "cur_sign"]},
-            {"table": "ashareindustriesclass", "fields": ["s_info_windcode", "wind_ind_code", "cur_sign"]},
-            {"table": "ashareindustriescode", "fields": ["industriescode", "industriesname", "industriesalias", "wind_name_eng"]},
+            {
+                "table": "asharedescription",
+                "fields": [
+                    "s_info_windcode",
+                    "s_info_code",
+                    "s_info_name",
+                    "s_info_exchmarket",
+                    "s_info_listdate",
+                    "s_info_delistdate",
+                    "s_info_listboard",
+                    "s_info_listboardname",
+                    "is_delisted",
+                    "s_info_pinyin",
+                ],
+            },
+            {
+                "table": "asharesecnindustriesclass",
+                "fields": ["s_info_windcode", "sec_ind_code", "wind_ind_code", "cur_sign"],
+            },
+            {
+                "table": "ashareindustriesclass",
+                "fields": ["s_info_windcode", "wind_ind_code", "cur_sign"],
+            },
+            {
+                "table": "ashareindustriescode",
+                "fields": ["industriescode", "industriesname", "industriesalias", "wind_name_eng"],
+            },
             {"table": "ashareipo", "fields": ["s_info_windcode", "s_ipo_price"]},
-            {"table": "ashareintroductionzl", "fields": ["s_info_windcode", "s_info_office", "s_info_province"]},
+            {
+                "table": "ashareintroductionzl",
+                "fields": ["s_info_windcode", "s_info_office", "s_info_province"],
+            },
             {"table": "asharewindcustomcode", "fields": ["s_info_windcode", "s_info_lot_size"]},
         ],
         "exact_outputs": [
-            {"table": "asharedescription", "field": "s_info_windcode", "output": "order_book_id", "coverage": "exact"},
-            {"table": "asharedescription", "field": "s_info_code", "output": "trading_code", "coverage": "exact"},
-            {"table": "asharedescription", "field": "s_info_name", "output": "symbol", "coverage": "exact"},
-            {"table": "asharedescription", "field": "s_info_listdate", "output": "listed_date", "coverage": "derived"},
-            {"table": "asharedescription", "field": "s_info_delistdate", "output": "de_listed_date", "coverage": "derived"},
-            {"table": "asharedescription", "field": "s_info_pinyin", "output": "abbrev_symbol", "coverage": "derived"},
-            {"table": "ashareindustriescode", "field": "industriesname", "output": "industry_name", "coverage": "derived"},
-            {"table": "ashareipo", "field": "s_ipo_price", "output": "issue_price", "coverage": "exact"},
-            {"table": "ashareintroductionzl", "field": "s_info_office", "output": "office_address", "coverage": "exact"},
-            {"table": "ashareintroductionzl", "field": "s_info_province", "output": "province", "coverage": "exact"},
-            {"table": "asharewindcustomcode", "field": "s_info_lot_size", "output": "round_lot", "coverage": "derived"},
+            {
+                "table": "asharedescription",
+                "field": "s_info_windcode",
+                "output": "order_book_id",
+                "coverage": "exact",
+            },
+            {
+                "table": "asharedescription",
+                "field": "s_info_code",
+                "output": "trading_code",
+                "coverage": "exact",
+            },
+            {
+                "table": "asharedescription",
+                "field": "s_info_name",
+                "output": "symbol",
+                "coverage": "exact",
+            },
+            {
+                "table": "asharedescription",
+                "field": "s_info_listdate",
+                "output": "listed_date",
+                "coverage": "derived",
+            },
+            {
+                "table": "asharedescription",
+                "field": "s_info_delistdate",
+                "output": "de_listed_date",
+                "coverage": "derived",
+            },
+            {
+                "table": "asharedescription",
+                "field": "s_info_pinyin",
+                "output": "abbrev_symbol",
+                "coverage": "derived",
+            },
+            {
+                "table": "ashareindustriescode",
+                "field": "industriesname",
+                "output": "industry_name",
+                "coverage": "derived",
+            },
+            {
+                "table": "ashareipo",
+                "field": "s_ipo_price",
+                "output": "issue_price",
+                "coverage": "exact",
+            },
+            {
+                "table": "ashareintroductionzl",
+                "field": "s_info_office",
+                "output": "office_address",
+                "coverage": "exact",
+            },
+            {
+                "table": "ashareintroductionzl",
+                "field": "s_info_province",
+                "output": "province",
+                "coverage": "exact",
+            },
+            {
+                "table": "asharewindcustomcode",
+                "field": "s_info_lot_size",
+                "output": "round_lot",
+                "coverage": "derived",
+            },
         ],
         "semantic_outputs": [
-            {"name": "instrument", "type": "Instrument", "intents": ["证券基础信息", "股票基础信息", "上市日期", "证券名称", "办公地址", "省份", "行业"]},
+            {
+                "name": "instrument",
+                "type": "Instrument",
+                "intents": [
+                    "证券基础信息",
+                    "股票基础信息",
+                    "上市日期",
+                    "证券名称",
+                    "办公地址",
+                    "省份",
+                    "行业",
+                ],
+            },
         ],
-        "return_schema": {"kind": "object_or_list", "item": "Instrument", "single_input_returns_single": True},
+        "return_schema": {
+            "kind": "object_or_list",
+            "item": "Instrument",
+            "single_input_returns_single": True,
+        },
         "constraints": ["输入必须是证券代码；当前不支持按名称模糊搜索。"],
         "planner": "instruments",
         "examples": ["wind.instruments(order_book_ids=['600519.SH'], market='cn')"],
@@ -1235,17 +1396,29 @@ RQ_WIND_CAPABILITIES = {
         "parameters": {
             "start_date": {"required": True, "meaning": "起始日期。"},
             "end_date": {"required": True, "meaning": "结束日期。"},
-            "market": {"required": False, "default": "cn", "meaning": "cn 使用 SSE/SZSE，hk 使用 HKEX。"},
+            "market": {
+                "required": False,
+                "default": "cn",
+                "meaning": "cn 使用 SSE/SZSE，hk 使用 HKEX。",
+            },
         },
-        "source_dependencies": [{"table": "asharecalendar", "fields": ["trade_days", "s_info_exchmarket"]}],
+        "source_dependencies": [
+            {"table": "asharecalendar", "fields": ["trade_days", "s_info_exchmarket"]}
+        ],
         "exact_outputs": [],
         "semantic_outputs": [
-            {"name": "trading_dates", "type": "list[date]", "intents": ["交易日列表", "交易日序列", "区间交易日"]},
+            {
+                "name": "trading_dates",
+                "type": "list[date]",
+                "intents": ["交易日列表", "交易日序列", "区间交易日"],
+            },
         ],
         "return_schema": {"kind": "list", "item": "date"},
         "constraints": ["返回 start_date 与 end_date 闭区间内交易日。"],
         "planner": "calendar_range",
-        "examples": ["wind.get_trading_dates(start_date='2026-07-01', end_date='2026-07-10', market='cn')"],
+        "examples": [
+            "wind.get_trading_dates(start_date='2026-07-01', end_date='2026-07-10', market='cn')"
+        ],
     },
     "get_next_trading_date": {
         "kind": "calendar",
@@ -1256,10 +1429,16 @@ RQ_WIND_CAPABILITIES = {
             "n": {"required": False, "default": 1, "meaning": "向后偏移交易日数；0 返回基准日期。"},
             "market": {"required": False, "default": "cn", "meaning": "交易市场。"},
         },
-        "source_dependencies": [{"table": "asharecalendar", "fields": ["trade_days", "s_info_exchmarket"]}],
+        "source_dependencies": [
+            {"table": "asharecalendar", "fields": ["trade_days", "s_info_exchmarket"]}
+        ],
         "exact_outputs": [],
         "semantic_outputs": [
-            {"name": "next_trading_date", "type": "date", "intents": ["后一个交易日", "下一个交易日", "向后交易日", "后N个交易日"]},
+            {
+                "name": "next_trading_date",
+                "type": "date",
+                "intents": ["后一个交易日", "下一个交易日", "向后交易日", "后N个交易日"],
+            },
         ],
         "return_schema": {"kind": "scalar", "type": "date"},
         "constraints": ["n < 0 时内部转为 get_previous_trading_date。"],
@@ -1275,10 +1454,16 @@ RQ_WIND_CAPABILITIES = {
             "n": {"required": False, "default": 1, "meaning": "向前偏移交易日数；0 返回基准日期。"},
             "market": {"required": False, "default": "cn", "meaning": "交易市场。"},
         },
-        "source_dependencies": [{"table": "asharecalendar", "fields": ["trade_days", "s_info_exchmarket"]}],
+        "source_dependencies": [
+            {"table": "asharecalendar", "fields": ["trade_days", "s_info_exchmarket"]}
+        ],
         "exact_outputs": [],
         "semantic_outputs": [
-            {"name": "previous_trading_date", "type": "date", "intents": ["前一个交易日", "上一个交易日", "向前交易日", "前N个交易日"]},
+            {
+                "name": "previous_trading_date",
+                "type": "date",
+                "intents": ["前一个交易日", "上一个交易日", "向前交易日", "前N个交易日"],
+            },
         ],
         "return_schema": {"kind": "scalar", "type": "date"},
         "constraints": ["n < 0 时内部转为 get_next_trading_date。"],
@@ -1291,22 +1476,41 @@ RQ_WIND_CAPABILITIES = {
         "asset_types": ["stock"],
         "parameters": {
             "order_book_ids": {"required": True, "meaning": "股票代码列表。"},
-            "start_date": {"required": False, "default": None, "meaning": "为空时使用输入证券最早上市日。"},
+            "start_date": {
+                "required": False,
+                "default": None,
+                "meaning": "为空时使用输入证券最早上市日。",
+            },
             "end_date": {"required": False, "default": None, "meaning": "为空时使用当天。"},
             "market": {"required": False, "default": "cn", "meaning": "交易市场。"},
         },
         "source_dependencies": [
-            {"table": "asharest", "fields": ["s_info_windcode", "s_type_st", "entry_dt", "remove_dt"]},
+            {
+                "table": "asharest",
+                "fields": ["s_info_windcode", "s_type_st", "entry_dt", "remove_dt"],
+            },
             {"table": "asharecalendar", "fields": ["trade_days", "s_info_exchmarket"]},
         ],
         "exact_outputs": [],
         "semantic_outputs": [
-            {"name": "is_st", "type": "DataFrame[bool]", "intents": ["是否ST", "ST状态", "ST股", "风险警示状态"]},
+            {
+                "name": "is_st",
+                "type": "DataFrame[bool]",
+                "intents": ["是否ST", "ST状态", "ST股", "风险警示状态"],
+            },
         ],
-        "return_schema": {"kind": "dataframe", "index": ["date"], "columns": "order_book_id", "dtype": "bool"},
+        "return_schema": {
+            "kind": "dataframe",
+            "index": ["date"],
+            "columns": "order_book_id",
+            "dtype": "bool",
+        },
         "constraints": ["s_type_st 仅是内部依赖；本函数不返回原始 ST 类型代码。"],
         "planner": "status",
-        "examples": ["wind.is_st_stock(order_book_ids=['600519.SH'], start_date='2026-07-01', end_date='2026-07-10', market='cn')"],
+        "examples": [
+            "wind.is_st_stock(order_book_ids=['600519.SH'], "
+            "start_date='2026-07-01', end_date='2026-07-10', market='cn')"
+        ],
     },
     "is_suspended": {
         "kind": "status",
@@ -1314,23 +1518,45 @@ RQ_WIND_CAPABILITIES = {
         "asset_types": ["stock"],
         "parameters": {
             "order_book_ids": {"required": True, "meaning": "股票代码列表。"},
-            "start_date": {"required": False, "default": None, "meaning": "为空时使用输入证券最早上市日。"},
+            "start_date": {
+                "required": False,
+                "default": None,
+                "meaning": "为空时使用输入证券最早上市日。",
+            },
             "end_date": {"required": False, "default": None, "meaning": "为空时使用当天。"},
             "market": {"required": False, "default": "cn", "meaning": "交易市场。"},
         },
         "source_dependencies": [
-            {"table": "ashareeodprices", "fields": ["s_info_windcode", "trade_dt", "s_dq_tradestatuscode"]},
-            {"table": "asharetradingsuspension", "fields": ["s_info_windcode", "s_dq_suspenddate", "s_dq_resumpdate"]},
+            {
+                "table": "ashareeodprices",
+                "fields": ["s_info_windcode", "trade_dt", "s_dq_tradestatuscode"],
+            },
+            {
+                "table": "asharetradingsuspension",
+                "fields": ["s_info_windcode", "s_dq_suspenddate", "s_dq_resumpdate"],
+            },
             {"table": "asharecalendar", "fields": ["trade_days", "s_info_exchmarket"]},
         ],
         "exact_outputs": [],
         "semantic_outputs": [
-            {"name": "is_suspended", "type": "DataFrame[bool]", "intents": ["是否停牌", "停牌状态", "停牌股票"]},
+            {
+                "name": "is_suspended",
+                "type": "DataFrame[bool]",
+                "intents": ["是否停牌", "停牌状态", "停牌股票"],
+            },
         ],
-        "return_schema": {"kind": "dataframe", "index": ["date"], "columns": "order_book_id", "dtype": "bool"},
+        "return_schema": {
+            "kind": "dataframe",
+            "index": ["date"],
+            "columns": "order_book_id",
+            "dtype": "bool",
+        },
         "constraints": ["交易状态和停复牌日期仅是内部依赖；本函数不返回原始状态代码或事件日期。"],
         "planner": "status",
-        "examples": ["wind.is_suspended(order_book_ids=['600519.SH'], start_date='2026-07-01', end_date='2026-07-10', market='cn')"],
+        "examples": [
+            "wind.is_suspended(order_book_ids=['600519.SH'], "
+            "start_date='2026-07-01', end_date='2026-07-10', market='cn')"
+        ],
     },
     "get_price": {
         "kind": "data",
@@ -1338,45 +1564,196 @@ RQ_WIND_CAPABILITIES = {
         "asset_types": ["stock", "index"],
         "parameters": {
             "order_book_ids": {"required": True, "meaning": "股票或指数代码列表。"},
-            "start_date": {"required": False, "default": None, "meaning": "起始日期；为空时使用当天。"},
-            "end_date": {"required": False, "default": None, "meaning": "结束日期；为空时等于起始日期。"},
+            "start_date": {
+                "required": False,
+                "default": None,
+                "meaning": "起始日期；为空时使用当天。",
+            },
+            "end_date": {
+                "required": False,
+                "default": None,
+                "meaning": "结束日期；为空时等于起始日期。",
+            },
             "frequency": {"required": False, "default": "1d", "meaning": "当前只支持日频 1d。"},
             "fields": {"required": False, "default": None, "meaning": "行情输出字段列表。"},
-            "adjust_type": {"required": False, "default": "pre", "meaning": "none 原始、pre 前复权、post 后复权。"},
+            "adjust_type": {
+                "required": False,
+                "default": "pre",
+                "meaning": "none 原始、pre 前复权、post 后复权。",
+            },
             "skip_suspended": {"required": False, "default": False, "meaning": "是否删除停牌日。"},
-            "expect_df": {"required": False, "default": True, "meaning": "兼容参数，始终返回 DataFrame。"},
+            "expect_df": {
+                "required": False,
+                "default": True,
+                "meaning": "兼容参数，始终返回 DataFrame。",
+            },
             "time_slice": {"required": False, "default": None, "meaning": "当前不支持。"},
             "market": {"required": False, "default": "cn", "meaning": "交易市场。"},
         },
         "source_dependencies": [
-            {"table": "ashareeodprices", "fields": ["s_info_windcode", "trade_dt", "s_dq_tradestatuscode", "s_dq_open", "s_dq_high", "s_dq_low", "s_dq_close", "s_dq_preclose", "s_dq_volume", "s_dq_amount", "s_dq_limit", "s_dq_stopping", "s_dq_adjopen", "s_dq_adjhigh", "s_dq_adjlow", "s_dq_adjclose", "s_dq_adjpreclose"]},
-            {"table": "aindexeodprices", "fields": ["s_info_windcode", "trade_dt", "s_dq_open", "s_dq_high", "s_dq_low", "s_dq_close", "s_dq_preclose", "s_dq_volume", "s_dq_amount"]},
+            {
+                "table": "ashareeodprices",
+                "fields": [
+                    "s_info_windcode",
+                    "trade_dt",
+                    "s_dq_tradestatuscode",
+                    "s_dq_open",
+                    "s_dq_high",
+                    "s_dq_low",
+                    "s_dq_close",
+                    "s_dq_preclose",
+                    "s_dq_volume",
+                    "s_dq_amount",
+                    "s_dq_limit",
+                    "s_dq_stopping",
+                    "s_dq_adjopen",
+                    "s_dq_adjhigh",
+                    "s_dq_adjlow",
+                    "s_dq_adjclose",
+                    "s_dq_adjpreclose",
+                ],
+            },
+            {
+                "table": "aindexeodprices",
+                "fields": [
+                    "s_info_windcode",
+                    "trade_dt",
+                    "s_dq_open",
+                    "s_dq_high",
+                    "s_dq_low",
+                    "s_dq_close",
+                    "s_dq_preclose",
+                    "s_dq_volume",
+                    "s_dq_amount",
+                ],
+            },
         ],
         "exact_outputs": [
-            {"tables": ["ashareeodprices", "aindexeodprices"], "field": "s_dq_open", "argument": {"fields": ["open"], "adjust_type": "none"}, "output": "open", "coverage": "exact"},
-            {"tables": ["ashareeodprices", "aindexeodprices"], "field": "s_dq_high", "argument": {"fields": ["high"], "adjust_type": "none"}, "output": "high", "coverage": "exact"},
-            {"tables": ["ashareeodprices", "aindexeodprices"], "field": "s_dq_low", "argument": {"fields": ["low"], "adjust_type": "none"}, "output": "low", "coverage": "exact"},
-            {"tables": ["ashareeodprices", "aindexeodprices"], "field": "s_dq_close", "argument": {"fields": ["close"], "adjust_type": "none"}, "output": "close", "coverage": "exact"},
-            {"tables": ["ashareeodprices", "aindexeodprices"], "field": "s_dq_preclose", "argument": {"fields": ["prev_close"], "adjust_type": "none"}, "output": "prev_close", "coverage": "exact"},
-            {"tables": ["ashareeodprices", "aindexeodprices"], "field": "s_dq_volume", "argument": {"fields": ["volume"]}, "output": "volume", "coverage": "exact"},
-            {"tables": ["ashareeodprices", "aindexeodprices"], "field": "s_dq_amount", "argument": {"fields": ["total_turnover"]}, "output": "total_turnover", "coverage": "exact"},
-            {"table": "ashareeodprices", "field": "s_dq_limit", "argument": {"fields": ["limit_up"], "adjust_type": "none"}, "output": "limit_up", "coverage": "exact"},
-            {"table": "ashareeodprices", "field": "s_dq_stopping", "argument": {"fields": ["limit_down"], "adjust_type": "none"}, "output": "limit_down", "coverage": "exact"},
-            {"table": "ashareeodprices", "field": "s_dq_adjopen", "argument": {"fields": ["open"], "adjust_type": "post"}, "output": "open", "coverage": "exact"},
-            {"table": "ashareeodprices", "field": "s_dq_adjhigh", "argument": {"fields": ["high"], "adjust_type": "post"}, "output": "high", "coverage": "exact"},
-            {"table": "ashareeodprices", "field": "s_dq_adjlow", "argument": {"fields": ["low"], "adjust_type": "post"}, "output": "low", "coverage": "exact"},
-            {"table": "ashareeodprices", "field": "s_dq_adjclose", "argument": {"fields": ["close"], "adjust_type": "post"}, "output": "close", "coverage": "exact"},
-            {"table": "ashareeodprices", "field": "s_dq_adjpreclose", "argument": {"fields": ["prev_close"], "adjust_type": "post"}, "output": "prev_close", "coverage": "exact"},
+            {
+                "tables": ["ashareeodprices", "aindexeodprices"],
+                "field": "s_dq_open",
+                "argument": {"fields": ["open"], "adjust_type": "none"},
+                "output": "open",
+                "coverage": "exact",
+            },
+            {
+                "tables": ["ashareeodprices", "aindexeodprices"],
+                "field": "s_dq_high",
+                "argument": {"fields": ["high"], "adjust_type": "none"},
+                "output": "high",
+                "coverage": "exact",
+            },
+            {
+                "tables": ["ashareeodprices", "aindexeodprices"],
+                "field": "s_dq_low",
+                "argument": {"fields": ["low"], "adjust_type": "none"},
+                "output": "low",
+                "coverage": "exact",
+            },
+            {
+                "tables": ["ashareeodprices", "aindexeodprices"],
+                "field": "s_dq_close",
+                "argument": {"fields": ["close"], "adjust_type": "none"},
+                "output": "close",
+                "coverage": "exact",
+            },
+            {
+                "tables": ["ashareeodprices", "aindexeodprices"],
+                "field": "s_dq_preclose",
+                "argument": {"fields": ["prev_close"], "adjust_type": "none"},
+                "output": "prev_close",
+                "coverage": "exact",
+            },
+            {
+                "tables": ["ashareeodprices", "aindexeodprices"],
+                "field": "s_dq_volume",
+                "argument": {"fields": ["volume"]},
+                "output": "volume",
+                "coverage": "exact",
+            },
+            {
+                "tables": ["ashareeodprices", "aindexeodprices"],
+                "field": "s_dq_amount",
+                "argument": {"fields": ["total_turnover"]},
+                "output": "total_turnover",
+                "coverage": "exact",
+            },
+            {
+                "table": "ashareeodprices",
+                "field": "s_dq_limit",
+                "argument": {"fields": ["limit_up"], "adjust_type": "none"},
+                "output": "limit_up",
+                "coverage": "exact",
+            },
+            {
+                "table": "ashareeodprices",
+                "field": "s_dq_stopping",
+                "argument": {"fields": ["limit_down"], "adjust_type": "none"},
+                "output": "limit_down",
+                "coverage": "exact",
+            },
+            {
+                "table": "ashareeodprices",
+                "field": "s_dq_adjopen",
+                "argument": {"fields": ["open"], "adjust_type": "post"},
+                "output": "open",
+                "coverage": "exact",
+            },
+            {
+                "table": "ashareeodprices",
+                "field": "s_dq_adjhigh",
+                "argument": {"fields": ["high"], "adjust_type": "post"},
+                "output": "high",
+                "coverage": "exact",
+            },
+            {
+                "table": "ashareeodprices",
+                "field": "s_dq_adjlow",
+                "argument": {"fields": ["low"], "adjust_type": "post"},
+                "output": "low",
+                "coverage": "exact",
+            },
+            {
+                "table": "ashareeodprices",
+                "field": "s_dq_adjclose",
+                "argument": {"fields": ["close"], "adjust_type": "post"},
+                "output": "close",
+                "coverage": "exact",
+            },
+            {
+                "table": "ashareeodprices",
+                "field": "s_dq_adjpreclose",
+                "argument": {"fields": ["prev_close"], "adjust_type": "post"},
+                "output": "prev_close",
+                "coverage": "exact",
+            },
         ],
-        "semantic_outputs": [{"name": "daily_prices", "type": "DataFrame", "intents": ["行情", "价格", "收盘价", "成交量", "成交额"]}],
-        "return_schema": {"kind": "dataframe", "index": ["order_book_id", "date"], "columns": "requested fields", "dtype": "float"},
+        "semantic_outputs": [
+            {
+                "name": "daily_prices",
+                "type": "DataFrame",
+                "intents": ["行情", "价格", "收盘价", "成交量", "成交额"],
+            }
+        ],
+        "return_schema": {
+            "kind": "dataframe",
+            "index": ["order_book_id", "date"],
+            "columns": "requested fields",
+            "dtype": "float",
+        },
         "constraints": [
             "frequency 仅支持 1d。",
-            "股票复权只作用于 open/high/low/close/prev_close；volume 和 total_turnover 保持 Wind 原始字段。",
+            "股票复权只作用于 open/high/low/close/prev_close；"
+            "volume 和 total_turnover 保持 Wind 原始字段。",
             "指数行情来自 aindexeodprices，不区分复权价格。",
         ],
         "planner": "price",
-        "examples": ["wind.get_price(order_book_ids=['600519.SH'], start_date='2026-07-01', end_date='2026-07-10', fields=['close', 'volume'], adjust_type='none', skip_suspended=False, market='cn')"],
+        "examples": [
+            "wind.get_price(order_book_ids=['600519.SH'], "
+            "start_date='2026-07-01', end_date='2026-07-10', "
+            "fields=['close', 'volume'], adjust_type='none', "
+            "skip_suspended=False, market='cn')"
+        ],
     },
     "index_components": {
         "kind": "membership",
@@ -1387,45 +1764,97 @@ RQ_WIND_CAPABILITIES = {
             "date": {"required": False, "default": None, "meaning": "单日查询日期。"},
             "start_date": {"required": False, "default": None, "meaning": "区间起始日期。"},
             "end_date": {"required": False, "default": None, "meaning": "区间结束日期。"},
-            "return_create_tm": {"required": False, "default": False, "meaning": "是否同时返回创建时间。"},
+            "return_create_tm": {
+                "required": False,
+                "default": False,
+                "meaning": "是否同时返回创建时间。",
+            },
             "market": {"required": False, "default": "cn", "meaning": "区间展开使用的交易市场。"},
         },
         "source_dependencies": [
-            {"table": "aindexmembers", "fields": ["s_info_windcode", "s_con_windcode", "s_con_indate", "s_con_outdate", "opdate"]},
+            {
+                "table": "aindexmembers",
+                "fields": [
+                    "s_info_windcode",
+                    "s_con_windcode",
+                    "s_con_indate",
+                    "s_con_outdate",
+                    "opdate",
+                ],
+            },
             {"table": "asharecalendar", "fields": ["trade_days", "s_info_exchmarket"]},
         ],
         "exact_outputs": [],
         "semantic_outputs": [
-            {"name": "active_components", "type": "list_or_dict", "intents": ["指数成分", "成分股", "指数成员"]},
+            {
+                "name": "active_components",
+                "type": "list_or_dict",
+                "intents": ["指数成分", "成分股", "指数成员"],
+            },
         ],
-        "return_schema": {"kind": "list_or_mapping", "single": "list[order_book_id]", "range": "dict[datetime, list[order_book_id]]"},
-        "constraints": ["date 与 start_date/end_date 互斥；函数返回有效成分，不返回原始进出日期事件行。"],
+        "return_schema": {
+            "kind": "list_or_mapping",
+            "single": "list[order_book_id]",
+            "range": "dict[datetime, list[order_book_id]]",
+        },
+        "constraints": [
+            "date 与 start_date/end_date 互斥；函数返回有效成分，不返回原始进出日期事件行。"
+        ],
         "planner": "index_components",
-        "examples": ["wind.index_components(order_book_id='000300.SH', start_date='2026-07-01', end_date='2026-07-10', return_create_tm=False, market='cn')"],
+        "examples": [
+            "wind.index_components(order_book_id='000300.SH', "
+            "start_date='2026-07-01', end_date='2026-07-10', "
+            "return_create_tm=False, market='cn')"
+        ],
     },
     "execute_factor": {
         "kind": "factor",
         "purpose": "执行 rq_wind_replica 已实现的内置因子表达式。",
         "asset_types": ["stock"],
         "parameters": {
-            "factor": {"required": True, "meaning": "当前仅支持 Factor('market_cap_3')，可应用 LOG。"},
+            "factor": {
+                "required": True,
+                "meaning": "当前仅支持 Factor('market_cap_3')，可应用 LOG。",
+            },
             "order_book_ids": {"required": True, "meaning": "股票代码列表。"},
             "start_date": {"required": True, "meaning": "起始日期。"},
             "end_date": {"required": True, "meaning": "结束日期。"},
         },
         "source_dependencies": [
-            {"table": "ashareeodderivativeindicator", "fields": ["s_info_windcode", "trade_dt", "s_val_mv"]},
+            {
+                "table": "ashareeodderivativeindicator",
+                "fields": ["s_info_windcode", "trade_dt", "s_val_mv"],
+            },
             {"table": "asharecalendar", "fields": ["trade_days", "s_info_exchmarket"]},
         ],
         "exact_outputs": [],
         "semantic_outputs": [
-            {"name": "market_cap_3", "type": "DataFrame[float]", "intents": ["market_cap_3", "总市值因子", "市值暴露"], "source_formula": "s_val_mv * 10000"},
-            {"name": "log_market_cap_3", "type": "DataFrame[float]", "intents": ["对数市值", "市值取对数"], "source_formula": "log(s_val_mv * 10000)"},
+            {
+                "name": "market_cap_3",
+                "type": "DataFrame[float]",
+                "intents": ["market_cap_3", "总市值因子", "市值暴露"],
+                "source_formula": "s_val_mv * 10000",
+            },
+            {
+                "name": "log_market_cap_3",
+                "type": "DataFrame[float]",
+                "intents": ["对数市值", "市值取对数"],
+                "source_formula": "log(s_val_mv * 10000)",
+            },
         ],
-        "return_schema": {"kind": "dataframe", "index": ["date"], "columns": "order_book_id", "dtype": "float"},
+        "return_schema": {
+            "kind": "dataframe",
+            "index": ["date"],
+            "columns": "order_book_id",
+            "dtype": "float",
+        },
         "constraints": ["当前仅支持 market_cap_3；LOG 是唯一登记的变换。"],
         "planner": "factor",
-        "examples": ["wind.execute_factor(wind.LOG(wind.Factor('market_cap_3')), order_book_ids=['600519.SH'], start_date='2026-07-01', end_date='2026-07-10')"],
+        "examples": [
+            "wind.execute_factor(wind.LOG(wind.Factor('market_cap_3')), "
+            "order_book_ids=['600519.SH'], start_date='2026-07-01', "
+            "end_date='2026-07-10')"
+        ],
         "factor_expressions": {
             "market_cap_3": {"constructor": "wind.Factor('market_cap_3')", "transforms": ["log"]},
         },
@@ -1437,7 +1866,10 @@ RQ_WIND_CAPABILITIES = {
         "parameters": {
             "plan": {
                 "required": True,
-                "meaning": "后端生成的结构化查询计划；运行时会重新校验表名、字段名、查询形状和实际 Schema。",
+                "meaning": (
+                    "后端生成的结构化查询计划；运行时会重新校验表名、字段名、"
+                    "查询形状和实际 Schema。"
+                ),
             },
         },
         "source_dependencies": [],
@@ -1461,17 +1893,29 @@ RQ_WIND_CAPABILITIES = {
         ],
         "planner": "generic_table",
         "examples": [
-            "wind.execute_generic_query_plan(plan={'table_name': 'ashareeodderivativeindicator', 'selected_fields': ['s_val_pb_new'], 'query_shape': 'point_range', 'code_field': 's_info_windcode', 'observation_date': 'trade_dt', 'order_book_ids': ['000001.SZ'], 'start_date': '2026-07-01', 'end_date': '2026-07-10'})",
+            "wind.execute_generic_query_plan(plan={"
+            "'table_name': 'ashareeodderivativeindicator', "
+            "'selected_fields': ['s_val_pb_new'], "
+            "'query_shape': 'point_range', "
+            "'code_field': 's_info_windcode', "
+            "'observation_date': 'trade_dt', "
+            "'order_book_ids': ['000001.SZ'], "
+            "'start_date': '2026-07-01', 'end_date': '2026-07-10'})",
         ],
     },
     "Factor": {
         "kind": "expression",
         "purpose": "构造 execute_factor 使用的已登记因子表达式。",
         "asset_types": ["stock"],
-        "parameters": {"name": {"required": True, "meaning": "当前仅支持 market_cap_3。"}, "transforms": {"required": False, "default": None, "meaning": "内部变换列表。"}},
+        "parameters": {
+            "name": {"required": True, "meaning": "当前仅支持 market_cap_3。"},
+            "transforms": {"required": False, "default": None, "meaning": "内部变换列表。"},
+        },
         "source_dependencies": [],
         "exact_outputs": [],
-        "semantic_outputs": [{"name": "factor_expression", "type": "Factor", "intents": ["因子表达式"]}],
+        "semantic_outputs": [
+            {"name": "factor_expression", "type": "Factor", "intents": ["因子表达式"]}
+        ],
         "return_schema": {"kind": "expression", "type": "Factor"},
         "constraints": ["不是独立取数工具，只能作为 execute_factor 的参数。"],
         "planner": "expression",
@@ -1484,7 +1928,9 @@ RQ_WIND_CAPABILITIES = {
         "parameters": {"factor": {"required": True, "meaning": "Factor 表达式。"}},
         "source_dependencies": [],
         "exact_outputs": [],
-        "semantic_outputs": [{"name": "log_factor_expression", "type": "Factor", "intents": ["对数变换", "LOG"]}],
+        "semantic_outputs": [
+            {"name": "log_factor_expression", "type": "Factor", "intents": ["对数变换", "LOG"]}
+        ],
         "return_schema": {"kind": "expression", "type": "Factor"},
         "constraints": ["不是独立取数工具，只能嵌入 execute_factor。"],
         "planner": "expression",
