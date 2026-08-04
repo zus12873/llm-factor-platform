@@ -190,6 +190,7 @@ class ResearchRequest(BaseModel):
     end_date: str
     research_idea: str
     language: str = "zh"
+    frequency: Frequency = Frequency.DAILY
     direction: FactorDirection | None = None
     report_artifact_id: str | None = None
     preprocessing: PreprocessingRules = Field(default_factory=PreprocessingRules)
