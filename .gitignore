@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+.vite/
+coverage/
+
+# Secrets
+.env
+.env.*
+!.env.example
+credentials.json
+*.pem
+*.key
+
+# Runtime data and logs
+*.log
+*.db
+*.sqlite
+*.sqlite3
+data/artifacts/
+data/runtime/
+logs/
+
+# Archives
+*.rar
+*.zip
+*.tar
+*.tar.gz
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Legacy files containing plaintext credentials.
+# Remove each entry only after rotating credentials and sanitizing the file.
+/rq_wind_replica.py
+/Wind取数尝试.ipynb
+/windquery/windquery/SKILL.md
+/windquery/windquery/agents/researcher.md
