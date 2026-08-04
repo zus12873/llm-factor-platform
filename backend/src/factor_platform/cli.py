@@ -4,12 +4,17 @@
 the clarification engine audits the result, and the command exits non-zero if the
 actual blocking questions diverge from the fixture. This is the Week-1 acceptance
 gate ("CLI parses ten cases and blocks ambiguous inputs").
+
+``build-wind-catalog`` parses the committed Wind Markdown field index into a
+JSONL catalog consumed by the field search layer. Fully offline.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
+from typing import Annotated
 
 import typer
 
@@ -17,6 +22,7 @@ from factor_platform.factor.clarification import ClarificationEngine
 from factor_platform.factor.golden import get_golden_case, load_golden_cases
 from factor_platform.factor.parser import FactorParser
 from factor_platform.llm.base import FakeLLMProvider
+from factor_platform.wind.catalog import CatalogBuilder, FieldCatalog
 
 app = typer.Typer(add_completion=False, help="Factor platform command line interface.")
 
@@ -50,6 +56,33 @@ def list_cases() -> None:
     """List available golden cases."""
     for case in load_golden_cases():
         typer.echo(f"{case.case_id}\t{case.description}")
+
+
+@app.command("build-wind-catalog")
+def build_wind_catalog(
+    source: Annotated[
+        Path,
+        typer.Option(
+            help="Path to windquery/references/wind_field_index.md",
+        ),
+    ],
+    output: Annotated[
+        Path,
+        typer.Option(
+            help="Where to write the generated JSONL catalog",
+        ),
+    ],
+) -> None:
+    """Parse the Wind field index Markdown into a normalized JSONL catalog."""
+    records = CatalogBuilder(source).build()
+    if not records:
+        typer.echo(f"error: no records parsed from {source}", err=True)
+        raise typer.Exit(code=1)
+    FieldCatalog(records).save(output)
+    typer.echo(
+        f"wrote {len(records)} records from {len({r.table for r in records})} "
+        f"tables to {output}"
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover

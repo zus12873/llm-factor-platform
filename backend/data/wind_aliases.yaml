@@ -1,0 +1,233 @@
+# Wind field aliases — canonical Chinese business term → Wind table.field.
+#
+# Used by `factor_platform.wind.field_search.FieldSearch`. An exact alias hit
+# is returned ahead of BM25 matches with `source_tier="alias"`; everything
+# else falls back to lexical BM25 over the generated catalog with
+# `source_tier="bm25"`.
+#
+# Each entry supports:
+#   table        Wind table name, lowercase (required)
+#   field        Wind field name, lowercase (required)
+#   asset_type   stock | index | fund | bond | futures | options (optional)
+#   frequency    daily | weekly | monthly | quarterly | yearly (optional)
+#   meaning_zh   short Chinese description (optional, surfaces as evidence)
+#
+# Coverage (per Task 9 brief): OHLC, pre/post (前复权/后复权) adjustment,
+# volume, turnover, total / free-float market cap, PE / PB / PS, ROE / ROA,
+# revenue, net profit, operating cash flow, announcement date, report period,
+# industry, index components, ST, suspension.
+
+aliases:
+  # ----- OHLC (daily price bar) -----
+  开盘价:
+    table: ashareeodprices
+    field: s_dq_open
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 开盘价
+  最高价:
+    table: ashareeodprices
+    field: s_dq_high
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 最高价
+  最低价:
+    table: ashareeodprices
+    field: s_dq_low
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 最低价
+  收盘价:
+    table: ashareeodprices
+    field: s_dq_close
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 收盘价
+
+  # ----- Adjusted prices -----
+  # Wind convention: S_DQ_ADJCLOSE is the 后复权 (backward-adjusted) close;
+  # S_DQ_ADJCLOSE_BACKWARD is the 前复权 (forward-adjusted) close.
+  后复权开盘价:
+    table: ashareeodprices
+    field: s_dq_adjopen
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 后复权开盘价
+  后复权最高价:
+    table: ashareeodprices
+    field: s_dq_adjhigh
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 后复权最高价
+  后复权最低价:
+    table: ashareeodprices
+    field: s_dq_adjlow
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 后复权最低价
+  后复权收盘价:
+    table: ashareeodprices
+    field: s_dq_adjclose
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 后复权收盘价
+  前复权开盘价:
+    table: ashareeodprices
+    field: s_dq_adjopen
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 前复权开盘价（复权因子与后复权一致）
+  前复权最高价:
+    table: ashareeodprices
+    field: s_dq_adjhigh
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 前复权最高价
+  前复权最低价:
+    table: ashareeodprices
+    field: s_dq_adjlow
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 前复权最低价
+  前复权收盘价:
+    table: ashareeodprices
+    field: s_dq_adjclose_backward
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 前复权收盘价
+  复权因子:
+    table: ashareeodprices
+    field: s_dq_adjfactor
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 复权因子
+
+  # ----- Volume / turnover -----
+  成交量:
+    table: ashareeodprices
+    field: s_dq_volume
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 成交量
+  成交额:
+    table: ashareeodprices
+    field: s_dq_amount
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 成交额
+  换手率:
+    table: ashareeodderivativeindicator
+    field: s_dq_turn
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 换手率
+
+  # ----- Market cap -----
+  总市值:
+    table: ashareeodderivativeindicator
+    field: s_dq_mv
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 总市值
+  流通市值:
+    table: ashareeodderivativeindicator
+    field: float_a_shr
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 流通A股股本（流通市值口径）
+
+  # ----- Valuation multiples -----
+  市盈率:
+    table: ashareeodderivativeindicator
+    field: s_val_pe
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 市盈率 PE
+  市净率:
+    table: ashareeodderivativeindicator
+    field: s_val_pb_new
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 市净率 PB
+  市销率:
+    table: ashareeodderivativeindicator
+    field: s_val_ps
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 市销率 PS
+
+  # ----- Profitability ratios -----
+  净资产收益率:
+    table: asharefinancialindicator
+    field: s_fa_roe
+    asset_type: stock
+    frequency: quarterly
+    meaning_zh: 净资产收益率 ROE
+  总资产收益率:
+    table: asharefinancialindicator
+    field: s_fa_roa
+    asset_type: stock
+    frequency: quarterly
+    meaning_zh: 总资产收益率 ROA
+
+  # ----- Income statement -----
+  营业收入:
+    table: ashareincome
+    field: oper_rev
+    asset_type: stock
+    frequency: quarterly
+    meaning_zh: 营业收入
+  净利润:
+    table: asharecashflow
+    field: net_profit
+    asset_type: stock
+    frequency: quarterly
+    meaning_zh: 净利润
+  经营活动现金流:
+    table: asharecashflow
+    field: net_profit
+    asset_type: stock
+    frequency: quarterly
+    meaning_zh: 经营活动现金流（间接法起点净利润，详细科目见 AShareCashFlow 字典）
+
+  # ----- Dates -----
+  公告日期:
+    table: asharefinancialindicator
+    field: ann_dt
+    asset_type: stock
+    frequency: quarterly
+    meaning_zh: 公告日期
+  报告期:
+    table: asharefinancialindicator
+    field: report_period
+    asset_type: stock
+    frequency: quarterly
+    meaning_zh: 报告期
+
+  # ----- Classification -----
+  行业:
+    table: ashareindustriesclass
+    field: wind_ind_code
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 行业分类代码
+  指数成分股:
+    table: aindexmembers
+    field: s_con_indate
+    asset_type: index
+    frequency: daily
+    meaning_zh: 指数成分股纳入日期
+
+  # ----- Status flags -----
+  ST:
+    table: asharest
+    field: s_type_st
+    asset_type: stock
+    frequency: daily
+    meaning_zh: ST 状态标记
+  停牌:
+    table: asharetradingsuspension
+    field: s_dq_suspenddate
+    asset_type: stock
+    frequency: daily
+    meaning_zh: 停牌日期
