@@ -1,0 +1,140 @@
+{
+  "description": "成长减风险复合（多重歧义）",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "构建成长减风险的复合因子"
+  },
+  "provider_draft": {
+    "factor_name": "growth_minus_risk",
+    "hypothesis": "",
+    "direction": null,
+    "rebalance_frequency": null,
+    "formula_text": "rank(rolling_return(close,?)) + negative(rank(rolling_std(close,?)))",
+    "formula_ast": {
+      "type": "call",
+      "op": "add",
+      "args": [
+        {
+          "type": "call",
+          "op": "rank",
+          "args": [
+            {
+              "type": "call",
+              "op": "rolling_return",
+              "args": [
+                {
+                  "type": "variable",
+                  "name": "close"
+                }
+              ],
+              "params": {
+                "window": 20
+              }
+            }
+          ]
+        },
+        {
+          "type": "call",
+          "op": "negative",
+          "args": [
+            {
+              "type": "call",
+              "op": "rank",
+              "args": [
+                {
+                  "type": "call",
+                  "op": "rolling_std",
+                  "args": [
+                    {
+                      "type": "variable",
+                      "name": "close"
+                    }
+                  ],
+                  "params": {
+                    "window": 20
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "close",
+        "meaning": "后复权收盘价"
+      }
+    ]
+  },
+  "expected_blocking_question_ids": [
+    "direction"
+  ],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "add",
+    "args": [
+      {
+        "type": "call",
+        "op": "rank",
+        "args": [
+          {
+            "type": "call",
+            "op": "rolling_return",
+            "args": [
+              {
+                "type": "variable",
+                "name": "close"
+              }
+            ],
+            "params": {
+              "window": 20
+            }
+          }
+        ]
+      },
+      {
+        "type": "call",
+        "op": "negative",
+        "args": [
+          {
+            "type": "call",
+            "op": "rank",
+            "args": [
+              {
+                "type": "call",
+                "op": "rolling_std",
+                "args": [
+                  {
+                    "type": "variable",
+                    "name": "close"
+                  }
+                ],
+                "params": {
+                  "window": 20
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.get_price"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "close",
+      "table": "ashareeodprices",
+      "field": "s_dq_adjclose"
+    }
+  ],
+  "acceptance": [
+    "asks direction, window, weights and rebalance before confirmation"
+  ],
+  "case_id": "complex_vague"
+}

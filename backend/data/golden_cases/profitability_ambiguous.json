@@ -1,0 +1,57 @@
+{
+  "description": "盈利质量歧义",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "构建盈利质量因子"
+  },
+  "provider_draft": {
+    "factor_name": "profitability",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_text": "rank(profitability)",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "variable",
+          "name": "profitability"
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "profitability",
+        "meaning": "盈利质量"
+      }
+    ]
+  },
+  "expected_blocking_question_ids": [
+    "profitability_definition"
+  ],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "variable",
+        "name": "roe_ttm"
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "roe_ttm",
+      "table": "asharefinancialindicator",
+      "field": "roe_ttm"
+    }
+  ],
+  "case_id": "profitability_ambiguous"
+}

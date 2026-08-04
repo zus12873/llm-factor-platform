@@ -33,7 +33,7 @@ dependencies = [
 ]
 
 [project.scripts]
-factor-platform = "factor_platform:main"
+factor-platform = "factor_platform.cli:app"
 
 [build-system]
 requires = ["uv_build>=0.11.7,<0.12.0"]

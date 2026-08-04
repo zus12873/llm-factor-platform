@@ -1,0 +1,172 @@
+{
+  "description": "价量等权复合",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "用收益和换手率等权构建价量因子"
+  },
+  "provider_draft": {
+    "factor_name": "price_volume",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_text": "0.5*rank(rolling_return(close,20)) + 0.5*rank(rolling_std(total_turnover,20))",
+    "formula_ast": {
+      "type": "call",
+      "op": "add",
+      "args": [
+        {
+          "type": "call",
+          "op": "multiply",
+          "args": [
+            {
+              "type": "literal",
+              "value": 0.5
+            },
+            {
+              "type": "call",
+              "op": "rank",
+              "args": [
+                {
+                  "type": "call",
+                  "op": "rolling_return",
+                  "args": [
+                    {
+                      "type": "variable",
+                      "name": "close"
+                    }
+                  ],
+                  "params": {
+                    "window": 20
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "call",
+          "op": "multiply",
+          "args": [
+            {
+              "type": "literal",
+              "value": 0.5
+            },
+            {
+              "type": "call",
+              "op": "rank",
+              "args": [
+                {
+                  "type": "call",
+                  "op": "rolling_std",
+                  "args": [
+                    {
+                      "type": "variable",
+                      "name": "total_turnover"
+                    }
+                  ],
+                  "params": {
+                    "window": 20
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "close",
+        "meaning": "后复权收盘价"
+      },
+      {
+        "logical_name": "total_turnover",
+        "meaning": "成交额"
+      }
+    ]
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "add",
+    "args": [
+      {
+        "type": "call",
+        "op": "multiply",
+        "args": [
+          {
+            "type": "literal",
+            "value": 0.5
+          },
+          {
+            "type": "call",
+            "op": "rank",
+            "args": [
+              {
+                "type": "call",
+                "op": "rolling_return",
+                "args": [
+                  {
+                    "type": "variable",
+                    "name": "close"
+                  }
+                ],
+                "params": {
+                  "window": 20
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "call",
+        "op": "multiply",
+        "args": [
+          {
+            "type": "literal",
+            "value": 0.5
+          },
+          {
+            "type": "call",
+            "op": "rank",
+            "args": [
+              {
+                "type": "call",
+                "op": "rolling_std",
+                "args": [
+                  {
+                    "type": "variable",
+                    "name": "total_turnover"
+                  }
+                ],
+                "params": {
+                  "window": 20
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.get_price"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "close",
+      "table": "ashareeodprices",
+      "field": "s_dq_adjclose"
+    },
+    {
+      "logical_name": "total_turnover",
+      "table": "ashareeodprices",
+      "field": "s_dq_amount"
+    }
+  ],
+  "case_id": "price_volume"
+}

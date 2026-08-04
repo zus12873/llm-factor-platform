@@ -1,0 +1,55 @@
+{
+  "description": "增长歧义",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "构建营收增长因子"
+  },
+  "provider_draft": {
+    "factor_name": "growth",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_text": "rank(growth)",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "variable",
+          "name": "growth"
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "growth",
+        "meaning": "营收增长"
+      }
+    ]
+  },
+  "expected_blocking_question_ids": [
+    "growth_definition"
+  ],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "variable",
+        "name": "revenue_yoy"
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "revenue_yoy"
+    }
+  ],
+  "case_id": "growth_ambiguous"
+}

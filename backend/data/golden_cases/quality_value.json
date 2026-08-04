@@ -1,0 +1,106 @@
+{
+  "description": "质量-价值等权",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "用ROE和估值构建质量价值复合因子"
+  },
+  "provider_draft": {
+    "factor_name": "quality_value",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_text": "rank(roe_ttm) + negative(rank(pe_ttm))",
+    "formula_ast": {
+      "type": "call",
+      "op": "add",
+      "args": [
+        {
+          "type": "call",
+          "op": "rank",
+          "args": [
+            {
+              "type": "variable",
+              "name": "roe_ttm"
+            }
+          ]
+        },
+        {
+          "type": "call",
+          "op": "negative",
+          "args": [
+            {
+              "type": "call",
+              "op": "rank",
+              "args": [
+                {
+                  "type": "variable",
+                  "name": "pe_ttm"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "roe_ttm",
+        "meaning": "净资产收益率TTM",
+        "point_in_time_required": true
+      },
+      {
+        "logical_name": "pe_ttm",
+        "meaning": "市盈率TTM"
+      }
+    ]
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "add",
+    "args": [
+      {
+        "type": "call",
+        "op": "rank",
+        "args": [
+          {
+            "type": "variable",
+            "name": "roe_ttm"
+          }
+        ]
+      },
+      {
+        "type": "call",
+        "op": "negative",
+        "args": [
+          {
+            "type": "call",
+            "op": "rank",
+            "args": [
+              {
+                "type": "variable",
+                "name": "pe_ttm"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "roe_ttm",
+      "point_in_time": true
+    },
+    {
+      "logical_name": "pe_ttm"
+    }
+  ],
+  "case_id": "quality_value"
+}

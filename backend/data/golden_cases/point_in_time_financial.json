@@ -1,0 +1,61 @@
+{
+  "description": "点时财务因子",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "构建净利润同比增长因子，必须使用点时数据"
+  },
+  "provider_draft": {
+    "factor_name": "net_profit_growth",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_text": "rank(net_profit_yoy)",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "variable",
+          "name": "net_profit_yoy"
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "net_profit_yoy",
+        "meaning": "净利润同比",
+        "point_in_time_required": true,
+        "announcement_date_required": true
+      }
+    ]
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "variable",
+        "name": "net_profit_yoy"
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "net_profit_yoy",
+      "point_in_time": true,
+      "announcement_date_field": "ann_dt"
+    }
+  ],
+  "acceptance": [
+    "requires report period and announcement date",
+    "no look-ahead"
+  ],
+  "case_id": "point_in_time_financial"
+}

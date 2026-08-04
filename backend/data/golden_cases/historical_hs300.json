@@ -1,0 +1,78 @@
+{
+  "description": "历史沪深300成分动量",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "在历史沪深300成分股上构建20日动量因子"
+  },
+  "provider_draft": {
+    "factor_name": "historical_hs300_momentum",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_text": "rank(rolling_return(close,20))",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "call",
+          "op": "rolling_return",
+          "args": [
+            {
+              "type": "variable",
+              "name": "close"
+            }
+          ],
+          "params": {
+            "window": 20
+          }
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "close",
+        "meaning": "后复权收盘价"
+      }
+    ]
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "call",
+        "op": "rolling_return",
+        "args": [
+          {
+            "type": "variable",
+            "name": "close"
+          }
+        ],
+        "params": {
+          "window": 20
+        }
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.index_components",
+    "wind.get_price"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "close",
+      "table": "ashareeodprices",
+      "field": "s_dq_adjclose"
+    }
+  ],
+  "acceptance": [
+    "index_components called before get_price",
+    "historical members at each rebalance"
+  ],
+  "case_id": "historical_hs300"
+}

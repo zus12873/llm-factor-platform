@@ -82,7 +82,7 @@ class OpenAICompatibleProvider:
         self._record(request_id, True, usage, start)
         return result
 
-    async def stream_chat(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
+    def stream_chat(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
         raise NotImplementedError("streaming is wired up in the API layer (Task 17)")
 
     async def health_check(self) -> ProviderHealth:

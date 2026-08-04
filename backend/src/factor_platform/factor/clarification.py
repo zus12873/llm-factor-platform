@@ -20,6 +20,18 @@ _VALUATION_HINTS = ("估值", "估值因子", "valuation", "价值因子", "valu
 _VALUATION_CONCRETE = ("pe_ttm", "pb", "ps_ttm", "市盈率", "市净率")
 _VALUATION_OPTIONS = ["PE_TTM", "PB", "PS_TTM"]
 
+_GROWTH_HINTS = (
+    "营收增长", "收入增长", "利润增长", "成长性", "growth factor", "增长因子",
+)
+_GROWTH_CONCRETE = (
+    "revenue_yoy", "net_profit_yoy", "operating_profit_yoy", "营收同比", "净利润同比",
+)
+_GROWTH_OPTIONS = [
+    "REVENUE_YOY",
+    "NET_PROFIT_YOY",
+    "OPERATING_PROFIT_YOY",
+]
+
 
 class ClarificationEngine:
     """Audits a FactorSpec and returns the questions a user must resolve."""
@@ -28,6 +40,7 @@ class ClarificationEngine:
         return [
             *self._profitability(spec),
             *self._valuation(spec),
+            *self._growth(spec),
             *self._direction(spec),
             *self._rebalance(spec),
         ]
@@ -55,6 +68,19 @@ class ClarificationEngine:
                     "valuation_definition",
                     "请明确「估值」的具体指标。",
                     _VALUATION_OPTIONS,
+                    field="variables",
+                )
+            ]
+        return []
+
+    def _growth(self, spec: FactorSpec) -> list[ClarificationQuestion]:
+        blob = self._blob(spec)
+        if _hits(blob, _GROWTH_HINTS) and not _hits(blob, _GROWTH_CONCRETE):
+            return [
+                self._blocking(
+                    "growth_definition",
+                    "请明确「增长」的具体口径。",
+                    _GROWTH_OPTIONS,
                     field="variables",
                 )
             ]
