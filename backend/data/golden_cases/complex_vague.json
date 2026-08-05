@@ -12,7 +12,6 @@
     "hypothesis": "",
     "direction": null,
     "rebalance_frequency": null,
-    "formula_text": "rank(rolling_return(close,?)) + negative(rank(rolling_std(close,?)))",
     "formula_ast": {
       "type": "call",
       "op": "add",
@@ -68,7 +67,8 @@
         "logical_name": "close",
         "meaning": "后复权收盘价"
       }
-    ]
+    ],
+    "formula_explanation": "rank(rolling_return(close,?)) + negative(rank(rolling_std(close,?)))"
   },
   "expected_blocking_question_ids": [
     "direction"

@@ -12,7 +12,6 @@
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
-    "formula_text": "rank(rolling_return(close,20))",
     "formula_ast": {
       "type": "call",
       "op": "rank",
@@ -37,7 +36,8 @@
         "logical_name": "close",
         "meaning": "后复权收盘价"
       }
-    ]
+    ],
+    "formula_explanation": "rank(rolling_return(close,20))"
   },
   "expected_blocking_question_ids": [],
   "expected_formula_ast": {

@@ -25,7 +25,7 @@ def _valid_draft() -> dict:
         "factor_name": "quality",
         "hypothesis": "ROE predicts returns",
         "direction": "higher_is_better",
-        "formula_text": "rank(roe_ttm)",
+        "formula_explanation": "对 ROE_TTM 做横截面排名",
         "formula_ast": {
             "type": "call",
             "op": "rank",

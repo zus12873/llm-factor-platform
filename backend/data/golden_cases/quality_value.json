@@ -12,7 +12,6 @@
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
-    "formula_text": "rank(roe_ttm) + negative(rank(pe_ttm))",
     "formula_ast": {
       "type": "call",
       "op": "add",
@@ -55,7 +54,8 @@
         "logical_name": "pe_ttm",
         "meaning": "市盈率TTM"
       }
-    ]
+    ],
+    "formula_explanation": "rank(roe_ttm) + negative(rank(pe_ttm))"
   },
   "expected_blocking_question_ids": [],
   "expected_formula_ast": {

@@ -22,7 +22,7 @@ def test_call_rejects_unregistered_operator() -> None:
         FormulaNode(type="call", op="execute_sql", args=[])
 
 
-def test_factor_spec_keeps_display_and_machine_formula() -> None:
+def test_factor_spec_has_one_executable_formula_and_no_rival_display_formula() -> None:
     spec = FactorSpec.model_validate(
         {
             "factor_name": "quality",
@@ -32,19 +32,39 @@ def test_factor_spec_keeps_display_and_machine_formula() -> None:
             "frequency": "daily",
             "rebalance_frequency": "monthly",
             "direction": "higher_is_better",
-            "formula_text": "rank(ROE_TTM)",
             "formula_ast": {
                 "type": "call",
                 "op": "rank",
                 "args": [{"type": "variable", "name": "roe_ttm"}],
             },
+            "canonical_formula": "rank(roe_ttm)",
+            "formula_explanation": "对 ROE_TTM 做横截面排名",
             "variables": [
                 {"logical_name": "roe_ttm", "meaning": "ROE TTM", "point_in_time_required": True}
             ],
         }
     )
     assert spec.formula_ast.op == "rank"
-    assert spec.formula_text == "rank(ROE_TTM)"
+    assert spec.canonical_formula == "rank(roe_ttm)"
+    # The model's prose is display-only and must not masquerade as a second
+    # authoritative formula.
+    assert not hasattr(spec, "formula_text")
+
+
+def test_factor_spec_carries_a_default_time_convention() -> None:
+    spec = FactorSpec.model_validate(
+        {
+            "factor_name": "momentum",
+            "asset_type": "stock",
+            "universe": "000300.SH",
+            "frequency": "daily",
+            "formula_ast": {"type": "variable", "name": "close"},
+            "variables": [{"logical_name": "close", "meaning": "close"}],
+        }
+    )
+    assert spec.time_convention.signal_date == "T"
+    assert spec.time_convention.trade_date == "T+1"
+    assert spec.preprocessing.ordered_steps() == []
 
 
 def test_factor_spec_defaults_version_and_evidence() -> None:
@@ -55,7 +75,7 @@ def test_factor_spec_defaults_version_and_evidence() -> None:
             "universe": "000300.SH",
             "frequency": "daily",
             "direction": "higher_is_better",
-            "formula_text": "rank(close)",
+            "canonical_formula": "rank(close)",
             "formula_ast": {
                 "type": "call",
                 "op": "rank",

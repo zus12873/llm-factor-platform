@@ -128,7 +128,12 @@ class ClarificationEngine:
 
     @staticmethod
     def _blob(spec: FactorSpec) -> str:
-        parts = [spec.factor_name, spec.hypothesis, spec.formula_text]
+        parts = [
+            spec.factor_name,
+            spec.hypothesis,
+            spec.canonical_formula,
+            spec.formula_explanation,
+        ]
         for variable in spec.variables:
             parts.append(variable.logical_name)
             parts.append(variable.meaning or "")

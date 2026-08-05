@@ -12,7 +12,6 @@
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
-    "formula_text": "0.5*rank(rolling_return(close,20)) + 0.5*rank(rolling_std(total_turnover,20))",
     "formula_ast": {
       "type": "call",
       "op": "add",
@@ -86,7 +85,8 @@
         "logical_name": "total_turnover",
         "meaning": "成交额"
       }
-    ]
+    ],
+    "formula_explanation": "0.5*rank(rolling_return(close,20)) + 0.5*rank(rolling_std(total_turnover,20))"
   },
   "expected_blocking_question_ids": [],
   "expected_formula_ast": {

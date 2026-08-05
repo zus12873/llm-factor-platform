@@ -12,7 +12,6 @@
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
-    "formula_text": "rank(profitability)",
     "formula_ast": {
       "type": "call",
       "op": "rank",
@@ -28,7 +27,8 @@
         "logical_name": "profitability",
         "meaning": "盈利质量"
       }
-    ]
+    ],
+    "formula_explanation": "rank(profitability)"
   },
   "expected_blocking_question_ids": [
     "profitability_definition"

@@ -15,6 +15,8 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from factor_platform.domain.formula import FormulaNode
+from factor_platform.domain.preprocessing import DataRules, PreprocessingPipeline
+from factor_platform.domain.time_convention import TimeConvention
 
 # --------------------------------------------------------------------------- enums
 
@@ -140,27 +142,17 @@ class ClarificationQuestion(BaseModel):
     target_version: int = 1
 
 
-class PreprocessingRules(BaseModel):
-    """Non-blocking defaults made explicit for traceability (design §5.2)."""
-
-    schema_version: int = 1
-    use_adjusted_price: bool = True
-    exclude_st: bool = True
-    exclude_suspended: bool = True
-    winsorize: bool = False
-    winsorize_quantile: float = 0.01
-    standardize: bool = False
-    neutralize_industry: bool = False
-    fillna_method: str | None = None
-
-
 # --------------------------------------------------------------------------- spec & request
 
 
 class FactorSpec(BaseModel):
     """The confirmed, machine-checkable description of one factor.
 
-    ``formula_text`` is display-only; ``formula_ast`` is the executable contract.
+    ``formula_ast`` is the single source of truth. ``canonical_formula`` is
+    rendered from it by the backend and is what the user actually confirms;
+    ``formula_explanation`` is the model's prose and is display-only. The model
+    never authors the confirmed formula, so what is signed off and what is
+    executed cannot diverge.
     """
 
     schema_version: int = 1
@@ -172,10 +164,13 @@ class FactorSpec(BaseModel):
     frequency: Frequency
     rebalance_frequency: Frequency | None = None
     direction: FactorDirection | None = None
-    formula_text: str
     formula_ast: FormulaNode
+    canonical_formula: str = ""
+    formula_explanation: str = ""
     variables: list[DataRequirement] = Field(default_factory=list)
-    preprocessing: PreprocessingRules = Field(default_factory=PreprocessingRules)
+    data_rules: DataRules = Field(default_factory=DataRules)
+    preprocessing: PreprocessingPipeline = Field(default_factory=PreprocessingPipeline)
+    time_convention: TimeConvention = Field(default_factory=TimeConvention)
     ambiguities: list[Ambiguity] = Field(default_factory=list)
     source_evidence: list[ReportEvidence] = Field(default_factory=list)
 
@@ -193,7 +188,9 @@ class ResearchRequest(BaseModel):
     frequency: Frequency = Frequency.DAILY
     direction: FactorDirection | None = None
     report_artifact_id: str | None = None
-    preprocessing: PreprocessingRules = Field(default_factory=PreprocessingRules)
+    data_rules: DataRules = Field(default_factory=DataRules)
+    preprocessing: PreprocessingPipeline = Field(default_factory=PreprocessingPipeline)
+    time_convention: TimeConvention = Field(default_factory=TimeConvention)
 
 
 # --------------------------------------------------------------------------- fields
@@ -352,6 +349,7 @@ __all__ = [
     "AssetType",
     "ClarificationQuestion",
     "DataRequirement",
+    "DataRules",
     "ErrorCategory",
     "ExecutionPlan",
     "ExecutionResult",
@@ -364,12 +362,13 @@ __all__ = [
     "FieldSelection",
     "FieldTimeRole",
     "Frequency",
-    "PreprocessingRules",
+    "PreprocessingPipeline",
     "QueryShape",
     "ReportEvidence",
     "ResearchRequest",
     "SessionSnapshot",
     "StructuredError",
+    "TimeConvention",
     "ValidationFinding",
     "ValidationReport",
     "ValidationSeverity",

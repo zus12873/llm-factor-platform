@@ -1,19 +1,29 @@
 """Formula DSL abstract syntax tree.
 
-The AST is the only machine-executable representation of a factor. ``formula_text``
-is display-only and never compiled. A :class:`FormulaNode` is a single discriminated
-model: exactly one of the variable / literal / call shapes is valid, enforced by a
-model validator so malformed nodes can never reach the compiler.
+The AST is the **only** representation of a factor that is ever executed, and the
+only one the model produces. The formula the user confirms is rendered from this
+tree by :mod:`factor_platform.factor.renderer`, so the confirmed text and the
+executed structure cannot drift apart.
+
+A :class:`FormulaNode` is a single discriminated model: exactly one of the
+variable / literal / call shapes is valid, enforced by a model validator so
+malformed nodes can never reach the compiler.
 """
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # Operators the deterministic compiler knows how to evaluate (Task 12).
 # Adding an operator here is the only way to make it executable.
+#
+# Winsorising, standardising and industry-neutralising are deliberately absent:
+# they are preprocessing, not factor mathematics, and live in an ordered
+# PreprocessingPipeline instead (see domain/preprocessing.py). Allowing them in
+# both places made "apply once or twice?" unanswerable and could not express the
+# order in which they run.
 FormulaOperator = Literal[
     "add",
     "subtract",
@@ -22,14 +32,18 @@ FormulaOperator = Literal[
     "negative",
     "log",
     "rank",
-    "zscore",
-    "winsorize",
     "rolling_return",
     "rolling_std",
     "rolling_mean",
     "fillna",
-    "industry_neutralize",
 ]
+
+FORMULA_OPERATORS: tuple[str, ...] = get_args(FormulaOperator)
+
+# Operators requiring a positive integer ``window`` parameter.
+ROLLING_OPERATORS: frozenset[str] = frozenset(
+    {"rolling_return", "rolling_std", "rolling_mean"}
+)
 
 
 class FormulaNode(BaseModel):
@@ -68,3 +82,11 @@ class FormulaNode(BaseModel):
 
     def _has_variable_or_call_fields(self) -> bool:
         return self.name is not None or self.op is not None or bool(self.args) or bool(self.params)
+
+
+__all__ = [
+    "FORMULA_OPERATORS",
+    "ROLLING_OPERATORS",
+    "FormulaNode",
+    "FormulaOperator",
+]

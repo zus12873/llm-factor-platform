@@ -12,7 +12,6 @@
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
-    "formula_text": "rank(net_profit_yoy)",
     "formula_ast": {
       "type": "call",
       "op": "rank",
@@ -30,7 +29,8 @@
         "point_in_time_required": true,
         "announcement_date_required": true
       }
-    ]
+    ],
+    "formula_explanation": "rank(net_profit_yoy)"
   },
   "expected_blocking_question_ids": [],
   "expected_formula_ast": {

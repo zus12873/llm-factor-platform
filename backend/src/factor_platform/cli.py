@@ -40,7 +40,7 @@ def parse_case(case_id: str) -> None:
     payload = {
         "case_id": case.case_id,
         "factor_name": spec.factor_name,
-        "formula_text": spec.formula_text,
+        "canonical_formula": spec.canonical_formula,
         "blocking_questions": actual_blocking,
         "expected_blocking": expected,
         "match": actual_blocking == expected,

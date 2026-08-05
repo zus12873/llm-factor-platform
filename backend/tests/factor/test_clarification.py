@@ -13,7 +13,8 @@ def _make_spec(variable: str = "close", period: str | None = None) -> FactorSpec
             "universe": "000300.SH",
             "frequency": "daily",
             "direction": "higher_is_better",
-            "formula_text": f"rank({variable})",
+            "canonical_formula": f"rank({variable.lower()})",
+            "formula_explanation": f"对 {variable} 做横截面排名",
             "formula_ast": {
                 "type": "call",
                 "op": "rank",
