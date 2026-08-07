@@ -38,3 +38,49 @@ def test_failed_can_repair_to_formula_confirmation() -> None:
 def test_completed_is_terminal() -> None:
     with pytest.raises(ValueError, match="illegal transition"):
         apply_event(SessionState.COMPLETED, EventType.PARSE_STARTED)
+
+
+# --------------------------------------------------------------------------- revisions
+
+
+def test_cancelled_execution_returns_to_code_ready() -> None:
+    state = apply_event(SessionState.EXECUTING, EventType.EXECUTION_CANCELLED)
+    assert state is SessionState.CODE_READY
+
+
+def test_formula_revision_requires_reconfirmation() -> None:
+    state = apply_event(SessionState.COMPLETED, EventType.FORMULA_REVISED)
+    assert state is SessionState.WAITING_FORMULA_CONFIRMATION
+
+
+def test_fields_revision_requires_reconfirmation() -> None:
+    state = apply_event(SessionState.CODE_READY, EventType.FIELDS_REVISED)
+    assert state is SessionState.WAITING_FIELD_CONFIRMATION
+
+
+def test_date_range_revision_returns_to_planning() -> None:
+    """Date range does not touch the formula, so only the plan must be rebuilt."""
+    state = apply_event(SessionState.COMPLETED, EventType.DATE_RANGE_REVISED)
+    assert state is SessionState.PLANNING_FUNCTIONS
+
+
+def test_request_revision_returns_to_parsing() -> None:
+    state = apply_event(SessionState.COMPLETED, EventType.REQUEST_REVISED)
+    assert state is SessionState.PARSING_INPUT
+
+
+def test_execution_in_flight_cannot_be_revised() -> None:
+    """A running job must be cancelled first; revising under it would race."""
+    with pytest.raises(ValueError, match="illegal transition"):
+        apply_event(SessionState.EXECUTING, EventType.FORMULA_REVISED)
+
+
+def test_rerun_from_completed_returns_to_code_ready() -> None:
+    state = apply_event(SessionState.COMPLETED, EventType.RERUN_REQUESTED)
+    assert state is SessionState.CODE_READY
+
+
+def test_clone_starts_a_new_session_awaiting_formula_confirmation() -> None:
+    """A clone carries the definition but must be reconfirmed before it runs."""
+    state = apply_event(SessionState.CREATED, EventType.SESSION_CLONED)
+    assert state is SessionState.WAITING_FORMULA_CONFIRMATION

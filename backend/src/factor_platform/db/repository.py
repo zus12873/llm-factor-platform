@@ -6,7 +6,14 @@ inside one transaction, so a rejected or stale append leaves no row behind.
 
 Snapshots are derived: ``get_snapshot`` folds the whole event stream each call. This
 is cheap for a single-host prototype and guarantees the snapshot can never drift from
-the events.
+the events. The fold itself lives in
+:mod:`factor_platform.orchestration.reducer`, which knows which keys each event
+may write and which downstream keys it invalidates; the repository only supplies
+the ordered stream.
+
+``get_snapshot_at`` folds a prefix, which is how a session is rolled back to an
+earlier version. There is deliberately no table of stored snapshots: it would be
+a second source of truth that can disagree with the log.
 """
 
 from __future__ import annotations
@@ -19,22 +26,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from factor_platform.db.models import SessionEventRecord, SessionRecord
 from factor_platform.domain.errors import ConcurrentUpdateError
 from factor_platform.domain.models import SessionSnapshot
+from factor_platform.orchestration.reducer import FoldedEvent, fold_events
 from factor_platform.orchestration.states import EventType, SessionState, apply_event
-
-# Payload keys that are folded into a snapshot (last non-null value wins).
-_SNAPSHOT_KEYS: tuple[str, ...] = (
-    "request",
-    "factor_spec",
-    "field_selections",
-    "plan",
-    "execution_result",
-    "last_error",
-    "ambiguities",
-    "clarifications",
-    "generated_code",
-    "code_sha256",
-    "artifact_uri",
-)
 
 
 class SessionRepository:
@@ -102,7 +95,8 @@ class SessionRepository:
             )
             return new_sequence
 
-    async def get_snapshot(self, session_id: str) -> SessionSnapshot | None:
+    async def _read_events(self, session_id: str) -> list[FoldedEvent] | None:
+        """Return the ordered event stream, or ``None`` for an unknown session."""
         async with self._engine.connect() as conn:
             session = (
                 await conn.execute(select(SessionRecord).where(SessionRecord.id == session_id))
@@ -122,23 +116,31 @@ class SessionRepository:
                 )
             ).all()
 
-        state = SessionState.CREATED
-        last_sequence = 0
-        folded: dict[str, Any] = {}
-        for row in rows:
-            state = apply_event(state, EventType(row.event_type))
-            last_sequence = row.sequence
-            payload = row.payload_json or {}
-            for key in _SNAPSHOT_KEYS:
-                if payload.get(key) is not None:
-                    folded[key] = payload[key]
+        return [
+            FoldedEvent(
+                sequence=row.sequence,
+                event_type=EventType(row.event_type),
+                payload=row.payload_json or {},
+            )
+            for row in rows
+        ]
 
-        return SessionSnapshot(
-            session_id=session_id,
-            state=state.value,
-            version=last_sequence,
-            **folded,
-        )
+    async def get_snapshot(self, session_id: str) -> SessionSnapshot | None:
+        events = await self._read_events(session_id)
+        if events is None:
+            return None
+        return fold_events(session_id, events)
+
+    async def get_snapshot_at(self, session_id: str, version: int) -> SessionSnapshot | None:
+        """Return the snapshot as of ``version``, folding only events up to it.
+
+        A version past the end of the stream yields the latest snapshot, so
+        callers need not special-case an aggregate that has not advanced.
+        """
+        events = await self._read_events(session_id)
+        if events is None:
+            return None
+        return fold_events(session_id, [e for e in events if e.sequence <= version])
 
 
 __all__ = ["SessionRepository"]

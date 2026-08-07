@@ -509,7 +509,7 @@ git commit -m "feat: add versioned session state machine"
 - Produces: 新事件 `FORMULA_REVISED`、`FIELDS_REVISED`、`REQUEST_REVISED`、`PREPROCESSING_REVISED`、`TIME_CONVENTION_REVISED`、`UNIVERSE_REVISED`、`DATE_RANGE_REVISED`、`EXECUTION_CANCELLED`、`SESSION_CLONED`、`RERUN_REQUESTED`。
 - Produces: `fold_events(events) -> SessionSnapshot`，取代仓储中的"最后一个非空值获胜"折叠。
 
-- [ ] **Step 1: Test cascade invalidation and cancellation**
+- [x] **Step 1: Test cascade invalidation and cancellation**
 
 ```python
 def test_formula_revision_clears_all_downstream_artifacts() -> None:
@@ -535,12 +535,12 @@ def test_cancelled_execution_returns_to_code_ready() -> None:
     assert state is SessionState.CODE_READY
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/orchestration -v`
 Expected: FAIL because revision events and reducer are absent.
 
-- [ ] **Step 3: Implement the semantic reducer and invalidation table**
+- [x] **Step 3: Implement the semantic reducer and invalidation table**
 
 在转移表中登记全部修订事件的合法来源状态。归约器为每个事件显式声明三件事：写入哪些键、使哪些键失效、把哪些旧工件转为历史版本。失效级联按下表执行：
 
@@ -553,12 +553,21 @@ Expected: FAIL because revision events and reducer are absent.
 | `PREPROCESSING_REVISED` | `manifest_sha256`、`execution_result`、`validation_reports` |
 | `TIME_CONVENTION_REVISED` | `plan`、`forward_return_definition`、`execution_result`、`analysis_result` |
 
-`SESSION_CLONED` 以当前快照为基础创建新会话并记录来源；`RERUN_REQUESTED` 保留定义与字段、清空执行结果。历史版本写入 `session_versions` 并可回退；回退后必须重新生成下游工件，不得复用已失效结果。
+`SESSION_CLONED` 以当前快照为基础创建新会话并记录来源；`RERUN_REQUESTED` 保留定义与字段、清空执行结果。历史版本可回退；回退后必须重新生成下游工件，不得复用已失效结果。
 
-- [ ] **Step 4: Run reducer and repository tests**
+> **实现修订（2026-08-07）。** 落地时对本任务原文作四处调整，均已实现并测试：
+>
+> 1. **取消 `session_versions` 表。** 历史版本改为前缀折叠 `get_snapshot_at(session_id, version)`。存一份折叠后的快照等于给事件日志开第二个事实来源，两者会漂移——这正是设计文档「快照必须始终可从事件推导」要防的事。真正的因子版本持久化属于 Task 26，与会话快照无关。
+> 2. **`TIME_CONVENTION_REVISED` 追加失效 `manifest_sha256`。** 原表只失效 `plan` 与 `forward_return_definition`。但 `TimeConvention` 是 `FactorSpec` 的一部分，manifest 由 spec 构建，旧口径下构建的 manifest 已经陈旧。边界不清时按「多失效」处理：多失效只是多一次重建，少失效会把陈旧工件当成当前结果发出去。
+> 3. **`WRITES` 提升为强制白名单。** 原文要求归约器声明「写入哪些键」；实现中该声明具备强制力——事件只能写入自己声明过的键，payload 里的其他键一律忽略。payload 由调用方构造并经 JSON 往返，能写什么应由归约器决定，而非调用方。
+> 4. **尚不存在的键暂缓入表。** `input_artifacts`、`validation_reports`、`field_samples`、`forward_return_definition`、`analysis_result` 目前不在 `SessionSnapshot` 上。补一条守卫测试：`SessionSnapshot` 的每个字段都必须在归约器中分类登记，否则测试失败。后续任务新增下游工件字段时会被直接挡下，不依赖「记得回来改级联表」。
+
+- [x] **Step 4: Run reducer and repository tests**
 
 Run: `uv run --project backend pytest backend/tests/orchestration backend/tests/db -v`
 Expected: 级联失效、取消、克隆、回退测试全部 PASS。
+
+实跑（2026-08-07）：`39 passed`；全量 `177 passed`（原 147）；`ruff` 全过；`mypy` 34 源文件无问题。
 
 - [ ] **Step 5: Commit**
 

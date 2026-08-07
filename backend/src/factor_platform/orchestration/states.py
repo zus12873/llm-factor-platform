@@ -44,6 +44,18 @@ class EventType(StrEnum):
     EXECUTION_FAILED = "execution_failed"
     VALIDATION_FAILED = "validation_failed"
     REPAIR_PROPOSED = "repair_proposed"
+    # Revisions: the user changes a settled decision and the session rewinds to
+    # the earliest step that decision invalidates.
+    REQUEST_REVISED = "request_revised"
+    FORMULA_REVISED = "formula_revised"
+    FIELDS_REVISED = "fields_revised"
+    UNIVERSE_REVISED = "universe_revised"
+    DATE_RANGE_REVISED = "date_range_revised"
+    PREPROCESSING_REVISED = "preprocessing_revised"
+    TIME_CONVENTION_REVISED = "time_convention_revised"
+    EXECUTION_CANCELLED = "execution_cancelled"
+    RERUN_REQUESTED = "rerun_requested"
+    SESSION_CLONED = "session_cloned"
 
 
 # Short aliases keep the exhaustive legal-transition table readable on one line.
@@ -70,6 +82,51 @@ _TRANSITIONS: dict[tuple[SessionState, EventType], SessionState] = {
     (_S.FAILED, _E.REPAIR_PROPOSED): _S.WAITING_FORMULA_CONFIRMATION,
     (_S.FAILED, _E.CODE_GENERATED): _S.CODE_READY,
 }
+
+# Revisions rewind the session to the earliest step the change invalidates, and
+# every rewind lands on a state that demands the work be redone rather than
+# reusing it. ``EXECUTING`` and ``VALIDATING`` are deliberately absent from every
+# source set below: a job is in flight, so a revision would race the worker.
+# Cancel first, then revise.
+_SETTLED: frozenset[SessionState] = frozenset(
+    {
+        _S.WAITING_FIELD_CONFIRMATION,
+        _S.PLANNING_FUNCTIONS,
+        _S.CODE_READY,
+        _S.COMPLETED,
+        _S.FAILED,
+    }
+)
+
+_REVISIONS: tuple[tuple[EventType, frozenset[SessionState], SessionState], ...] = (
+    (
+        _E.REQUEST_REVISED,
+        _SETTLED | {_S.NEEDS_CLARIFICATION, _S.WAITING_FORMULA_CONFIRMATION},
+        _S.PARSING_INPUT,
+    ),
+    (
+        _E.FORMULA_REVISED,
+        _SETTLED | {_S.WAITING_FORMULA_CONFIRMATION, _S.SEARCHING_FIELDS},
+        _S.WAITING_FORMULA_CONFIRMATION,
+    ),
+    (_E.FIELDS_REVISED, _SETTLED, _S.WAITING_FIELD_CONFIRMATION),
+    (_E.UNIVERSE_REVISED, _SETTLED, _S.PLANNING_FUNCTIONS),
+    (_E.DATE_RANGE_REVISED, _SETTLED, _S.PLANNING_FUNCTIONS),
+    (_E.PREPROCESSING_REVISED, _SETTLED, _S.PLANNING_FUNCTIONS),
+    (_E.TIME_CONVENTION_REVISED, _SETTLED, _S.PLANNING_FUNCTIONS),
+    # Lifecycle: cancel a running job, rerun a settled one, clone into a new session.
+    (_E.EXECUTION_CANCELLED, frozenset({_S.EXECUTING}), _S.CODE_READY),
+    (_E.RERUN_REQUESTED, frozenset({_S.COMPLETED, _S.FAILED}), _S.CODE_READY),
+    (_E.SESSION_CLONED, frozenset({_S.CREATED}), _S.WAITING_FORMULA_CONFIRMATION),
+)
+
+_TRANSITIONS.update(
+    {
+        (source, event): target
+        for event, sources, target in _REVISIONS
+        for source in sources
+    }
+)
 
 
 def apply_event(state: SessionState, event: EventType) -> SessionState:
