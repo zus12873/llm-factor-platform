@@ -1,7 +1,10 @@
 """Wind field catalog: parse the Markdown field index into normalized records.
 
-The source file ``windquery/windquery/references/wind_field_index.md`` lists all
-~7,480 Wind fields grouped under ~678 tables. Each table looks like::
+The source file is the Wind field index Markdown, expected at
+``windquery/windquery/references/wind_field_index.md``. It lists all ~7,480 Wind
+fields grouped under ~678 tables. Wind distributes it under a commercial licence,
+so it is *not* redistributed with this repository — supply it locally, then build
+the catalog with ``factor-platform build-wind-catalog``. Each table looks like::
 
     ### <TableName>（N个字段）
 

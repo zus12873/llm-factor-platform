@@ -39,6 +39,13 @@ logs/
 *.tar
 *.tar.gz
 
+# Licensed vendor documentation and internal requirement docs.
+# The Wind data dictionary is distributed under a commercial licence and is not
+# redistributable; supply it locally to build the field catalog. See README.
+windquery/
+imgs/
+backend/data/generated/
+
 # IDE / OS
 .idea/
 .vscode/

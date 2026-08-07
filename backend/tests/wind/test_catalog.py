@@ -1,8 +1,13 @@
 """Tests for the Wind field catalog builder.
 
-``CatalogBuilder`` parses the committed Markdown field index into normalized
-``FieldRecord`` rows (table+field lowercased). ``FieldCatalog`` round-trips a
-generated JSONL file used by the search layer.
+``CatalogBuilder`` parses a Markdown field index into normalized ``FieldRecord``
+rows (table+field lowercased). ``FieldCatalog`` round-trips a generated JSONL
+file used by the search layer.
+
+The parsing tests below are self-contained: they build their own fixtures with
+``tmp_path``. Two further tests exercise the real Wind field index, which is
+licensed vendor documentation and therefore *not* distributed with this
+repository — those tests skip when it is absent rather than fail.
 """
 
 from __future__ import annotations
@@ -16,6 +21,14 @@ from factor_platform.wind.catalog import CatalogBuilder, FieldCatalog, FieldReco
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REAL_INDEX = REPO_ROOT / "windquery" / "windquery" / "references" / "wind_field_index.md"
 GENERATED_JSONL = REPO_ROOT / "backend" / "data" / "generated" / "wind_fields.jsonl"
+
+requires_real_index = pytest.mark.skipif(
+    not REAL_INDEX.exists(),
+    reason=(
+        f"licensed Wind field index not present at {REAL_INDEX}; "
+        "supply it locally to run this check"
+    ),
+)
 
 
 def test_catalog_parses_table_and_fields(tmp_path: Path) -> None:
@@ -76,8 +89,9 @@ def test_builder_lowercases_table_and_field(tmp_path: Path) -> None:
     assert records[0].field == "s_dq_close"
 
 
+@requires_real_index
 def test_real_index_has_between_7000_and_8000_records() -> None:
-    """Sanity check: the committed Wind field index yields 7,000-8,000 records."""
+    """Sanity check: the real Wind field index yields 7,000-8,000 records."""
     records = CatalogBuilder(REAL_INDEX).build()
     assert 7000 <= len(records) <= 8000, f"got {len(records)} records"
 
@@ -94,8 +108,9 @@ def test_generated_jsonl_round_trips(tmp_path: Path) -> None:
     ]
 
 
+@requires_real_index
 def test_generated_jsonl_matches_real_index() -> None:
-    """The committed JSONL (built via CLI) matches a fresh build from the index."""
+    """The locally generated JSONL matches a fresh build from the index."""
     if not GENERATED_JSONL.exists():
         pytest.skip("generated JSONL not built; run `factor-platform build-wind-catalog`")
     expected = CatalogBuilder(REAL_INDEX).build()
