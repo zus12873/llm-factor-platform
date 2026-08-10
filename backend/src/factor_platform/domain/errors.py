@@ -19,6 +19,15 @@ class ConcurrentUpdateError(DomainError):
     """Raised when a stale ``expected_version`` conflicts with the stored aggregate."""
 
 
+class DisputedMetricError(DomainError):
+    """Raised when a metric mapping known to be wrong is about to be used.
+
+    Blocking rather than warning is deliberate: the disputed mappings all produce
+    factors that look entirely reasonable, and a warning against a plausible
+    number is a warning someone dismisses.
+    """
+
+
 class LLMResponseError(DomainError):
     """Raised when an LLM provider returns output that cannot be validated."""
 

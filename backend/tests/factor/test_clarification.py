@@ -1,5 +1,6 @@
 from factor_platform.domain.models import FactorSpec
 from factor_platform.factor.clarification import ClarificationEngine
+from factor_platform.factor.metric_registry import MetricRegistry
 
 
 def _make_spec(variable: str = "close", period: str | None = None) -> FactorSpec:
@@ -41,6 +42,26 @@ def test_valuation_is_blocking_until_concrete() -> None:
     questions = ClarificationEngine().questions(_make_spec(variable="估值"))
     assert questions[0].blocking is True
     assert questions[0].options == ["PE_TTM", "PB", "PS_TTM"]
+
+
+def test_clarification_options_come_from_the_registry() -> None:
+    """The picker must not keep its own copy of the metric list.
+
+    A second copy is how the UI ends up offering an option the registry has since
+    marked disputed — the one place that decision was supposed to be enforceable.
+    """
+    registry = MetricRegistry.load()
+    questions = ClarificationEngine(registry).questions(_make_spec(variable="盈利质量"))
+    assert questions[0].options == registry.options_for("profitability")
+
+
+def test_a_disputed_metric_is_never_offered_as_a_choice() -> None:
+    registry = MetricRegistry.load()
+    for category in ("profitability", "valuation", "growth"):
+        for option in registry.options_for(category):
+            assert registry.gate(option).allowed, (
+                f"{option} is offered to the user but the registry refuses it"
+            )
 
 
 def test_missing_direction_is_blocking() -> None:

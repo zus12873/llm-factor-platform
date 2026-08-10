@@ -1,0 +1,228 @@
+# 口径基线登记表
+#
+# 这是「某个业务词到底对应哪个 Wind 字段」的唯一事实来源。澄清候选项、字段口径、
+# 结果层量级阈值、对拍参照全部从这里读，不再散落在澄清规则常量、别名表与案例夹具三处。
+#
+# 本文件面向**复核人**而非程序员：每条都必须能被不写代码的人读懂并签字。
+#
+# review_status 三值及其权限：
+#   unreviewed  可用于原型测试与内部试算；不得作为正式发布结果；界面必须标注「未复核」
+#   reviewed    可用于正式演示、因子库与发布；须填写 reviewer / reviewed_at / review_comment
+#   disputed    禁止执行、禁止发布、禁止进入因子库、禁止进入多因子与指数；无绕过通道
+#
+# 复核一条口径时要做三件事：确认 wind_table.wind_field 映射正确、确认 unit 与
+# plausible_range 与真实数据一致、把 review_status 改为 reviewed 并填写署名与日期。
+#
+# unit 词表见 backend/data/wind_field_units.yaml。
+
+metrics:
+  # ------------------------------------------------------------------ 盈利能力
+  ROE_TTM:
+    display_zh: 净资产收益率 (TTM)
+    definition: 过去十二个月归母净利润除以期末归属母公司股东权益
+    category: profitability
+    wind_table: asharettmhis
+    wind_field: s_fa_roe_ttm
+    time_role: report_period
+    announcement_field: ann_dt
+    unit: percent
+    plausible_range: [-100.0, 100.0]
+    reference_check: 与 Wind 终端 F9 页面的 ROE(TTM) 抽查三只股票
+    review_status: unreviewed
+    reviewer: null
+    reviewed_at: null
+    review_comment: ""
+    evidence_version: 1
+    note: Wind 该字段存的是百分数 (15.0 表示 15%)，与 ratio 口径差 100 倍，待实测确认
+
+  ROA_TTM:
+    display_zh: 总资产收益率 (TTM)
+    definition: 过去十二个月净利润除以期末总资产
+    category: profitability
+    wind_table: asharettmhis
+    wind_field: s_fa_roa_ttm
+    time_role: report_period
+    announcement_field: ann_dt
+    unit: percent
+    plausible_range: [-50.0, 50.0]
+    reference_check: 与 ROE_TTM 同步抽查，ROA 应显著低于 ROE
+    review_status: unreviewed
+    reviewer: null
+    reviewed_at: null
+    review_comment: ""
+    evidence_version: 1
+    note: ""
+
+  CFO_TO_PROFIT:
+    display_zh: 现金流对利润比
+    definition: 经营活动产生的现金流量净额除以归母净利润，衡量利润的现金含量
+    category: profitability
+    wind_table: asharecashflow
+    wind_field: net_cash_flows_oper_act
+    time_role: report_period
+    announcement_field: ann_dt
+    unit: ratio
+    plausible_range: [-10.0, 10.0]
+    reference_check: 分子分母须取同一报告期；抽查三只制造业股票
+    review_status: unreviewed
+    reviewer: null
+    reviewed_at: null
+    review_comment: ""
+    evidence_version: 1
+    note: 分母来自 ashareincome.net_profit_excl_min_int_inc，两表须同报告期对齐
+
+  # ------------------------------------------------------------------ 估值
+  PE_TTM:
+    display_zh: 市盈率 (TTM)
+    definition: 当日总市值除以过去十二个月归母净利润
+    category: valuation
+    wind_table: ashareeodderivativeindicator
+    wind_field: s_val_pe_ttm
+    time_role: observation
+    announcement_field: null
+    unit: ratio
+    plausible_range: [-1000.0, 1000.0]
+    reference_check: 抽查贵州茅台某交易日，与终端一致
+    review_status: unreviewed
+    reviewer: null
+    reviewed_at: null
+    review_comment: ""
+    evidence_version: 1
+    note: 亏损股为负值，做因子时须决定是剔除还是取倒数
+
+  PB:
+    display_zh: 市净率
+    definition: 当日总市值除以归属母公司股东权益
+    category: valuation
+    wind_table: ashareeodderivativeindicator
+    wind_field: s_val_pb_new
+    time_role: observation
+    announcement_field: null
+    unit: ratio
+    plausible_range: [0.0, 100.0]
+    reference_check: 抽查银行股，PB 应普遍低于 1.5
+    review_status: unreviewed
+    reviewer: null
+    reviewed_at: null
+    review_comment: ""
+    evidence_version: 1
+    note: 表内另有 s_val_pb 字段，须确认二者差异后再定采用哪个
+
+  PS_TTM:
+    display_zh: 市销率 (TTM)
+    definition: 当日总市值除以过去十二个月营业收入
+    category: valuation
+    wind_table: ashareeodderivativeindicator
+    wind_field: s_val_ps_ttm
+    time_role: observation
+    announcement_field: null
+    unit: ratio
+    plausible_range: [0.0, 500.0]
+    reference_check: 抽查零售业股票
+    review_status: unreviewed
+    reviewer: null
+    reviewed_at: null
+    review_comment: ""
+    evidence_version: 1
+    note: ""
+
+  # ------------------------------------------------------------------ 成长
+  REVENUE_YOY:
+    display_zh: 营业收入同比增长率
+    definition: 本期营业收入相对去年同期的增长率
+    category: growth
+    wind_table: asharefinancialindicator
+    wind_field: s_fa_yoy_or
+    time_role: report_period
+    announcement_field: ann_dt
+    unit: percent
+    plausible_range: [-100.0, 500.0]
+    reference_check: 抽查三只股票的年报同比，与终端一致
+    review_status: unreviewed
+    reviewer: null
+    reviewed_at: null
+    review_comment: ""
+    evidence_version: 1
+    note: 单季度同比与累计同比是两个口径，须确认该字段属于哪一个
+
+  NET_PROFIT_YOY:
+    display_zh: 净利润同比增长率
+    definition: 本期归母净利润相对去年同期的增长率
+    category: growth
+    wind_table: asharefinancialindicator
+    wind_field: s_fa_yoynetprofit
+    time_role: report_period
+    announcement_field: ann_dt
+    unit: percent
+    plausible_range: [-1000.0, 1000.0]
+    reference_check: 抽查扭亏为盈的股票，确认极端值处理方式
+    review_status: unreviewed
+    reviewer: null
+    reviewed_at: null
+    review_comment: ""
+    evidence_version: 1
+    note: 去年同期为负时同比增长率无经济意义，须确认 Wind 如何处理
+
+  OPERATING_PROFIT_YOY:
+    display_zh: 营业利润同比增长率
+    definition: 本期营业利润相对去年同期的增长率
+    category: growth
+    wind_table: asharefinancialindicator
+    wind_field: s_fa_yoyop
+    time_role: report_period
+    announcement_field: ann_dt
+    unit: percent
+    plausible_range: [-1000.0, 1000.0]
+    reference_check: 与 NET_PROFIT_YOY 同步抽查
+    review_status: unreviewed
+    reviewer: null
+    reviewed_at: null
+    review_comment: ""
+    evidence_version: 1
+    note: ""
+
+  # ------------------------------------------------------------------ 已知错误映射
+  #
+  # 下面两条不是「待确认」，是**已经确认错了**。登记在此不是为了使用，而是为了让
+  # 平台在有人再次踩中时能够直接拒绝 —— 删掉它们只会让错误重新变成沉默的。
+  FLOAT_MV:
+    display_zh: 流通市值
+    definition: 流通股数量乘以当日收盘价
+    category: valuation
+    wind_table: ashareeodderivativeindicator
+    wind_field: float_a_shr
+    time_role: observation
+    announcement_field: null
+    unit: ten_thousand_share
+    plausible_range: null
+    reference_check: ""
+    review_status: disputed
+    reviewer: 技术评审 2026-08-05
+    reviewed_at: "2026-08-05"
+    review_comment: >-
+      映射错误。float_a_shr 是流通 A 股**股本**（单位股/万股），不是流通市值（单位元）。
+      两者量纲完全不同，误用会得到一个看起来正常、实际是股本排名的因子。
+      正确字段应为 ashareeodderivativeindicator.s_dq_mv，待复核后另立条目。
+    evidence_version: 1
+    note: 禁止使用；平台须直接拒绝而非告警
+
+  CFO_WRONG_MAPPING:
+    display_zh: 经营活动现金流（错误映射）
+    definition: 经营活动产生的现金流量净额
+    category: profitability
+    wind_table: asharecashflow
+    wind_field: net_profit
+    time_role: report_period
+    announcement_field: ann_dt
+    unit: cny
+    plausible_range: null
+    reference_check: ""
+    review_status: disputed
+    reviewer: 技术评审 2026-08-05
+    reviewed_at: "2026-08-05"
+    review_comment: >-
+      映射错误。现金流量表中的 net_profit 是间接法调节的**起始行净利润**，
+      不是经营活动现金流净额。用它算「现金流对利润比」会恒等于 1，
+      而这个结果看上去完全合理。正确字段为 net_cash_flows_oper_act。
+    evidence_version: 1
+    note: 禁止使用；见 CFO_TO_PROFIT 条目的正确映射

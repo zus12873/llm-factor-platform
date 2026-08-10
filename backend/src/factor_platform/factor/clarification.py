@@ -5,20 +5,25 @@ The LLM proposes a ``FactorSpec``; this engine independently audits it for
 *non-blocking* defaults (reasonable choices surfaced for explicit confirmation).
 The rules are plain Python so blocking behavior is stable and testable without any
 LLM call.
+
+The *trigger* words stay here — recognising that "盈利质量" is vague is a language
+judgement. The *options* come from the metric registry, because those are metric
+definitions and must be reviewable by someone who does not read Python. Keeping a
+second copy here is how the picker ends up offering an option the registry has
+since marked disputed.
 """
 
 from __future__ import annotations
 
 from factor_platform.domain.models import ClarificationQuestion, FactorSpec
+from factor_platform.factor.metric_registry import MetricRegistry
 
-# Vague business terms -> the concrete indicators the user must choose between.
+# Vague business terms, and the concrete forms that mean the user already chose.
 _PROFITABILITY_HINTS = ("盈利质量", "盈利能力", "profitability", "earnings quality")
 _PROFITABILITY_CONCRETE = ("roe_ttm", "roa_ttm", "cfo_to_profit", "净资产收益率", "总资产收益率")
-_PROFITABILITY_OPTIONS = ["ROE_TTM", "ROA_TTM", "CFO_TO_PROFIT"]
 
 _VALUATION_HINTS = ("估值", "估值因子", "valuation", "价值因子", "value factor")
 _VALUATION_CONCRETE = ("pe_ttm", "pb", "ps_ttm", "市盈率", "市净率")
-_VALUATION_OPTIONS = ["PE_TTM", "PB", "PS_TTM"]
 
 _GROWTH_HINTS = (
     "营收增长", "收入增长", "利润增长", "成长性", "growth factor", "增长因子",
@@ -26,15 +31,13 @@ _GROWTH_HINTS = (
 _GROWTH_CONCRETE = (
     "revenue_yoy", "net_profit_yoy", "operating_profit_yoy", "营收同比", "净利润同比",
 )
-_GROWTH_OPTIONS = [
-    "REVENUE_YOY",
-    "NET_PROFIT_YOY",
-    "OPERATING_PROFIT_YOY",
-]
 
 
 class ClarificationEngine:
     """Audits a FactorSpec and returns the questions a user must resolve."""
+
+    def __init__(self, registry: MetricRegistry | None = None) -> None:
+        self._registry = registry or MetricRegistry.load()
 
     def questions(self, spec: FactorSpec) -> list[ClarificationQuestion]:
         return [
@@ -48,43 +51,56 @@ class ClarificationEngine:
     # -- rules ---------------------------------------------------------------
 
     def _profitability(self, spec: FactorSpec) -> list[ClarificationQuestion]:
-        blob = self._blob(spec)
-        if _hits(blob, _PROFITABILITY_HINTS) and not _hits(blob, _PROFITABILITY_CONCRETE):
-            return [
-                self._blocking(
-                    "profitability_definition",
-                    "请明确「盈利质量」的具体口径。",
-                    _PROFITABILITY_OPTIONS,
-                    field="variables",
-                )
-            ]
-        return []
+        return self._vague_term(
+            spec,
+            hints=_PROFITABILITY_HINTS,
+            concrete=_PROFITABILITY_CONCRETE,
+            question_id="profitability_definition",
+            question="请明确「盈利质量」的具体口径。",
+            category="profitability",
+        )
 
     def _valuation(self, spec: FactorSpec) -> list[ClarificationQuestion]:
-        blob = self._blob(spec)
-        if _hits(blob, _VALUATION_HINTS) and not _hits(blob, _VALUATION_CONCRETE):
-            return [
-                self._blocking(
-                    "valuation_definition",
-                    "请明确「估值」的具体指标。",
-                    _VALUATION_OPTIONS,
-                    field="variables",
-                )
-            ]
-        return []
+        return self._vague_term(
+            spec,
+            hints=_VALUATION_HINTS,
+            concrete=_VALUATION_CONCRETE,
+            question_id="valuation_definition",
+            question="请明确「估值」的具体指标。",
+            category="valuation",
+        )
 
     def _growth(self, spec: FactorSpec) -> list[ClarificationQuestion]:
+        return self._vague_term(
+            spec,
+            hints=_GROWTH_HINTS,
+            concrete=_GROWTH_CONCRETE,
+            question_id="growth_definition",
+            question="请明确「增长」的具体口径。",
+            category="growth",
+        )
+
+    def _vague_term(
+        self,
+        spec: FactorSpec,
+        *,
+        hints: tuple[str, ...],
+        concrete: tuple[str, ...],
+        question_id: str,
+        question: str,
+        category: str,
+    ) -> list[ClarificationQuestion]:
         blob = self._blob(spec)
-        if _hits(blob, _GROWTH_HINTS) and not _hits(blob, _GROWTH_CONCRETE):
-            return [
-                self._blocking(
-                    "growth_definition",
-                    "请明确「增长」的具体口径。",
-                    _GROWTH_OPTIONS,
-                    field="variables",
-                )
-            ]
-        return []
+        if not _hits(blob, hints) or _hits(blob, concrete):
+            return []
+        return [
+            self._blocking(
+                question_id,
+                question,
+                self._registry.options_for(category),
+                field="variables",
+            )
+        ]
 
     def _direction(self, spec: FactorSpec) -> list[ClarificationQuestion]:
         if spec.direction is None:
