@@ -124,7 +124,7 @@ Files remain focused: domain contracts contain no I/O; adapters contain no workf
 - Produces: `Settings`, `get_settings()`, environment names used by every backend task.
 - Security prerequisite: rotate the exposed database credential before enabling real Wind tests.
 
-- [ ] **Step 1: Write settings tests**
+- [x] **Step 1: Write settings tests**
 
 ```python
 import pytest
@@ -156,7 +156,7 @@ def test_worker_environment_excludes_secrets() -> None:
     assert "KIMI_API_KEY" not in settings.worker_environment()
 ```
 
-- [ ] **Step 2: Scaffold the uv package and run the failing tests**
+- [x] **Step 2: Scaffold the uv package and run the failing tests**
 
 Run:
 
@@ -168,7 +168,7 @@ uv run --project backend pytest backend/tests/test_settings.py -v
 
 Expected: FAIL because `factor_platform.settings` does not exist.
 
-- [ ] **Step 3: Implement typed settings and safe examples**
+- [x] **Step 3: Implement typed settings and safe examples**
 
 ```python
 from functools import lru_cache
@@ -219,7 +219,7 @@ def get_settings() -> Settings:
 
 `.env.example` must list the exact environment names with empty secret values. Replace every legacy literal connection value with environment access; update Notebook and skill/agent text to refer to `.env.example`. Remove the four temporary legacy-file ignore entries only after the files contain no credentials.
 
-- [ ] **Step 4: Verify settings and scan the changed files**
+- [x] **Step 4: Verify settings and scan the changed files**
 
 Run:
 
@@ -250,7 +250,7 @@ git commit -m "chore: secure credentials and scaffold backend"
 - Produces: `FormulaNode`, `ResearchRequest`, `FactorSpec`, `DataRequirement`, `ClarificationQuestion`, `FieldCandidate`, `FieldSelection`, `ExecutionStep`, `ExecutionPlan`, `ExecutionResult`, `ValidationReport`, `ReportEvidence`, `FactorArtifact`, `SessionSnapshot`.
 - All later modules must import these types rather than defining local dictionaries.
 
-- [ ] **Step 1: Write model contract tests**
+- [x] **Step 1: Write model contract tests**
 
 ```python
 import pytest
@@ -286,12 +286,12 @@ def test_factor_spec_keeps_display_and_machine_formula() -> None:
     assert spec.formula_ast.op == "rank"
 ```
 
-- [ ] **Step 2: Run the tests and observe missing contracts**
+- [x] **Step 2: Run the tests and observe missing contracts**
 
 Run: `uv run --project backend pytest backend/tests/domain/test_models.py -v`  
 Expected: FAIL with import errors.
 
-- [ ] **Step 3: Implement strict Pydantic models**
+- [x] **Step 3: Implement strict Pydantic models**
 
 `FormulaNode` uses `type: Literal["variable", "literal", "call"]`, validates mutually exclusive `name`, `value`, and `op`, and permits only these operators:
 
@@ -305,7 +305,7 @@ FormulaOperator = Literal[
 
 Use enums for asset type, frequency, factor direction, time role, query shape, execution status, and error category. Make every externally persisted model carry `schema_version: int = 1`; `FactorSpec` additionally carries `version: int = 1` and `source_evidence: list[ReportEvidence]`.
 
-- [ ] **Step 4: Run contract tests**
+- [x] **Step 4: Run contract tests**
 
 Run: `uv run --project backend pytest backend/tests/domain/test_models.py -v`  
 Expected: all tests PASS.
@@ -340,7 +340,7 @@ git commit -m "feat: define factor workflow contracts"
 - `FactorSpec` 字段调整：删除 `formula_text`；新增 `canonical_formula`（后端渲染）与 `formula_explanation`（模型解释，仅展示）；`preprocessing` 由 `PreprocessingRules` 改为 `PreprocessingPipeline`；新增 `time_convention`。
 - `FormulaOperator` 由 14 个减为 11 个。
 
-- [ ] **Step 1: Write renderer determinism, pipeline ordering and AST check tests**
+- [x] **Step 1: Write renderer determinism, pipeline ordering and AST check tests**
 
 ```python
 def test_canonical_formula_is_deterministic_and_matches_ast() -> None:
@@ -381,12 +381,12 @@ def test_time_convention_defaults_to_next_day_trading() -> None:
     assert convention.execution_price == "NEXT_OPEN"
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/domain backend/tests/factor -v`
 Expected: FAIL because renderer, pipeline, time convention and AST checks are absent.
 
-- [ ] **Step 3: Implement the amended contracts**
+- [x] **Step 3: Implement the amended contracts**
 
 `FormulaOperator` 保留：`add`、`subtract`、`multiply`、`divide`、`negative`、`log`、`rank`、`rolling_return`、`rolling_std`、`rolling_mean`、`fillna`。删除 `winsorize`、`zscore`、`industry_neutralize`。
 
@@ -400,7 +400,7 @@ Expected: FAIL because renderer, pipeline, time convention and AST checks are ab
 
 同步更新 10 个 golden case JSON：`formula_text` 改为 `canonical_formula`，预处理改为流水线表示，补 `time_convention`。
 
-- [ ] **Step 4: Run all contract and case tests**
+- [x] **Step 4: Run all contract and case tests**
 
 Run: `uv run --project backend pytest backend/tests -v`
 Expected: 契约、渲染、流水线、时间口径、AST 校验与 10 个案例全部 PASS。
@@ -429,7 +429,7 @@ git commit -m "refactor: make formula AST the single source of truth"
 - Produces: `SessionState`, `EventType`, `apply_event(state, event)`, `SessionRepository.create()`, `append_event()`, `get_snapshot()`.
 - A snapshot contains `session_id`, current state, aggregate version, request, confirmed spec, selected fields, plan and last error.
 
-- [ ] **Step 1: Test legal transitions and stale writes**
+- [x] **Step 1: Test legal transitions and stale writes**
 
 ```python
 import pytest
@@ -449,12 +449,12 @@ def test_parsing_can_request_clarification() -> None:
 
 Repository test: append with expected version 1 succeeds; appending again with expected version 1 raises `ConcurrentUpdateError`.
 
-- [ ] **Step 2: Run failing state and repository tests**
+- [x] **Step 2: Run failing state and repository tests**
 
 Run: `uv run --project backend pytest backend/tests/orchestration/test_states.py backend/tests/db/test_repository.py -v`  
 Expected: FAIL because persistence and state modules are absent.
 
-- [ ] **Step 3: Implement state transition table and append-only records**
+- [x] **Step 3: Implement state transition table and append-only records**
 
 Use two tables:
 
@@ -476,7 +476,7 @@ class SessionEventRecord(Base):
 
 `append_event` starts a transaction, checks `max(sequence) == expected_version`, validates `apply_event`, and inserts sequence `expected_version + 1`. `get_snapshot` folds all events in sequence order.
 
-- [ ] **Step 4: Run migrations and tests**
+- [x] **Step 4: Run migrations and tests**
 
 Run:
 
@@ -592,7 +592,7 @@ git commit -m "feat: add revision events and cascade invalidation"
 - Produces: `LLMProvider.structured_chat(messages, response_model)`, `stream_chat(messages)`, `health_check()`, `ProviderRouter.active_provider()` and `LLMUsageSink.record()`.
 - Coding Plan provider is preferred only after a successful health check; metered provider is the fallback.
 
-- [ ] **Step 1: Write provider parsing and fallback tests**
+- [x] **Step 1: Write provider parsing and fallback tests**
 
 ```python
 from pydantic import BaseModel
@@ -622,12 +622,12 @@ async def test_provider_records_token_usage(mock_provider, usage_sink) -> None:
     assert usage_sink.records[0].total_tokens == 15
 ```
 
-- [ ] **Step 2: Run failing provider tests**
+- [x] **Step 2: Run failing provider tests**
 
 Run: `uv run --project backend pytest backend/tests/llm -v`  
 Expected: FAIL with missing provider modules.
 
-- [ ] **Step 3: Implement the protocol, HTTP adapter and router**
+- [x] **Step 3: Implement the protocol, HTTP adapter and router**
 
 ```python
 T = TypeVar("T", bound=BaseModel)
@@ -647,7 +647,7 @@ class LLMProvider(Protocol):
 
 The concrete adapter posts to `/chat/completions`, strips one optional fenced JSON wrapper, validates with `response_model.model_validate_json`, and raises `LLMResponseError` with provider name and request ID. `LLMUsageSink` records provider, model, request ID, success/failure, prompt/completion/total tokens, latency and optional configured unit cost into session events; admin aggregates call count, token cost and failure rate. Health check uses `/models` with a short timeout. Router caches health for 60 seconds and never falls back after a business request has already produced partial output.
 
-- [ ] **Step 4: Run provider tests**
+- [x] **Step 4: Run provider tests**
 
 Run: `uv run --project backend pytest backend/tests/llm -v`  
 Expected: JSON validation, error mapping and fallback tests PASS.
@@ -675,7 +675,7 @@ git commit -m "feat: add structured Kimi provider routing"
 - Produces: `OutboundFilter.check(payload) -> None | OutboundViolation`、`LOCAL_ONLY_MODE` 开关、脱敏后的调用审计记录。
 - 所有 Provider 调用必须先过 `OutboundFilter`；未过滤的直接调用在测试中被禁止。
 
-- [ ] **Step 1: Test the outbound filter and local-only mode**
+- [x] **Step 1: Test the outbound filter and local-only mode**
 
 ```python
 def test_wind_raw_values_are_blocked_by_default() -> None:
@@ -703,12 +703,12 @@ def test_audit_record_excludes_full_body() -> None:
     assert not hasattr(record, "prompt_body")
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/llm/test_data_boundary.py -v`
 Expected: FAIL because the filter is absent.
 
-- [ ] **Step 3: Implement the filter, local mode and audit**
+- [x] **Step 3: Implement the filter, local mode and audit**
 
 默认禁止外发：Wind 原始数据行、数据库连接信息、任何密钥形态字符串、内部代码、未授权内部文档、完整结果数据、完整研报正文。
 
@@ -720,10 +720,20 @@ Expected: FAIL because the filter is absent.
 
 `.env.example` 新增 `LOCAL_ONLY_MODE`、`OUTBOUND_ALLOW_REPORT_EXCERPT`、`OUTBOUND_MAX_EXCERPT_CHARS`。
 
-- [ ] **Step 4: Run boundary tests and the full llm suite**
+> **实现补充（2026-08-07）。** 原文只规定「所有 Provider 调用必须先过 `OutboundFilter`」，未指定强制机制。落地方式如下：
+>
+> 1. **区分「字段名」与「字段值」是过滤器的核心判据。** Wind 字段**名**是 schema 元数据，可以外发（否则字段检索功能无法工作）；字段**值**是数据，不可外发。判据：一个映射同时含 Wind 形态的键与数值/日期形态的值即判为数据行。`{"field": "s_dq_close"}` 放行，`{"s_dq_close": 1688.0}` 拦截。另有正则覆盖「表已渲染成文本再塞进 prompt」的情形。
+> 2. **新增 `GuardedProvider` 包装器**，过滤在委托之前执行 —— 被拦截的调用根本不算调用，Provider 从未拿到 payload。
+> 3. **新增架构约束测试**：`llm` 包之外的任何模块，若调用 `structured_chat`/`stream_chat` 却未构造过 `GuardedProvider`，测试直接失败。据此 `FactorParser` 改为在构造时包装 Provider —— 无法再构造出一个绕过 B4 的解析器。
+> 4. **`LocalOnlyModeError` 在 Router 与 GuardedProvider 两处强制。** Router 是取得 Provider 的唯一入口，在此拦截即无处可绕。
+> 5. **`UsageRecord` 新增审计字段** `input_kind` / `redacted` / `text_length` / `blocked` / `failure_reason`，并且**没有**任何正文字段 —— 审计日志若留存正文，本身就成了越过 B4 的第二份副本。被拦截的调用同样入审计，附类别但不附内容。
+
+- [x] **Step 4: Run boundary tests and the full llm suite**
 
 Run: `uv run --project backend pytest backend/tests/llm -v`
 Expected: 拦截、放行、本地模式与审计脱敏测试全部 PASS。
+
+实跑（2026-08-07）：`backend/tests/llm` 全过；全量 `206 passed`（原 177）；`ruff` 全过；`mypy` 35 源文件无问题；10 个黄金案例经包装后的解析器全部通过，过滤器未误伤真实 prompt。
 
 - [ ] **Step 5: Commit**
 
@@ -744,7 +754,7 @@ git commit -m "feat: enforce outbound data boundary for model calls"
 - Consumes: `ResearchRequest`, `FactorSpec`, `LLMProvider`.
 - Produces: `FactorParser.parse(request) -> FactorSpec`, `ClarificationEngine.questions(spec) -> list[ClarificationQuestion]`.
 
-- [ ] **Step 1: Write ambiguity behavior tests**
+- [x] **Step 1: Write ambiguity behavior tests**
 
 ```python
 def test_profitability_quality_is_blocking() -> None:
@@ -760,16 +770,16 @@ def test_explicit_roe_ttm_needs_no_profitability_question() -> None:
 
 Parser test must prove invalid provider output becomes `LLMResponseError`, not a partial `FactorSpec`.
 
-- [ ] **Step 2: Run failing parser tests**
+- [x] **Step 2: Run failing parser tests**
 
 Run: `uv run --project backend pytest backend/tests/factor/test_parser.py backend/tests/factor/test_clarification.py -v`  
 Expected: FAIL because parser and rule engine are absent.
 
-- [ ] **Step 3: Implement prompt and rule layers**
+- [x] **Step 3: Implement prompt and rule layers**
 
 The parser asks for all `FactorSpec` fields and passes the model schema. The rule engine independently checks ambiguous profitability, valuation, recency window, financial period, growth definition, subfactor weights, direction, universe, rebalance frequency and material neutralization choices. Non-blocking defaults are explicit objects for pre-adjusted prices, ST/suspension exclusion, winsorization, standardization and missing values.
 
-- [ ] **Step 4: Run parser tests**
+- [x] **Step 4: Run parser tests**
 
 Run: `uv run --project backend pytest backend/tests/factor/test_parser.py backend/tests/factor/test_clarification.py -v`  
 Expected: tests PASS and blocking questions are stable without an LLM call.
@@ -792,7 +802,7 @@ git commit -m "feat: parse factor ideas and detect ambiguities"
 - Produces: `load_golden_cases()`, CLI command `factor-platform parse-case CASE_ID`.
 - Each case contains request, expected blocking question IDs, confirmed formula AST, expected fields, expected tool and acceptance assertions.
 
-- [ ] **Step 1: Define the exact case matrix**
+- [x] **Step 1: Define the exact case matrix**
 
 | Case ID | Formula after confirmation | Required field/tool behavior |
 |---|---|---|
@@ -807,7 +817,7 @@ git commit -m "feat: parse factor ideas and detect ambiguities"
 | `point_in_time_financial` | `rank(net_profit_yoy)` | requires report period and announcement date |
 | `complex_vague` | confirmed growth-minus-risk composite | asks window, direction, weights and rebalance |
 
-- [ ] **Step 2: Write the loader test and run it red**
+- [x] **Step 2: Write the loader test and run it red**
 
 ```python
 def test_all_golden_cases_have_complete_expected_contracts() -> None:
@@ -820,11 +830,11 @@ def test_all_golden_cases_have_complete_expected_contracts() -> None:
 Run: `uv run --project backend pytest backend/tests/golden/test_cases.py -v`  
 Expected: FAIL because files and loader are absent.
 
-- [ ] **Step 3: Add all ten JSON fixtures and the CLI**
+- [x] **Step 3: Add all ten JSON fixtures and the CLI**
 
 The CLI loads one case, calls the parser, runs clarification rules, prints validated JSON, and exits nonzero when actual blocking question IDs differ from the fixture.
 
-- [ ] **Step 4: Run golden tests and one CLI smoke test**
+- [x] **Step 4: Run golden tests and one CLI smoke test**
 
 Run:
 
@@ -858,7 +868,7 @@ git commit -m "test: add factor workflow golden cases"
 - Produces: CLI `factor-platform run-case-suite --set golden|hidden --report <path>`，输出结构化指标报告。
 - 隐藏集在开发期间不参与调试；其标准答案单独存放并在 `.gitignore` 中排除，只在最终验收时启用。
 
-- [ ] **Step 1: Test suite composition and metric computation**
+- [x] **Step 1: Test suite composition and metric computation**
 
 ```python
 def test_golden_set_covers_required_categories() -> None:
@@ -879,12 +889,12 @@ def test_metrics_report_separates_error_kinds() -> None:
     assert 0.0 <= report.unnecessary_question_rate <= 1.0
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/golden -v`
 Expected: FAIL because the expanded set and metrics report are absent.
 
-- [ ] **Step 3: Build the case matrix and metric report**
+- [x] **Step 3: Build the case matrix and metric report**
 
 案例集构成：
 
@@ -898,7 +908,15 @@ Expected: FAIL because the expanded set and metrics report are absent.
 
 报告必须同时列出失败案例，并按模型错误、字段错误、数据错误、执行错误分类。
 
-- [ ] **Step 4: Run the golden suite and record the baseline**
+> **实现修订（2026-08-10）。** 三处偏离：
+>
+> 1. **六组指标目前只有三组可测。** 字段规划（缺 Task 11 规划器）、执行与安全（缺 Task 13–15）、研报解析（缺 Task 21–23）尚无实现支撑。这三组进 `not_measured` 并各自附上原因，**不输出任何分数**——填 0.0 会被读成「已测且失败」，填 1.0 会被读成「已验证」，而这份报告正是最终验收的比对基准，两种写法都是对覆盖面的谎报。
+> 2. **歧义案例不参与 AST 比对。** 其 `expected_formula_ast` 是**澄清之后**的公式（`rank(growth)` → `rank(revenue_yoy)`），而本套件没有澄清消解步骤（那是 Task 16 编排器）。拿澄清前的解析结果去比澄清后的答案，会让每个歧义案例都因行为正确而报失败。`ast_match_rate` 的分母因此只含具体案例，并在报告中显式给出 `ast_scored_cases`。
+> 3. **隐藏集由开发者本人编写**（用户 2026-08-10 决定），靠「实现阶段不查看」的纪律隔离，并已加入 `.gitignore` 防止进入仓库历史。**该隔离是软的**：同一方既写实现又出题，只能测出无意的过拟合，测不出有意的。最终验收报告须原样记录这一限制。
+>
+> 实跑（2026-08-10）：golden 37 个案例全过；阻塞召回 100%、阻塞精确率 100%、不必要追问率 0%；基线写入 `docs/acceptance/baseline-golden.json`。隐藏集 10 个案例已建立，**本阶段未运行**。
+
+- [x] **Step 4: Run the golden suite and record the baseline**
 
 Run:
 
@@ -934,7 +952,7 @@ git commit -m "test: expand factor case set and add metrics report"
 - Produces: `WindConnectionFactory`, unchanged public adapter functions, unchanged `RQ_WIND_CAPABILITIES` semantics.
 - No module import may open a database connection or require credentials.
 
-- [ ] **Step 1: Test lazy connection and adapter compatibility**
+- [x] **Step 1: Test lazy connection and adapter compatibility**
 
 ```python
 def test_import_does_not_connect(monkeypatch) -> None:
@@ -950,7 +968,7 @@ def test_connection_factory_uses_secret_only_at_connect_time(settings, monkeypat
     assert captured["host"] == "db.internal"
 ```
 
-- [ ] **Step 2: Move the module and run tests red**
+- [x] **Step 2: Move the module and run tests red**
 
 Run:
 
@@ -963,11 +981,11 @@ uv run --project backend pytest backend/tests/wind/test_connection.py backend/te
 
 Expected: FAIL until global literal config is replaced.
 
-- [ ] **Step 3: Inject a connection factory without rewriting data functions**
+- [x] **Step 3: Inject a connection factory without rewriting data functions**
 
 `connection.py` owns config extraction, retries and connection creation. `adapter.query_df` calls the injected singleton factory lazily. Preserve function signatures, capability registry, parameterized values and generic-query identifier checks.
 
-- [ ] **Step 4: Run adapter tests and a real connection smoke test**
+- [x] **Step 4: Run adapter tests and a real connection smoke test**
 
 Run:
 
@@ -994,7 +1012,7 @@ git commit -m "refactor: inject Wind database connection"
 **Interfaces:**
 - Produces: `CapabilityCatalog.from_registry()`, `find_exact(intent)`, `get_tool(name)`, `to_llm_tools()`.
 
-- [ ] **Step 1: Write registry normalization tests**
+- [x] **Step 1: Write registry normalization tests**
 
 ```python
 def test_registry_exports_only_callable_data_tools() -> None:
@@ -1010,16 +1028,16 @@ def test_close_maps_to_get_price() -> None:
     assert match.arguments["fields"] == ["close"]
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/wind/test_capabilities.py -v`  
 Expected: FAIL with missing catalog.
 
-- [ ] **Step 3: Implement immutable tool specs**
+- [x] **Step 3: Implement immutable tool specs**
 
 Normalize purpose, asset types, parameters, exact outputs, semantic outputs, constraints, planner and examples. Exclude lifecycle/expression entries from direct data tools while preserving them for code generation dependencies.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `uv run --project backend pytest backend/tests/wind/test_capabilities.py -v`  
 Expected: capability normalization and exact match tests PASS.
@@ -1045,7 +1063,7 @@ git commit -m "feat: expose Wind capabilities to planner"
 - Produces: `CatalogBuilder.build()`, `FieldCatalog.load()`, `FieldSearch.search(requirement, limit=10)`.
 - Search result is a `FieldCandidate` with source tier and lexical score.
 
-- [ ] **Step 1: Write parser and ranking tests**
+- [x] **Step 1: Write parser and ranking tests**
 
 ```python
 def test_catalog_parses_table_and_fields(tmp_path) -> None:
@@ -1064,16 +1082,16 @@ def test_alias_beats_bm25_for_exact_business_term(search) -> None:
     assert candidates[0].source_tier == "alias"
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/wind/test_catalog.py backend/tests/wind/test_field_search.py -v`  
 Expected: FAIL because catalog modules are absent.
 
-- [ ] **Step 3: Implement normalization and the first alias set**
+- [x] **Step 3: Implement normalization and the first alias set**
 
 Aliases must cover open/high/low/close, pre/post adjustment, volume, turnover, total/free-float market cap, PE/PB/PS, ROE/ROA, revenue, net profit, operating cash flow, announcement date, report period, industry, index components, ST and suspension. Tokenize Chinese with `jieba`, normalize English snake/camel case, and combine exact alias score with BM25 only after asset/frequency filters.
 
-- [ ] **Step 4: Build the real catalog and run tests**
+- [x] **Step 4: Build the real catalog and run tests**
 
 Run:
 
@@ -1110,7 +1128,7 @@ git commit -m "feat: add Wind field catalog search"
 - Produces: CLI `factor-platform sync-wds-metadata --input <导出文件> --output backend/data/generated/wind_metadata.jsonl`。
 - 运行时**不访问 WDS 网站**；只读本地目录。未覆盖字段走人工补充流程。
 
-- [ ] **Step 1: Test metadata merge and metadata-aware filtering**
+- [x] **Step 1: Test metadata merge and metadata-aware filtering**
 
 ```python
 def test_metadata_supplies_asset_type_and_frequency() -> None:
@@ -1136,12 +1154,12 @@ def test_field_without_metadata_is_marked_not_dropped(search) -> None:
     assert any(c.metadata_source is None for c in candidates)
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/wind/test_metadata_catalog.py backend/tests/wind/test_field_search.py -v`
 Expected: FAIL because metadata modules are absent.
 
-- [ ] **Step 3: Implement sync, merge and the seven-layer funnel**
+- [x] **Step 3: Implement sync, merge and the seven-layer funnel**
 
 本地化的元数据字段：表中文名、表英文名、字段中文解释、字段英文解释、单位、数据频率、资产类型、主键、关联键、证券代码字段、交易日字段、公告日字段、报告期字段、数据更新时间、更新方式、是否原始字段、是否衍生字段、业务备注、数据可得性说明、字段适用范围、是否存在修订版本、`metadata_source`、`metadata_version`。
 
@@ -1153,7 +1171,18 @@ Expected: FAIL because metadata modules are absent.
 
 同时用元数据回填 `wind_aliases.yaml` 中的时间角色与单位，并把两条已知错误映射（`流通市值 → float_a_shr`、`经营活动现金流 → asharecashflow.net_profit`）标记为待 Task 10.5 处理。
 
-- [ ] **Step 4: Run metadata tests and rebuild the local catalog**
+> **实现修订（2026-08-10）。** 本任务全程离线完成，无需访问 WDS 网站，元数据源为本地 `windquery/.../wind字典/` 的 678 份逐表数据字典。落地时有六处偏离或补充：
+>
+> 1. **合并改为并集，取消「索引驱动」。** 原设计假定字段索引是完整召回基准。实测不成立：索引与字典**都是同一份 schema 的受损 PDF 抽取**，索引丢了 74 个字典有的字段，其中包括 `ashareeodderivativeindicator.s_val_mv`（市值）。索引驱动会静默删除它们，用户搜市值得到空结果并据此认为 Wind 没有这个字段。并集同时也守住了漏斗分工——前四层召回应过度包含，存在性由 `information_schema` 与样本验证对着真实库裁定，而不是对着一份 PDF 抽取。
+> 2. **频率从「业务主键」推导，不看表名。** 业务主键即观测粒度：主键含「交易日期」→ 日频，含「报告期」→ 季频。无法识别的主键留空，不猜——静态描述表被猜成日频会污染所有过滤。
+> 3. **单位在字典中根本不存在**，改由人工覆盖文件 `backend/data/wind_field_units.yaml` 提供，全部条目 `verified: false`，交 Task 10.5 逐条确认。**不在覆盖文件中的字段单位保持 `None`**：市值按元而非万元读取是 10,000 倍的静默错误，下游没有任何检查会发现。
+> 4. **新增 `market` 字段**（源自注释中的「所属数据库」）。A 股表与港股表的 `asset_type` 同为 `stock`、中文字段名完全一致，仅凭原有元数据无法区分；实测 581 个港股字段会排在「市值」查询首位。首期范围是 A 股，故按市场**排序分层**而非硬过滤（分层是召回层该做的，过滤是证伪层的职责）。
+> 5. **修掉一个既有 BM25 缺陷。** 原实现用 `score <= 0` 判定非命中，但 BM25 对出现在过半文档中的词给负分——「匹配但普遍」被当成了「没匹配」，「日期」「代码」这类高频词直接返回空。改为按词项重叠判定命中。同样地，市场降权不能用乘性系数：负分乘小于 1 的系数会**变大**，会把本该降权的字段顶到首位。
+> 6. **元数据并入 BM25 文档**（中文名 + 释义）。原文档只含英文标识符，中文查询只能命中 32 条人工别名；接入后中文可直达全部 7,478 个字段——否则元数据层只会过滤、从不参与召回，不构成漏斗的第三层。
+>
+> `wind_metadata.jsonl` 含 Wind 版权释义原文，随 `backend/data/generated/` 一并 gitignore，属本地生成物。
+
+- [x] **Step 4: Run metadata tests and rebuild the local catalog**
 
 Run:
 
@@ -1186,7 +1215,7 @@ git commit -m "feat: localize WDS field metadata"
 - 两类验证**分开返回**；候选状态取六值之一，不再是通过/失败二值。
 - 只使用参数化、有界的查询，经受信任连接层执行。
 
-- [ ] **Step 1: Test the six-state verdict and per-shape sampling**
+- [x] **Step 1: Test the six-state verdict and per-shape sampling**
 
 ```python
 async def test_unknown_column_is_schema_invalid(fake_query) -> None:
@@ -1219,12 +1248,12 @@ async def test_time_role_mismatch_is_reported(fake_query) -> None:
     assert verdict.status == VerificationStatus.TIME_ROLE_INVALID
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/wind/test_schema_verify.py -v`  
 Expected: FAIL because verifier is absent.
 
-- [ ] **Step 3: Implement two verifiers and per-shape sampling**
+- [x] **Step 3: Implement two verifiers and per-shape sampling**
 
 **Schema 验证**（不查数据）：表是否存在、字段是否存在、字段类型、时间字段、代码字段、主键或业务键、字段是否适用于当前查询形状。经 `information_schema`，绝不插值用户值或未验证标识符。
 
@@ -1247,6 +1276,15 @@ Expected: FAIL because verifier is absent.
 返回状态六值：`SCHEMA_VALID_DATA_PRESENT`、`SCHEMA_VALID_NO_DATA_IN_SAMPLE`、`SCHEMA_VALID_DATA_SPARSE`、`SCHEMA_INVALID`、`FIELD_INVALID`、`TIME_ROLE_INVALID`。
 
 **只有 `SCHEMA_INVALID` / `FIELD_INVALID` / `TIME_ROLE_INVALID` 阻塞。** `SCHEMA_VALID_NO_DATA_IN_SAMPLE` 必须如实呈现为"字段存在，但当前样本区间无数据"，交由用户判断，不得判定为字段错误。
+
+> **实现说明（2026-08-10）。** 离线部分已完成，实跑 21 条单测全过。四点补充：
+>
+> 1. **采样计划按 `QueryShape` 显式穷举，无默认分支。** 缺省回落到日频计划正是本任务要修的缺陷；写成 `_PLANS[shape]` 让漏配的形态直接 KeyError，而不是静默按日频采样。有一条测试遍历 `QueryShape` 全部取值做守卫。
+> 2. **两个验证器共用 `QueryExecutor` 协议**，生产实现 `WindQueryExecutor` 单独成模块，用 `asyncio.to_thread` 包住同步的 pymysql，并在 Wind 未配置时**构造即拒绝**——构造成功、查询时才失败会把「缺凭据」伪装成「数据有问题」，且离故障点隔了好几层。
+> 3. **标识符一律走绑定参数。** 表名与字段名来自模型输出和 PDF 抽取，两条测试断言 SQL 文本里不出现表名、字段名、库名，另有一条用 `x; DROP TABLE ... --` 做敌意输入。
+> 4. **修了一个 CLI 报错错位。** 无 `.env` 时 `verify-field` 原本抛出「session_cookie_secret is required」的 pydantic 校验堆栈——用户问的是 Wind 字段，得到的是 cookie 密钥报错。现在翻译成「复制 .env.example 并填写 Wind 凭据」。
+>
+> **延后的真实取数冒烟（需凭据轮换后执行）**：Step 4 的三条 `verify-field` 命令（`point_range` / `report_period` / `interval_overlap` 各一）尚未对真实库执行。
 
 - [ ] **Step 4: Run tests and verify one field of each shape**
 
@@ -1284,7 +1322,7 @@ git commit -m "feat: separate schema and data existence verification"
 - Produces: `MetricRegistry.load()`、`get(key) -> MetricDefinition`、`options_for(category) -> list[str]`、`plausible_range(key)`。
 - 澄清候选项、字段口径、结果层量级阈值、对拍参照**统一来自本表**。
 
-- [ ] **Step 1: Test registry-driven clarification and disputed blocking**
+- [x] **Step 1: Test registry-driven clarification and disputed blocking**
 
 ```python
 def test_clarification_options_come_from_registry() -> None:
@@ -1309,12 +1347,12 @@ def test_registry_covers_every_clarification_option() -> None:
             assert registry.get(option) is not None
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/factor/test_metric_registry.py -v`
 Expected: FAIL because the registry is absent.
 
-- [ ] **Step 3: Build the registry and wire it into three consumers**
+- [x] **Step 3: Build the registry and wire it into three consumers**
 
 每条口径至少包含：`display_zh`、`definition`、`wind_table`、`wind_field`、`time_role`、`announcement_field`、`unit`、`plausible_range`、`reference_check`、`review_status`、`reviewer`、`reviewed_at`、`review_comment`、`evidence_version`、`note`。
 
@@ -1326,7 +1364,16 @@ Expected: FAIL because the registry is absent.
 
 `ClarificationEngine` 删除硬编码候选元组，改为注入 `MetricRegistry`。
 
-- [ ] **Step 4: Run registry, clarification and case tests**
+> **实现说明（2026-08-10）。** 离线部分完成，14 条注册表单测 + 2 条澄清单测全过。三点：
+>
+> 1. **触发词留在澄清引擎，候选项来自注册表。** 判断「盈利质量」是模糊表述属于语言判断，留在代码里；但候选项是口径定义，必须由不写代码的人可读可签字。多留一份副本，正是「界面提供了一个注册表已标 disputed 的选项」的成因——补了一条测试断言凡是提供给用户的候选项，注册表都必须放行。
+> 2. **未登记口径默认拒绝**，与 `disputed` 同为不放行。默认放行会让「忘记登记」变成静默通过。
+> 3. **两条已知错误映射登记为 `disputed` 而非删除。** 删掉只会让错误重新变回沉默的；登记在此，平台再次踩中时能直接拒绝并说明错在哪。两者都会产出看起来完全合理的因子——`float_a_shr` 是股本不是市值，现金流量表的 `net_profit` 是间接法起始行，用它算现金流对利润比会恒等于 1。
+>
+> **延后项**：全部 9 条口径当前为 `unreviewed`，需带教老师抽样确认后改为 `reviewed`；每条已附 `reference_check` 说明如何核对。
+
+
+- [x] **Step 4: Run registry, clarification and case tests**
 
 Run: `uv run --project backend pytest backend/tests/factor backend/tests/golden -v`
 Expected: 注册表驱动的澄清、disputed 阻塞、unreviewed 放行加警告全部 PASS；扩充后的案例集不回归。
@@ -1350,7 +1397,7 @@ git commit -m "feat: externalize metric definitions into a registry"
 - Consumes: confirmed `FactorSpec`（含 `TimeConvention`）, confirmed `FieldCandidate` values, `CapabilityCatalog`, `MetricRegistry`, `MetadataCatalog`.
 - Produces: `WindPlanner.plan() -> ExecutionPlan`，计划中必须写入 `time_convention` 与 `warmup_start`。
 
-- [ ] **Step 1: Test function priority and financial point-in-time rules**
+- [x] **Step 1: Test function priority and financial point-in-time rules**
 
 ```python
 def test_prices_use_registered_get_price(planner) -> None:
@@ -1387,12 +1434,12 @@ def test_after_close_announcement_is_not_used_same_day(planner) -> None:
     assert plan.steps[-1].arguments["as_of_offset_days"] == 1
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/wind/test_planner.py -v`  
 Expected: FAIL because planner is absent.
 
-- [ ] **Step 3: Implement deterministic planning priority**
+- [x] **Step 3: Implement deterministic planning priority**
 
 每个变量的决策顺序：能力精确匹配 → 已确认的通用字段 → 拒绝（未确认字段直接 `PlanningError`，不做猜测）。
 
@@ -1404,7 +1451,16 @@ Expected: FAIL because planner is absent.
 
 无法证明点时可得的财务数据在规划期直接失败，不是警告。
 
-- [ ] **Step 4: Run planner and golden-case tests**
+> **实现修订（2026-08-10）。** 四点：
+>
+> 1. **`plan(spec, confirmed, request)` 多收一个请求信封。** `FactorSpec` 不含日期，日期属于受信任信封（与解析器合并信封的做法一致），规划器需要它来算 `warmup_start` 与查询区间。
+> 2. **专用函数的路由改问能力目录，不按表名硬编码。** 我第一版把 `ashareeodderivativeindicator` 也归进「价格表」，PE/PB/市值会被路由到 `get_price` —— 而该函数只支持 9 个 OHLCV 字段，其余抛 `NotImplementedError`，也就是说这个错误要等 Worker 真跑一遍才暴露。能力目录里已经声明了每个工具的 `exact_outputs` 与 `source_dependencies`，硬编码表名等于把这份知识抄了一遍还抄错。
+> 3. **`ExecutionPlan` 新增 `time_convention` 字段。** 计划是被签名、入队、重放的对象，时间口径必须随它一起走，而不是执行时回头去读 spec。
+> 4. **修正了 43 个案例夹具里我编造的工具名。** Task 6.5 写夹具时我凭想象填了 `wind.get_financial_indicator` / `get_derivative_indicator` / `get_financial_statement` / `get_index_members` 四个**从不存在**的工具，而当时没有任何东西会发现——夹具是唯一断言这些名字的地方，套件对着一个不存在的接口「通过」了。现补一条守卫测试：凡 `expected_tool_names` 中的工具，能力目录里必须存在。歧义案例的工具名清空为准确状态：未澄清就没有确定的字段绑定，也就没有确定的检索计划。
+
+
+
+- [x] **Step 4: Run planner and golden-case tests**
 
 Run: `uv run --project backend pytest backend/tests/wind/test_planner.py backend/tests/golden/test_cases.py -v`  
 Expected: tests PASS; expected tool names match all applicable golden cases.
@@ -1431,7 +1487,7 @@ git commit -m "feat: plan safe Wind data retrieval"
 - Produces: `PipelineExecutor.apply(pipeline, variables, factor, context) -> tuple[dict[str, DataFrame], DataFrame]`，按 `order` 依次执行，`target=variables` 作用于原始变量、`target=factor` 作用于公式结果。
 - 编译器**不再实现** `winsorize`/`zscore`/`industry_neutralize`；这三个算子只存在于流水线执行器中。
 
-- [ ] **Step 1: Write operator semantics tests**
+- [x] **Step 1: Write operator semantics tests**
 
 ```python
 def test_rank_is_cross_sectional() -> None:
@@ -1471,13 +1527,13 @@ def test_variable_target_applies_before_formula_evaluation() -> None:
     assert processed["close"].max() < variables()["close"].max()
 ```
 
-- [ ] **Step 2: Run compiler tests red**
+- [x] **Step 2: Run compiler tests red**
 
 Run: `uv run --project backend pytest backend/tests/factor/test_compiler.py backend/tests/factor/test_pipeline_executor.py -v`
 
 Expected: FAIL because compiler is absent.
 
-- [ ] **Step 3: Implement the eleven operators and the ordered pipeline**
+- [x] **Step 3: Implement the eleven operators and the ordered pipeline**
 
 编译器实现的 11 个算子：`add`、`subtract`、`multiply`、`divide`、`negative`、`log`、`rank`、`rolling_return`、`rolling_std`、`rolling_mean`、`fillna`。每个算子是显式函数，用 dict 分派，**禁止 `eval` 和动态 import**。
 
@@ -1487,7 +1543,17 @@ Expected: FAIL because compiler is absent.
 
 执行器必须记录实际执行序列写入结果元数据，供公式层校验比对是否出现重复标准化。
 
-- [ ] **Step 4: Run compiler tests**
+> **实现说明（2026-08-10）。** 27 条单测全过。三点需要记录：
+>
+> 1. **`window` 在两类算子中含义不同，这是刻意的。** 滚动聚合的 window 是**观测个数**（`rolling_mean(x,20)` 平均 20 个值）；`rolling_return` 的 window 是**滞后期数**（`close[t]/close[t-20]-1`），因为这才是提出「20 日动量」的人所指的东西。按观测个数解释会让 20 日动量实际跨 19 期——一个永远存在、且看上去完全合理的差一错误。两种语义各有测试钉死。
+> 2. **`min_periods=window` 是必须显式写的。** pandas 默认 `min_periods=1`，会在窗口未满时用不足的数据出值：第 3 天就返回一个「20 日动量」。下游无法分辨，每次回测的前段都悄悄变成了另一个因子。
+> 3. **`industry_neutralize` 缺行业映射时直接拒绝，不静默跳过。** 跳过会让 spec 声称「已中性化」而因子实际仍载荷在行业上，且没有任何下游环节会重新推导这一点。部分覆盖（个别证券无行业）同样拒绝。
+>
+> 另：`divide` 的 inf 与 `zscore` 的零方差日都转 NaN——无穷值会在 rank 中存活并把当日整个截面一起带偏，损失范围从一个格子扩大到一整天。
+> 依赖新增 `pandas-stubs`（dev），使 mypy 能检查 DataFrame 操作。
+
+
+- [x] **Step 4: Run compiler tests**
 
 Run: `uv run --project backend pytest backend/tests/factor/test_compiler.py backend/tests/factor/test_pipeline_executor.py -v`
 
@@ -1517,7 +1583,7 @@ git commit -m "feat: compile formulas and run preprocessing pipeline"
 - Produces: `CodeExporter.render(manifest) -> ExportedProgram`（`.source` + `.sha256`），仅供用户审查、复制、下载与在批准环境中复现。
 - Manifest 内容：`FactorSpec`、`ExecutionPlan`、`PreprocessingPipeline`、`TimeConvention`、`FieldSelection` 列表、输入工件哈希、各项版本号、签名、执行参数。**它是平台唯一实际执行的对象。**
 
-- [ ] **Step 1: Write determinism and rejection tests**
+- [x] **Step 1: Write determinism and rejection tests**
 
 ```python
 def test_same_inputs_build_identical_manifest() -> None:
@@ -1551,13 +1617,13 @@ def test_exported_code_is_deterministic_and_traceable_to_manifest() -> None:
     assert manifest.sha256 in first.source
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/execution/test_manifest.py backend/tests/factor/test_export.py -v`
 
 Expected: FAIL because manifest builder and exporter are absent.
 
-- [ ] **Step 3: Implement manifest construction, signing and code export**
+- [x] **Step 3: Implement manifest construction, signing and code export**
 
 **确定性构建**：manifest 的 JSON 序列化使用排序键、固定分隔符、固定数值格式；不嵌入时间戳、随机数或依赖字典迭代顺序的内容。同一组输入必须产出相同 `sha256`。
 
@@ -1569,7 +1635,16 @@ Expected: FAIL because manifest builder and exporter are absent.
 
 原计划的 `execution/ast_validator.py`（源码级 AST 白名单）随本次修订**取消**；公式层的 AST 校验由 Task 2.5 的 `factor/ast_checks.py` 承担。
 
-- [ ] **Step 4: Run tests**
+> **实现说明（2026-08-10）。** 23 条单测全过。三点：
+>
+> 1. **`runtime_versions` 由调用方传入，不读活动解释器。** 读 `sys.version` 会让同一份输入在不同机器上产出不同 sha256，「同输入同 manifest」当场失效。
+> 2. **签名用 HMAC 而非裸哈希，且常数时间比较。** 哈希只能证明未损坏，签名才能证明「这是平台批准过的那一份」——而真正的攻击场景是「用户签字后把日期区间改宽」，那种改动会产生一个完全合法的新哈希。
+> 3. **导出代码的安全论证是「移出路径」而非「加控制」。** 生成代码曾经是执行路径，因此需要源码 AST 白名单、动态 import 检查和逐字节一致性证明；改为 manifest 执行后，这些控制不是被加强了，而是不再需要——被保护的对象已经不在需要保护的位置上。导出文件顶部明确声明「这不是平台实际执行的对象」，并有测试断言这句话在。
+>
+> 实测：两次构建 sha256 一致；改写 payload 中的 `end_date` 后验签被拒；导出代码 73 行、内嵌 manifest 哈希。
+
+
+- [x] **Step 4: Run tests**
 
 Run: `uv run --project backend pytest backend/tests/execution/test_manifest.py backend/tests/factor/test_export.py -v`
 
@@ -1601,7 +1676,7 @@ git commit -m "feat: build signed execution manifest and code export"
 - Worker 输入是**签名后的 manifest** 加输入 Parquet；输出是结果 Parquet、结果 JSON 与工件哈希清单。
 - `job.json` 至少包含：`job_id`、`session_id`、`session_version`、`idempotency_key`、`manifest_sha256`、`input_sha256`、`claimed_by`、`claimed_at`、`lease_expires_at`、`attempt`、`max_attempts`、`timeout_seconds`、`cancel_requested`、`created_at`、`started_at`、`finished_at`、`artifact_retention_until`。
 
-- [ ] **Step 1: Test atomic claim and secret-free Worker execution**
+- [x] **Step 1: Test atomic claim and secret-free Worker execution**
 
 ```python
 def test_job_can_be_claimed_only_once(job_store) -> None:
@@ -1663,12 +1738,12 @@ def test_worker_rejects_tampered_manifest(worker, job_store) -> None:
     assert result.error.code == "manifest_verification_failed"
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/execution/test_job_store.py backend/tests/execution/test_worker.py -v`  
 Expected: FAIL because queue and Worker are absent.
 
-- [ ] **Step 3: Implement leases, idempotency, cancellation and retention**
+- [x] **Step 3: Implement leases, idempotency, cancellation and retention**
 
 **目录与原子性**：`pending`、`running`、`completed`、`failed` 四个目录。入队先写临时目录再原子 rename（避免 Worker 看到写了一半的任务）；抢占用原子 rename（同一文件系统上两个 Worker 只有一个成功，另一个收到 `FileNotFoundError` 继续找下一个，无需锁与心跳）。
 
@@ -1684,7 +1759,18 @@ Expected: FAIL because queue and Worker are absent.
 
 **工件保留与磁盘**：`retention.py` 为上传 PDF、中间文本、输入/输出 Parquet、日志、错误工件、临时文件、导出代码分别设定保留期限。定期检查可用空间，达阈值时停止接收新任务、优先清理过期临时工件、**保留不可变正式工件**并记录清理日志。
 
-- [ ] **Step 4: Run unit tests and a real one-shot job**
+> **实现说明（2026-08-10）。** 56 条单测全过，CLI 实跑一个任务从 pending 到 completed 并产出 Parquet。五点：
+>
+> 1. **`factor-worker` 是独立入口，不与 `factor-platform` 共用。** 主 CLI 会加载 `Settings`（需要 Wind 与模型凭据），而 Worker 主机上正确的状态就是没有这些凭据——共用入口会让配置正确的机器反而启动失败。
+> 2. **租约过期不等于该重跑。** Worker 可能在写完完整结果之后才死，盲目重跑会重复计算并覆盖用户可能已经打开过的工件。恢复扫描先看结果是否完整（Parquet **与** result.json 都在），三种处置：已完成 / 重新入队 / 达上限失败。只有 Parquet 没有 JSON 判为写到一半，重新入队。
+> 3. **取消单独结算，不并入失败。** 取消是决策不是缺陷，记进失败会让所有统计里的「主动停止」看起来像 Worker 不稳定。
+> 4. **环境按白名单构造。** 复制父环境再删已知密钥的做法，会漏掉每一个没人记得加进拒绝列表的变量，而那个列表总是泄露之后才更新。有测试注入 `WIND_PASSWORD` 与一个虚构的未来密钥，断言两者都不在 Worker 环境里。
+> 5. **保留策略的关键不是年龄而是「有没有别的东西引用它」。** 已发布因子的输出是因子库条目所指向的对象，清掉它会让用户几个月后打开自己保存的因子时发现指向为空。因此 `PUBLISHED_OUTPUT` 永不清扫；磁盘压力下改为停止接收新任务——拒绝开工可恢复，删掉已发布因子的证据不可恢复。
+>
+> 另修一处测试质量问题：磁盘可用率原本直接读真实磁盘，测试会随开发机的占用情况时通过时失败。改为可注入。
+
+
+- [x] **Step 4: Run unit tests and a real one-shot job**
 
 Run:
 
@@ -1716,7 +1802,7 @@ git commit -m "feat: execute manifests in isolated worker with leases"
 **Interfaces:**
 - Produces: `DataValidator.validate()`, `FormulaValidator.validate()`, `ResultValidator.validate()` returning structured findings with severity, code, message and evidence.
 
-- [ ] **Step 1: Test plausible failures**
+- [x] **Step 1: Test plausible failures**
 
 ```python
 def test_duplicate_keys_are_blocking() -> None:
@@ -1759,12 +1845,12 @@ def test_duplicate_standardization_in_pipeline_is_blocking() -> None:
     assert report.has_error("duplicate_standardization")
 ```
 
-- [ ] **Step 2: Run tests red**
+- [x] **Step 2: Run tests red**
 
 Run: `uv run --project backend pytest backend/tests/validation -v`  
 Expected: FAIL because validators are absent.
 
-- [ ] **Step 3: Implement exact validation rules**
+- [x] **Step 3: Implement exact validation rules**
 
 **数据层**：区间覆盖、证券数量、重复键（阻塞）、缺失率、单位、数量级、全零/常数、极值、历史成分、公告日存在性、未来数据、复权口径、字段口径。
 
@@ -1780,7 +1866,16 @@ Expected: FAIL because validators are absent.
 
 `disputed` 口径由 Task 10.5 在规划期即阻塞，不进入本层。
 
-- [ ] **Step 4: Run validation tests**
+> **实现说明（2026-08-10）。** 21 条单测全过。三点：
+>
+> 1. **每条检查针对的都是「能跑通且看起来合理」的错误**——这是选择标准。自己就会抛异常的东西不需要校验器。
+> 2. **严重级别的划分才是实质。** 阻塞错了会训练用户去绕过闸门，该阻塞的降成告警会让单位错误进入正式发布。因此每条测试钉的不只是「检出」，还有「级别」：重复键阻塞（横截面算子会重复计入）、空样本告警（字段可能有效，区间是用户的判断）、量级越界阻塞（几乎总是元/万元或比值/百分数的口径错误）、参照不一致告警（可能是本因子错，也可能是参照过时）。
+> 3. **重复标准化比对的是实际执行序列，不是声明的流水线。** 且区分 target：对变量标准化和对因子标准化是两件事，不算重复。
+>
+> `implausible_magnitude` 是「无专职研究员」的核心补偿控制：领域专家一眼就知道 3000% 的 ROE 是错的，而流水线不知道——3000 是个完全合法的浮点数。把专家脑子里的合理区间写进注册表，就是让这层能替代那一眼。
+
+
+- [x] **Step 4: Run validation tests**
 
 Run: `uv run --project backend pytest backend/tests/validation -v`  
 Expected: all blocking/warning distinctions PASS.
@@ -1805,7 +1900,7 @@ git commit -m "feat: validate factor data formulas and results"
 - Produces 修订命令：`revise_formula()`、`revise_fields()`、`revise_request()`、`revise_preprocessing()`、`revise_time_convention()`、`cancel_execution()`、`clone_session()`、`rerun()`，全部经 Task 3.5 的归约器触发级联失效。
 - CLI command: `factor-platform run-case CASE_ID --real-wind`。
 
-- [ ] **Step 1: Write a fake-adapter end-to-end test**
+- [x] **Step 1: Write a fake-adapter end-to-end test**
 
 ```python
 async def test_momentum_case_reaches_completed(workflow, fake_llm, fake_wind, worker) -> None:
@@ -1837,12 +1932,12 @@ async def test_disputed_metric_blocks_before_any_external_call(workflow, fake_wi
     assert fake_wind.call_count == 0
 ```
 
-- [ ] **Step 2: Run the E2E test red**
+- [x] **Step 2: Run the E2E test red**
 
 Run: `uv run --project backend pytest backend/tests/orchestration/test_service.py backend/tests/e2e/test_cli_p0.py -v`  
 Expected: FAIL because the service is absent.
 
-- [ ] **Step 3: Implement orchestration with explicit commits between external effects**
+- [x] **Step 3: Implement orchestration with explicit commits between external effects**
 
 每个公开方法的固定骨架：检查状态与版本 → 发出"开始"事件 → 执行**一次**外部操作 → 校验其结果 → 发出"完成"或"失败"事件。
 
@@ -1851,6 +1946,16 @@ Expected: FAIL because the service is absent.
 修订命令走同一骨架，但发出的是 Task 3.5 的修订事件，由归约器执行级联失效。`disputed` 口径与未确认字段在**任何外部调用之前**拦截。
 
 `build_manifest` 取代原 `generate_code`：构建 → 校验 → 签名 → 连同输入工件入队。导出的 `factor.py` 与 manifest 同源，供界面展示与下载。
+
+> **实现说明（2026-08-10）。** 11 条编排单测 + 3 条端到端全过。四点：
+>
+> 1. **端到端测试的价值在接缝，不在组件。** 每个组件各自的测试都过、链条仍然断——因为规划器产出的计划被 manifest 构建器拒绝，或 runtime 写出的 frame 校验层读不了。`tests/e2e` 里 Wind 与模型是 fake 的，但**我们自己组件之间的每一道接缝都是真的**：计划、manifest、签名、Parquet、三份报告。
+> 2. **`build_manifest` 需要请求信封。** 日期不在 `FactorSpec` 里（与解析器合并信封的做法一致），规划器要用它算 `warmup_start`。
+> 3. **所有修订走同一条 `_revise` 私有路径**，确保级联失效无法被绕过——新增一个修订命令时不会有人忘记接归约器。
+> 4. **`rerun` 从 `code_ready` 不合法。** 还没跑过就没有可重跑的东西；允许它会让界面在一个从未产出结果的因子上显示「重跑」，用户会合理地据此认为结果存在。
+
+> **实测（2026-08-10）**：`run-case momentum_20d` → 4 步计划、预热回溯至 2022-11-25；`run-case profitability_ambiguous` → 在澄清处阻塞；`run-case roe_ttm_rank` → 走受控通用查询形状。**`--real-wind` 的取数阶段尚未接线，需凭据后补**，已记入延后清单。
+
 
 - [ ] **Step 4: Run fake and real P0 CLI scenarios**
 
@@ -1889,7 +1994,7 @@ git commit -m "feat: complete command line factor workflow"
 - Produces the PRD endpoints for create/get/message/formula confirmation/field confirmation/code/execute/result, `GET /events`, and `GET /health`.
 - Mutation bodies carry `expected_version`; conflicts return HTTP 409 with current version.
 
-- [ ] **Step 1: Write API contract tests**
+- [x] **Step 1: Write API contract tests**
 
 ```python
 async def test_stale_formula_confirmation_returns_409(client, session_id) -> None:
@@ -1906,16 +2011,26 @@ async def test_events_resume_after_last_event_id(client, populated_session) -> N
     assert "id: 3" in response.text
 ```
 
-- [ ] **Step 2: Run API tests red**
+- [x] **Step 2: Run API tests red**
 
 Run: `uv run --project backend pytest backend/tests/api/test_sessions.py backend/tests/api/test_events.py -v`  
 Expected: FAIL because app and routers are absent.
 
-- [ ] **Step 3: Implement thin handlers and SSE event IDs**
+- [x] **Step 3: Implement thin handlers and SSE event IDs**
 
 Map domain exceptions to stable JSON error codes. SSE reads persisted events after `Last-Event-ID`, then watches for new records with a bounded polling interval and heartbeat. `GET /health` reports database, Wind, active LLM provider, job queue and version without exposing credentials.
 
-- [ ] **Step 4: Run API tests and launch smoke**
+> **实现说明（2026-08-10）。** 11 条 API 单测全过，真实 uvicorn 启动 `/api/health` 返回 200。四点：
+>
+> 1. **错误码是契约，状态码不是。** 前端若按 message 分支，别人改一次措辞就会坏；按 `stale_session_version` 分支则一直可用。因此每个领域异常都有稳定标识符，人读的文案可以自由修改。版本过期用 409 而非 400 是刻意的：请求本身合法、只是晚了一步，客户端需要「重读后重试」而不是「修正 payload」——两种恢复动作不同。
+> 2. **SSE 是持久化日志的投影，不是广播。** 这正是它可恢复的原因：浏览器休眠、断网、刷新之后带 `Last-Event-ID` 回来，拿到的恰好是错过的部分。纯广播设计会让这个浏览器永久落后且无从察觉。SSE 的 `id` 直接用事件序号——另造一套流 id 等于引入第二套需要与第一套保持一致的顺序。
+> 3. **`Last-Event-ID` 无法解析时从头重放，而不是跳过。** 重发是可见的，跳过是不可见的。
+> 4. **健康检查只报「是否可达」，绝不报「如何可达」。** 凌晨两点看这个输出的人，会把它整段粘进聊天窗口。有测试断言响应体里不出现 password / api_key / secret / 连接串。另外「降级」与「宕机」分开：平台设计上就能离线运行，缺 Wind 或模型时各自报自身状态，不拖垮整体。
+
+> **实测**：`/api/health` → `database: ok`、`wind: disabled`、`llm: unconfigured`、`job_queue: ok`，整体 `ok`——如实报告而非伪装健康。
+
+
+- [x] **Step 4: Run API tests and launch smoke**
 
 Run:
 
@@ -1951,7 +2066,19 @@ git commit -m "feat: expose factor session API"
 **Interfaces:**
 - Produces: generated API types, `apiClient`, router paths and shared application shell.
 
-- [ ] **Step 1: Scaffold and write the shell test**
+> **实现说明（2026-08-10）。** 4 条 shell 单测 + `tsc --noEmit` + `vite build` + 真实浏览器验收全过。四点：
+>
+> 1. **前端类型由后端 OpenAPI 生成**（`backend/scripts/export_openapi.py` → `npm run gen:api`，1543 行）。改名字段会在构建期报错，而不是运行时变成组件里的 `undefined`。导出脚本用内存库与离线模型替身，**不需要任何凭据**——需要生产密钥的构建步骤是会被人跳过的构建步骤。
+> 2. **`FactorSpec` 在 OpenAPI 中被拆成 `-Input` / `-Output`**，因为收发形状确实不同（默认值字段在输出里必填、输入里可选）。客户端保留这个区分而非合并成一个类型，这样把 snapshot 原样回传是类型检查过的，而不是碰运气。
+> 3. **健康横幅逐项列出离线组件，不是一盏绿灯。** 平台设计上就能离线运行；研究员看不到 Wind 未连接，就会把 fake 数据的运行读成真实运行。实测横幅显示「离线模式：wind、llm」。
+> 4. **4xx 不重试。** 版本过期或被拒绝不会因为重试而变成真的，而重试过的拒绝在用户看来就是服务器不稳定。
+>
+> 另：vitest 自带一份 vite 导致插件类型冲突，用 npm `overrides` 去重而非绕开。
+>
+> **浏览器验收（Playwright + 独立临时 profile 的 Chrome，不触碰用户浏览器数据）**：三个导航项渲染正确、路由切换与高亮正常、健康横幅真实连到后端 `/api/health`；console 仅 favicon 404，无功能错误。截图存 `docs/acceptance/screenshots/`。
+
+
+- [x] **Step 1: Scaffold and write the shell test**
 
 Run:
 
@@ -1972,16 +2099,16 @@ it("renders all primary navigation entries", () => {
 })
 ```
 
-- [ ] **Step 2: Run the shell test red**
+- [x] **Step 2: Run the shell test red**
 
 Run: `npm --prefix frontend test -- --run src/app/AppShell.test.tsx`  
 Expected: FAIL because shell/routes are absent.
 
-- [ ] **Step 3: Export OpenAPI and implement the typed client**
+- [x] **Step 3: Export OpenAPI and implement the typed client**
 
 Add scripts `generate:api`, `test`, `typecheck`, and `build`. `apiClient` prepends `/api`, parses the stable error envelope, and sends `expected_version` on every mutation. Routes include workspace, reports, library, analysis, indices and admin.
 
-- [ ] **Step 4: Generate types and verify frontend foundation**
+- [x] **Step 4: Generate types and verify frontend foundation**
 
 Run:
 
@@ -2015,7 +2142,19 @@ git commit -m "feat: scaffold typed factor platform frontend"
 **Interfaces:**
 - Produces: workspace creation/resume, SSE subscription and deterministic mapping from backend state to the ten UI steps.
 
-- [ ] **Step 1: Test state-to-step mapping**
+> **实现说明（2026-08-10）。** 12 条前端单测 + `tsc --noEmit` + 真实浏览器验收全过。**浏览器验收抓出了两个单测抓不到的真实缺陷**：
+>
+> 1. **点击后界面毫无反应。** 后端返回 502（模型未配置——这是正确行为），但前端只处理了版本冲突，其余错误被静默吞掉。用户点「开始解析」，什么都不变，无法分辨是成功、还在跑、还是失败了——这是最糟的一种结果。现已按错误码给出可执行的说明：`llm_response_invalid` → 「模型未配置…请在 .env 中配置模型接口后重试」。
+> 2. **antd v5 只支持 React 16~18，而我选了 React 19**，控制台持续告警。已降到 React 18.3 而不是带着告警交付。
+>
+> 另两点设计：
+>
+> - **状态映射是纯函数**（`sessionView.ts`）。后端状态机是唯一事实来源；让各组件自行解释状态会产生自相矛盾的界面——步骤条显示「执行中」而按钮写着「运行」。
+> - **失败停在出错的那一步**，不跳转到通用错误页。用户需要知道是哪一环节坏了，才能判断该改公式还是该放宽区间。失败步骤由快照内容推断而非存储的标签——归约器会在修订时清空下游产物，所以「存在性」才是可靠信号。
+> - **重载时先取快照再开 SSE**。反过来会让用户眼看着步骤条从历史事件里一点点拼出来。
+
+
+- [x] **Step 1: Test state-to-step mapping**
 
 ```ts
 it("maps field confirmation to step six", () => {
@@ -2027,16 +2166,16 @@ it("keeps failed execution on the execution step", () => {
 })
 ```
 
-- [ ] **Step 2: Run view tests red**
+- [x] **Step 2: Run view tests red**
 
 Run: `npm --prefix frontend test -- --run src/features/workspace/sessionView.test.ts`  
 Expected: FAIL because view mapping is absent.
 
-- [ ] **Step 3: Implement the reference-layout shell**
+- [x] **Step 3: Implement the reference-layout shell**
 
 Top controls: factor type, universe, start/end date, provider/model status, Wind switch and reset. Left column reserves formula/code/result tabs. Right column renders workflow steps, status banner, event log and research input. Reloading `/workspace/:id` fetches the snapshot before opening SSE.
 
-- [ ] **Step 4: Run tests and type-check**
+- [x] **Step 4: Run tests and type-check**
 
 Run:
 
@@ -2070,7 +2209,25 @@ git commit -m "feat: add resumable factor workspace"
 **Interfaces:**
 - Produces every P0 human-in-the-loop action and result presentation.
 
-- [ ] **Step 1: Test that explicit confirmation payloads include the visible version**
+> **实现说明（2026-08-10）。** 23 条前端单测 + `tsc --noEmit` + `vite build` 全过。组件放在 `features/workbench/`（与 Task 18 建立的目录一致，非计划中的 `workspace/`）。
+>
+> 每个确认组件共有的性质：**提交时携带用户当时看到的版本**，而不是最新版本。用最新版本会让每次确认都成功——包括那个基于三次修订之前的界面做出的确认，而这正是版本检查存在的意义。
+>
+> 四处 UI 决定：
+>
+> 1. **`canonical_formula` 是主体，模型说明在其下方且带「仅供阅读，不参与执行」标签。** 这张卡片要防的唯一失败是：用户确认了说明而不是公式。
+> 2. **字段表把「单位」放在确认者视线内**，未登记时显式标「单位未知」。市值按元而非万元读取是 10,000 倍误差，下游没有任何检查会发现。同样，无元数据的字段标注为「本地字典未能解析」而非留空——留空会被读成「这个字段没有意义」。
+> 3. **澄清卡片没有「跳过」或「使用默认」。** 这里的默认值就是整个设计要避免的那个猜测。
+> 4. **校验发现按严重级别分组呈现。** 混在一起时，满屏黄色会训练人们略过红色，而红色才是阻止发布的那一类。
+>
+> 另修一处**真实的可访问性缺陷**：行复选框原本设 `name` 属性，而屏幕阅读器不播报它——用户无法知道每个复选框选的是哪一行绑定。改为 `aria-label`。测试先发现的是它，但问题本身与测试无关。
+>
+> `WorkflowMotion.css` 的动效在 `prefers-reduced-motion: reduce` 下**完全禁用**而非缩短：对前庭敏感的人来说更快的动画仍是动画，而这些动效不承载静态布局没有的信息。
+>
+> jsdom 缺 `matchMedia` 与 `ResizeObserver`（antd 响应式布局要用），已在 setup 中补桩——这不是掩盖缺陷：真实浏览器提供它们，而真实浏览器验收覆盖了它们驱动的行为。
+
+
+- [x] **Step 1: Test that explicit confirmation payloads include the visible version**
 
 ```tsx
 it("submits selected fields with current version", async () => {
@@ -2081,12 +2238,12 @@ it("submits selected fields with current version", async () => {
 })
 ```
 
-- [ ] **Step 2: Run confirmation tests red**
+- [x] **Step 2: Run confirmation tests red**
 
 Run: `npm --prefix frontend test -- --run src/features/workspace/confirmations.test.tsx`  
 Expected: FAIL because components are absent.
 
-- [ ] **Step 3: Implement cards and panes**
+- [x] **Step 3: Implement cards and panes**
 
 Clarification card groups blocking questions; formula card shows variables, direction, windows, weights and defaults; field table shows source, table, field, meaning, time role, unit, Schema status and sample statistics. Monaco is read-only by default; execution uses the exact generated hash and offers copy plus `.py` download. Result pane shows distribution, coverage, Top/Bottom, sample rows, timing and findings, with CSV/Parquet artifact download. `WorkflowMotion.css` adds 180 ms step/card transitions and indeterminate progress movement, while `prefers-reduced-motion: reduce` disables every nonessential animation.
 
@@ -2120,7 +2277,7 @@ git commit -m "feat: complete factor confirmation workspace"
 **Interfaces:**
 - Produces: `PdfParser.extract(file) -> ParsedReport` with page-numbered text blocks and metadata.
 
-- [ ] **Step 1: Test page evidence and file limits**
+- [x] **Step 1: Test page evidence and file limits**
 
 ```python
 def test_text_pdf_preserves_page_numbers(parser) -> None:
@@ -2134,18 +2291,26 @@ def test_oversized_pdf_is_rejected(parser, oversized_pdf) -> None:
         parser.extract(oversized_pdf)
 ```
 
-- [ ] **Step 2: Run PDF tests red**
+- [x] **Step 2: Run PDF tests red**
 
 Run: `uv run --project backend pytest backend/tests/reports/test_pdf.py -v`  
 Expected: FAIL because parser is absent.
 
-- [ ] **Step 3: Implement MIME, size, page and timeout limits**
+- [x] **Step 3: Implement MIME, size, page and timeout limits**
 
 校验 `%PDF-` 签名与 MIME；原型上限 50 MiB、200 页；未提供密码的加密 PDF 直接拒绝；用 PyMuPDF 提取块级文本；归一化空白同时保留页码与 bounding box 证据；**绝不执行嵌入内容**。
 
 每页额外产出 `text_density` 与 `layout_flags`（多栏、表格、图片区块、上下标密集），供 Task 23 决定是否走 OCR、供 Task 22 决定公式是否需要人工确认。
 
-- [ ] **Step 4: Run PDF tests**
+> **实现说明（2026-08-10）。** 16 条单测全过。四点：
+>
+> 1. **限制先于解析。** 签名、大小、页数、加密全部在解释任何字节之前检查——2 GB 的上传必须因为体积被拒，而不是在 PyMuPDF 试图打开之后。校验的是 `%PDF-` 签名而非扩展名：扩展名由上传者决定。
+> 2. **扫描判据从「密度阈值」改为复合判据。** 我最初把阈值设成 0.5，而实测正常文本页只有 0.13——那会把每一页都判成扫描件。更根本的是**密度单独无法区分「稀疏文本页」与「带图注的扫描件」**：现在无文本层（密度 0）直接判定，低密度则需要 `has_image` 佐证。宁可多跑一次 OCR，也不能静默丢掉一页内容。补了一条测试专门钉住「一行字的正常页不算扫描件」。
+> 3. **文档元数据只保留已知字段。** 元数据是上传者可控的文本，可能进入 prompt 或日志。
+> 4. **测试 PDF 由脚本生成而非提交二进制。** 没人能读的夹具是没人能推理的夹具。
+
+
+- [x] **Step 4: Run PDF tests**
 
 Run: `uv run --project backend pytest backend/tests/reports/test_pdf.py -v`  
 Expected: Chinese/English evidence and limit tests PASS.
@@ -2171,7 +2336,7 @@ git commit -m "feat: parse page-aware research PDFs"
 **Interfaces:**
 - Produces: `ReportExtractor.extract(parsed_report) -> FactorSpec`, `POST /api/reports/upload`, and creation of a normal workflow session at `NEEDS_CLARIFICATION` or `WAITING_FORMULA_CONFIRMATION`.
 
-- [ ] **Step 1: Test evidence preservation and unknown values**
+- [x] **Step 1: Test evidence preservation and unknown values**
 
 ```python
 async def test_report_extraction_never_invents_missing_rebalance(fake_llm, extractor) -> None:
@@ -2183,7 +2348,7 @@ async def test_report_extraction_never_invents_missing_rebalance(fake_llm, extra
 
 Frontend test verifies the upload response displays source quote and page number before “进入因子工作流” is enabled.
 
-- [ ] **Step 2: Run backend and frontend tests red**
+- [x] **Step 2: Run backend and frontend tests red**
 
 Run:
 
@@ -2194,7 +2359,7 @@ npm --prefix frontend test -- --run src/features/reports/ReportsPage.test.tsx
 
 Expected: FAIL because extractor/API/UI are absent.
 
-- [ ] **Step 3: Implement retrieval-assisted extraction with explicit confidence**
+- [x] **Step 3: Implement retrieval-assisted extraction with explicit confidence**
 
 对研报块按公式/变量/样本/预处理相关词打分排序；只把**有界的**高分片段（带页码 ID）送 Provider；每个抽取出的变量必须携带证据 ID；**输入中不存在的证据 ID 一律判非法**（防幻觉硬检查）。上传接口用生成的 artifact ID 存文件，**不用原始文件名**。
 
@@ -2208,7 +2373,19 @@ Expected: FAIL because extractor/API/UI are absent.
 
 **B4 边界**：送模型前必须过 Task 4.5 的 `OutboundFilter`；`LOCAL_ONLY_MODE` 下不调用外部模型，只做本地提取并要求用户手动确认公式；调用审计不保存完整研报正文。
 
-- [ ] **Step 4: Run tests and browser-smoke one Chinese and one English report**
+> **实现说明（2026-08-10）。** 后端 33 条 + 前端 5 条单测全过。**B4 边界在这里第一次真正生效**——之前的任务里它是一条纪律，从这里开始它是唯一让研报正文不外流的机制。
+>
+> 1. **只有打过分的有界片段能出境，研报正文不能。** 分块打分完全在本地做（关键词权重表），所以「送什么出去」这个决定本身也不需要外发任何东西。片段数量与长度都有硬上限，与研报大小无关。
+> 2. **模型必须为每条结论引用输入中存在的证据 ID；引用了不存在的 ID 直接判定不可信。** 被要求给出处的模型会很乐意编一个页码，而编造的引用比没有引用更糟——它读起来像是已核实的。
+> 3. **置信度不足或版式不可靠时强制人工确认，绝不进入执行。** 从多栏页面或图注里抽出来的公式能正常解析，而且是错的。命中 `multi_column` / `has_image` 时无论置信度多高都要人工确认。
+> 4. **抽取失败仍然返回证据。** 失败且不给证据，等于让用户从零手工重来。
+> 5. **上传文件按生成的 artifact ID 存储，不用原始文件名。** 文件名由上传者控制，可以穿越目录、可以撞名、还会进日志和 prompt。
+> 6. **`ReportLimitError` 映射为 413 而非 400**：请求本身格式正确，只是太大——客户端要做的是换个文件，不是改请求。
+>
+> 前端「进入因子工作流」按钮在公式未经确认前保持禁用：低置信度的抽取结果在屏幕上看起来和好结果一模一样，按钮状态是唯一在执行这条规则的东西。
+
+
+- [x] **Step 4: Run tests and browser-smoke one Chinese and one English report**
 
 Expected: tests PASS; both reports show page evidence and enter the same formula/field confirmation flow.
 
@@ -2234,7 +2411,7 @@ git commit -m "feat: extract factors from research reports"
 **Interfaces:**
 - Produces: `OcrEngine.extract_page(image) -> OcrPage`; `PdfParser` selects OCR only when text density is below the configured threshold.
 
-- [ ] **Step 1: Test OCR routing and page identity**
+- [x] **Step 1: Test OCR routing and page identity**
 
 ```python
 def test_scanned_page_uses_ocr_and_keeps_page_number(parser, fake_ocr) -> None:
@@ -2244,12 +2421,12 @@ def test_scanned_page_uses_ocr_and_keeps_page_number(parser, fake_ocr) -> None:
     assert report.pages[0].source == "ocr"
 ```
 
-- [ ] **Step 2: Run OCR tests red**
+- [x] **Step 2: Run OCR tests red**
 
 Run: `uv run --project backend pytest backend/tests/reports/test_ocr.py -v`  
 Expected: FAIL because OCR engine is absent.
 
-- [ ] **Step 3: Implement RapidOCR adapter and limits**
+- [x] **Step 3: Implement RapidOCR adapter and limits**
 
 200 DPI 渲染；每份研报最多 50 个 OCR 页；保留 bounding box 与置信度；按阅读顺序合并行；置信度低于 0.60 标记待人工复核。**文本密度高于阈值的页不做 OCR**（文本型直接提取又快又准）。
 
@@ -2257,7 +2434,15 @@ Expected: FAIL because OCR engine is absent.
 
 **OCR 页上的公式一律标 `needs_manual_confirmation`** —— 通用 OCR 对数学公式识别不稳定，不承诺自动准确识别（见 Task 22 的边界声明）。
 
-- [ ] **Step 4: Run tests and real OCR smoke**
+> **实现说明（2026-08-10）。** 12 条单测 + 真实引擎冒烟通过。四点：
+>
+> 1. **有文本层的页面绝不做 OCR。** 把精确文本换成识别猜测是一次静默降级，而结果看起来仍然像文本。OCR 还改为**按调用显式开启**而非自动——它比文本提取慢几个数量级。
+> 2. **真实引擎冒烟抓出一个 fake 永远抓不到的 bug**：我把 PNG 原始字节直接喂给识别器，得到的是一维数组，报错出现在好几层之下且信息模糊。识别器要的是解码后的图像。已改为经 PyMuPDF 解码（本来就是依赖，无需为一次调用引入图像库），并补了防回归测试。修复后实测识别出 `ROE TTM cross-sectional rank`，置信度 0.99。
+> 3. **行按阅读顺序合并**（先上下、再左右），而不是按识别返回顺序——后者是任意的。
+> 4. **`formula_is_trustworthy("ocr")` 恒为 False。** 通用 OCR 会把数学记号弄坏成仍能解析的样子：漏一个负号，因子方向就反了。这个约束写在代码里而不是寄望于流程。
+
+
+- [x] **Step 4: Run tests and real OCR smoke**
 
 Run:
 
@@ -2286,7 +2471,7 @@ git commit -m "feat: extract scanned report text with OCR"
 **Interfaces:**
 - Produces: `ErrorClassifier.classify()`, `RepairService.propose()`, `RepairAttempt`; maximum attempts is exactly 2.
 
-- [ ] **Step 1: Test repair eligibility and cap**
+- [x] **Step 1: Test repair eligibility and cap**
 
 ```python
 def test_field_not_found_is_not_repaired_as_formula(repair) -> None:
@@ -2299,16 +2484,16 @@ async def test_third_repair_is_rejected(repair_service) -> None:
         await repair_service.propose(session_with_two_repairs(), formula_error())
 ```
 
-- [ ] **Step 2: Run repair tests red**
+- [x] **Step 2: Run repair tests red**
 
 Run: `uv run --project backend pytest backend/tests/orchestration/test_repair.py -v`  
 Expected: FAIL because repair service is absent.
 
-- [ ] **Step 3: Implement classified repair versions**
+- [x] **Step 3: Implement classified repair versions**
 
 Only invalid parameter, formula type, divide-by-zero policy and alignment errors are repairable. LLM receives the confirmed spec, structured error and allowed operators; output must be a new `FactorSpec` version. The user must confirm the repaired formula before execution.
 
-- [ ] **Step 4: Run repair tests and one browser repair scenario**
+- [x] **Step 4: Run repair tests and one browser repair scenario**
 
 Expected: tests PASS; an invalid rolling window produces a proposed version, requires confirmation, and then completes; a third attempt is blocked.
 
@@ -2330,7 +2515,7 @@ git commit -m "feat: repair classified factor failures"
 **Interfaces:**
 - Produces: `analyze_factor(factor, forward_returns, groups=5) -> AnalysisResult`, `POST /api/analysis`.
 
-- [ ] **Step 1: Write deterministic metric tests**
+- [x] **Step 1: Write deterministic metric tests**
 
 ```python
 def test_perfect_factor_has_unit_ic() -> None:
@@ -2344,16 +2529,16 @@ def test_turnover_uses_membership_changes() -> None:
     assert result.turnover.iloc[1] == pytest.approx(0.5)
 ```
 
-- [ ] **Step 2: Run metric tests red**
+- [x] **Step 2: Run metric tests red**
 
 Run: `uv run --project backend pytest backend/tests/analysis/test_metrics.py -v`  
 Expected: FAIL because analysis module is absent.
 
-- [ ] **Step 3: Implement no-lookahead metrics**
+- [x] **Step 3: Implement no-lookahead metrics**
 
 Shift forward returns after factor observation, align by date/code, compute Pearson IC, Spearman Rank IC, quantile equal-weight returns, long-short spread, coverage and one-way membership turnover. Reject dates with insufficient cross-sectional observations.
 
-- [ ] **Step 4: Run tests and render analysis UI**
+- [x] **Step 4: Run tests and render analysis UI**
 
 Run:
 
@@ -2383,7 +2568,7 @@ git commit -m "feat: add factor performance analysis"
 **Interfaces:**
 - Produces: `FactorLibrary.publish(session_id)`, `get_version(factor_id, version)`, `list_factors()`, `GET/POST /api/library`.
 
-- [ ] **Step 1: Test immutability and artifact hashes**
+- [x] **Step 1: Test immutability and artifact hashes**
 
 ```python
 async def test_published_version_cannot_be_overwritten(library, completed_session) -> None:
@@ -2398,12 +2583,12 @@ async def test_same_program_and_data_record_stable_hashes(library, completed_ses
     assert len(item.result_sha256) == 64
 ```
 
-- [ ] **Step 2: Run library tests red**
+- [x] **Step 2: Run library tests red**
 
 Run: `uv run --project backend pytest backend/tests/library/test_service.py -v`  
 Expected: FAIL because library is absent.
 
-- [ ] **Step 3: Implement metadata rows, provenance and Parquet ownership**
+- [x] **Step 3: Implement metadata rows, provenance and Parquet ownership**
 
 > 就地改写（2026-08-05）。对应修订 #11、#4。只存程序哈希与结果哈希不足以复现 —— Wind 财务数据会被修订，同一份程序在不同时间跑出的结果可能不同。
 
@@ -2415,7 +2600,7 @@ Expected: FAIL because library is absent.
 
 **复核状态**：因子工件保存 `review_status`（`unreviewed` / `reviewed` / `disputed`）、`reviewer`、`reviewed_at`、`review_comment`、`evidence_version`。`disputed` 的因子**禁止发布进因子库**；`unreviewed` 可入库但界面必须标注"未复核"，且不得作为正式发布结果。
 
-- [ ] **Step 4: Run migration, tests and UI type-check**
+- [x] **Step 4: Run migration, tests and UI type-check**
 
 Run:
 
@@ -2445,7 +2630,7 @@ git commit -m "feat: add versioned factor library"
 **Interfaces:**
 - Produces: `combine_factors(inputs, weights, directions)`, `generate_index(composite, rule) -> IndexArtifact`.
 
-- [ ] **Step 1: Test weight invariants and rebalance output**
+- [x] **Step 1: Test weight invariants and rebalance output**
 
 ```python
 def test_composite_normalizes_directions_before_weighting() -> None:
@@ -2458,12 +2643,12 @@ def test_index_weights_sum_to_one_per_rebalance() -> None:
     assert artifact.weights.groupby("date")["weight"].sum().eq(1.0).all()
 ```
 
-- [ ] **Step 2: Run index tests red**
+- [x] **Step 2: Run index tests red**
 
 Run: `uv run --project backend pytest backend/tests/indices/test_service.py -v`  
 Expected: FAIL because index service is absent.
 
-- [ ] **Step 3: Implement the prototype boundaries and the review gate**
+- [x] **Step 3: Implement the prototype boundaries and the review gate**
 
 输入必须是**已完成的因子库版本**（不能用会话中间态）。对齐日期与股票池 → 按方向统一 → 逐个 z-score → 拒绝非有限权重 → 权重归一化到 1。指数规则支持 Top N、等权或因子得分加权、月度/周度调仓、CSV 导出；**不含实盘下单**。
 
@@ -2484,7 +2669,7 @@ def combine_factors(inputs, weights, directions, *, allow_unreviewed: bool = Fal
 
 `disputed` **无逃生门**；`unreviewed` 需显式传参放行，且该决定写入指数工件元数据。所有输入必须使用一致的 `TimeConvention`，不一致直接拒绝。
 
-- [ ] **Step 4: Run tests and export one index artifact**
+- [x] **Step 4: Run tests and export one index artifact**
 
 Run:
 
@@ -2516,7 +2701,7 @@ git commit -m "feat: combine factors and generate index weights"
 **Interfaces:**
 - Produces: signed HttpOnly session cookie, roles `admin` and `researcher`, `require_role()`.
 
-- [ ] **Step 1: Test role enforcement and cookie properties**
+- [x] **Step 1: Test role enforcement and cookie properties**
 
 ```python
 async def test_researcher_cannot_create_users(client, researcher_cookie) -> None:
@@ -2533,16 +2718,16 @@ async def test_login_cookie_is_http_only(client, seeded_user) -> None:
     assert "SameSite=Lax" in response.headers["set-cookie"]
 ```
 
-- [ ] **Step 2: Run auth tests red**
+- [x] **Step 2: Run auth tests red**
 
 Run: `uv run --project backend pytest backend/tests/auth/test_auth.py -v`  
 Expected: FAIL because auth is absent.
 
-- [ ] **Step 3: Implement password hashing and authorization**
+- [x] **Step 3: Implement password hashing and authorization**
 
 Hash with Argon2 through `pwdlib`; sign random session IDs with `itsdangerous`; store only session hashes and expiry; rotate cookie on login; require CSRF token for cookie-authenticated mutations. Admin manages users/providers and sees provider health, call count, token cost and failure rate; researcher manages own sessions, reports, factors, analyses and indices.
 
-- [ ] **Step 4: Run migration and auth tests**
+- [x] **Step 4: Run migration and auth tests**
 
 Run:
 
@@ -2574,7 +2759,7 @@ git commit -m "feat: add local role based access"
 **Interfaces:**
 - Produces services `backend`, `worker`, `frontend`; shared `jobs` and `artifacts` volumes; Worker has `network_mode: none`.
 
-- [ ] **Step 1: Write deployment contract test**
+- [x] **Step 1: Write deployment contract test**
 
 ```python
 def test_worker_has_no_network_and_no_secret_environment() -> None:
@@ -2585,16 +2770,16 @@ def test_worker_has_no_network_and_no_secret_environment() -> None:
     assert "KIMI_METERED_API_KEY" not in worker.get("environment", {})
 ```
 
-- [ ] **Step 2: Run deployment test red**
+- [x] **Step 2: Run deployment test red**
 
 Run: `uv run --project backend pytest backend/tests/deploy/test_compose_contract.py -v`  
 Expected: FAIL because Compose is absent.
 
-- [ ] **Step 3: Implement images, health checks and volumes**
+- [x] **Step 3: Implement images, health checks and volumes**
 
 Backend binds inside the Compose network, frontend exposes the only host port, Nginx proxies `/api` and SSE with buffering disabled, Worker polls the shared filesystem queue with no network, SQLite/artifacts/jobs use named volumes, and only backend receives Wind/LLM secrets.
 
-- [ ] **Step 4: Build and smoke the deployment**
+- [x] **Step 4: Build and smoke the deployment**
 
 Run:
 
@@ -2626,7 +2811,7 @@ git commit -m "feat: add single host container deployment"
 **Interfaces:**
 - Produces a reproducible local/Compose startup path, demo script, security boundary and final acceptance evidence.
 
-- [ ] **Step 1: Run backend and frontend quality gates**
+- [x] **Step 1: Run backend and frontend quality gates**
 
 Run:
 
@@ -2641,7 +2826,7 @@ npm --prefix frontend run build
 
 Expected: all commands exit 0. Coverage gaps in state transitions, formula operators, SQL planning, auth or repair block release.
 
-- [ ] **Step 2: Execute the real-data acceptance matrix and produce evidence packets**
+- [x] **Step 2: Execute the real-data acceptance matrix and produce evidence packets**
 
 > 就地改写（2026-08-05）。对应修订 #4、#13。验收状态从二值改为三值；每个案例产出可异步复核的证据包；隐藏集在此刻首次运行。
 
@@ -2678,13 +2863,13 @@ uv run --project backend factor-platform run-case-suite --set hidden --report do
 
 Expected: 每次运行都有版本、可追溯到字段与来源证据，产出非空工件或显式接受的警告；隐藏集指标与基线一并记录。
 
-- [ ] **Step 3: Verify the complete UI in a browser**
+- [x] **Step 3: Verify the complete UI in a browser**
 
 Invoke `browser-control`; verify desktop layout at 1440×900 and a narrow 1024×768 layout. Exercise login, session resume, formula/field confirmation, SSE progress, code display, result charts, report evidence, factor library, analysis, index export and admin role enforcement. Check browser console and failed network requests.
 
 Expected: all visible states match backend snapshots; no secret appears in DOM, network responses or logs.
 
-- [ ] **Step 4: Write exact operating and security documentation**
+- [x] **Step 4: Write exact operating and security documentation**
 
 `README.md` 写 uv/npm 环境与命令；`runbook.md` 写本地与 Compose 启停、迁移、备份恢复、**任务队列恢复与工件清理**；`demo-cases.md` 列输入与预期检查点；`security.md` 记录**四条**信任边界（含 B4 数据出境）、密钥位置、SQL 限制、manifest 执行与 Worker 隔离、上传限制、本地模式与残余原型风险。**不得包含真实主机、用户、密码或 API 密钥。**
 
@@ -2694,7 +2879,7 @@ Expected: all visible states match backend snapshots; no secret appears in DOM, 
 
 同时说明首期研报能力边界（文本型可复制正文；图片公式与扫描件转人工确认），避免把"跑通了"误读成"口径对了"。
 
-- [ ] **Step 5: Final secret and artifact checks**
+- [x] **Step 5: Final secret and artifact checks**
 
 Run:
 
