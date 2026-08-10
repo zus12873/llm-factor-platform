@@ -12,6 +12,7 @@ import time
 
 from factor_platform.domain.errors import DomainError
 from factor_platform.llm.base import LLMProvider, ProviderHealth
+from factor_platform.llm.data_boundary import LocalOnlyModeError
 
 
 class NoHealthyProviderError(DomainError):
@@ -19,15 +20,29 @@ class NoHealthyProviderError(DomainError):
 
 
 class ProviderRouter:
-    def __init__(self, providers: list[LLMProvider], *, health_ttl_seconds: float = 60.0) -> None:
+    def __init__(
+        self,
+        providers: list[LLMProvider],
+        *,
+        health_ttl_seconds: float = 60.0,
+        local_only_mode: bool = False,
+    ) -> None:
         if not providers:
             raise ValueError("ProviderRouter requires at least one provider")
         self._providers = list(providers)
         self._health_ttl = health_ttl_seconds
         self._cache: dict[str, tuple[bool, float]] = {}
+        self.local_only_mode = local_only_mode
 
     async def active_provider(self) -> LLMProvider:
-        """Return the first healthy provider, in configured (preferred) order."""
+        """Return the first healthy provider, in configured (preferred) order.
+
+        Refuses outright in local-only mode. The check belongs here rather than
+        at the call sites because there is no way to reach a provider without
+        first asking the router for one.
+        """
+        if self.local_only_mode:
+            raise LocalOnlyModeError("local-only mode forbids external model calls")
         for provider in self._providers:
             health = await self._health_of(provider)
             if health.healthy:

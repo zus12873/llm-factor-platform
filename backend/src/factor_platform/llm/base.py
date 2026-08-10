@@ -38,11 +38,24 @@ class ProviderHealth(BaseModel):
 
 
 class UsageRecord(BaseModel):
+    """One audited model call.
+
+    Deliberately has no field for prompt or completion text. Cost, volume and
+    refusals must be auditable without the audit log becoming a second copy of
+    everything that crossed boundary B4 — ``text_length`` is what a body would
+    have told us that is safe to keep.
+    """
+
     schema_version: int = 1
     provider: str
     model: str | None = None
     request_id: str | None = None
     success: bool
+    input_kind: str | None = None
+    redacted: bool = False
+    text_length: int | None = None
+    blocked: bool = False
+    failure_reason: str | None = None
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     total_tokens: int | None = None

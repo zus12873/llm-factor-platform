@@ -9,6 +9,9 @@ partial spec.
 The model does **not** author the confirmed formula. It emits ``formula_ast`` and
 some prose; the canonical formula the user will confirm is rendered here from
 that same AST, so the confirmed text and the executed structure cannot diverge.
+
+The provider is wrapped at construction, so there is no way to build a parser
+that talks to an external model without crossing boundary B4 first.
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ from factor_platform.domain.models import (
 )
 from factor_platform.factor.renderer import render_canonical_formula
 from factor_platform.llm.base import ChatMessage, LLMProvider
+from factor_platform.llm.data_boundary import GuardedProvider, OutboundFilter
 from factor_platform.llm.prompts import build_system_prompt
 
 
@@ -46,8 +50,17 @@ class _FactorSpecDraft(BaseModel):
 
 
 class FactorParser:
-    def __init__(self, provider: LLMProvider) -> None:
-        self._provider = provider
+    def __init__(
+        self, provider: LLMProvider, *, outbound_filter: OutboundFilter | None = None
+    ) -> None:
+        # Wrapping here rather than trusting the caller: a raw provider handed to
+        # the parser would reach the network with whatever the prompt happened to
+        # carry, and nothing downstream would notice.
+        self._provider = (
+            provider
+            if isinstance(provider, GuardedProvider)
+            else GuardedProvider(provider, outbound_filter or OutboundFilter())
+        )
 
     async def parse(self, request: ResearchRequest) -> FactorSpec:
         messages = [
