@@ -18,7 +18,9 @@ dependencies = [
     "numpy>=2.4.6",
     "pandas>=3.0.5",
     "pillow>=12.3.0",
-    "pwdlib>=0.3.0",
+    # Argon2 is the recommended hasher; pwdlib does not pull it in by default,
+    # and without it PasswordHash.recommended() fails at construction.
+    "pwdlib[argon2]>=0.3.0",
     "pyarrow>=25.0.0",
     "pydantic-settings>=2.14.2",
     "pymupdf>=1.28.0",
@@ -35,6 +37,9 @@ dependencies = [
 
 [project.scripts]
 factor-platform = "factor_platform.cli:app"
+# Separate entry point: the worker host has no Wind or model credentials, and
+# must not import anything that requires them at startup.
+factor-worker = "factor_platform.execution.cli:app"
 
 [build-system]
 requires = ["uv_build>=0.11.7,<0.12.0"]
@@ -62,6 +67,7 @@ ignore_missing_imports = true
 [dependency-groups]
 dev = [
     "mypy>=2.3.0",
+    "pandas-stubs>=3.0.5.260730",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
