@@ -1,0 +1,82 @@
+# Wind field units — a reviewable overlay, NOT derived data.
+#
+# The Wind data dictionary does not state units. Wind's own conventions are
+# domain knowledge, and getting one wrong is a silent order-of-magnitude error:
+# a market-cap field read as yuan instead of ten-thousand yuan is off by 10,000x,
+# and every downstream check would still pass.
+#
+# So every entry here is hand-written and starts life `verified: false`. Task 10.5
+# turns this file into the metric-definition registry and routes each entry to a
+# human for sign-off; until then, treat these as claims, not facts.
+#
+# A field absent from this file gets `unit: null`. That is deliberate — an unknown
+# unit must stay unknown rather than default to something plausible.
+#
+# unit vocabulary:
+#   cny                 元
+#   ten_thousand_cny    万元
+#   share               股
+#   ten_thousand_share  万股
+#   ratio               无量纲比值 (0.15 = 15%)
+#   percent             百分数 (15.0 = 15%)
+#   day                 天
+
+units:
+  # --- prices: quoted in yuan per share ---
+  ashareeodprices.s_dq_close:
+    unit: cny
+    verified: false
+    note: 收盘价，元/股
+  ashareeodprices.s_dq_open:
+    unit: cny
+    verified: false
+  ashareeodprices.s_dq_adjclose:
+    unit: cny
+    verified: false
+    note: 后复权收盘价
+  ashareeodprices.s_dq_pctchange:
+    unit: percent
+    verified: false
+    note: Wind 存的是百分数 (2.5 表示 2.5%)，与 ratio 差 100 倍
+
+  # --- volume and turnover ---
+  ashareeodprices.s_dq_volume:
+    unit: ten_thousand_share
+    verified: false
+    note: 待确认是股还是万股 —— 这一条直接影响换手率口径
+  ashareeodprices.s_dq_amount:
+    unit: ten_thousand_cny
+    verified: false
+
+  # --- market capitalisation: the classic 10,000x trap ---
+  ashareeodderivativeindicator.s_val_mv:
+    unit: ten_thousand_cny
+    verified: false
+    note: 当日总市值，万元
+  ashareeodderivativeindicator.s_dq_mv:
+    unit: ten_thousand_cny
+    verified: false
+    note: 当日流通市值，万元
+  ashareeodderivativeindicator.tot_shr_today:
+    unit: ten_thousand_share
+    verified: false
+
+  # --- valuation ratios: dimensionless ---
+  ashareeodderivativeindicator.s_val_pe_ttm:
+    unit: ratio
+    verified: false
+  ashareeodderivativeindicator.s_val_pb_new:
+    unit: ratio
+    verified: false
+
+  # --- financial statements: yuan, not ten-thousand yuan ---
+  ashareincome.oper_rev:
+    unit: cny
+    verified: false
+    note: 财报科目按元存储，与行情表的万元口径相反 —— 混用会差 10,000 倍
+  ashareincome.net_profit_excl_min_int_inc:
+    unit: cny
+    verified: false
+  asharecashflow.net_cash_flows_oper_act:
+    unit: cny
+    verified: false

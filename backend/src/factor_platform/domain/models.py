@@ -208,6 +208,9 @@ class FieldCandidate(BaseModel):
     frequency: Frequency | None = None
     time_role: FieldTimeRole | None = None
     unit: str | None = None
+    # ``None`` means the local dictionary could not describe this field. It is
+    # still a legitimate candidate; the user simply gets no description with it.
+    metadata_source: str | None = None
     source_tier: str = "bm25"
     lexical_score: float | None = None
     recommendation_score: float | None = None
@@ -245,9 +248,17 @@ class ExecutionStep(BaseModel):
 
 
 class ExecutionPlan(BaseModel):
+    """An ordered, fully-determined retrieval plan.
+
+    Carries its own ``time_convention`` rather than reading it back from the spec:
+    the plan is what gets signed, queued and replayed, so the timing rules that
+    decide when a signal is knowable have to travel with it.
+    """
+
     schema_version: int = 1
     steps: list[ExecutionStep] = Field(default_factory=list)
     warmup_start: str | None = None
+    time_convention: TimeConvention = Field(default_factory=TimeConvention)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

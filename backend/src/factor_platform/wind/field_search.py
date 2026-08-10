@@ -10,9 +10,17 @@
    (``table`` + ``field`` tokens). Used when no alias applies, or to fill out
    the rest of the ``limit`` after alias hits. Tagged ``source_tier="bm25"``.
 
-Both tiers respect the optional ``asset_type`` and ``frequency`` constraints
-on the requirement (filter applied before ranking). Results from the two tiers
-are merged and de-duplicated by ``(table, field)``.
+3. **Metadata tier** — the local Wind dictionary supplies asset type, frequency,
+   unit and the Chinese name for whichever fields it could describe. This is what
+   makes the ``asset_type``/``frequency`` constraints real: before it existed the
+   catalog carried no metadata, so those filters passed everything through.
+
+A field the dictionary could not describe is **kept and flagged**
+(``metadata_source=None``), never filtered out. Filtering on absent metadata
+would quietly shrink the searchable universe, and the user would have no way to
+tell a field excluded by a parsing artifact from one the database does not have.
+
+Results from the tiers are merged and de-duplicated by ``(table, field)``.
 """
 
 from __future__ import annotations
@@ -32,9 +40,15 @@ from factor_platform.domain.models import (
     FieldCandidate,
     Frequency,
 )
-from factor_platform.wind.catalog import FieldCatalog
+from factor_platform.wind.catalog import FieldCatalog, FieldRecord
+from factor_platform.wind.metadata_catalog import MetadataCatalog
 
 _CAMEL_BOUNDARY_RE = re.compile(r"_+|(?<=[a-z0-9])(?=[A-Z])|(?<=\D)(?=\d)|\s+")
+
+# The platform's scope is daily A-shares. Off-market fields are demoted rather
+# than removed: this is a recall layer, and `information_schema` plus sample
+# verification are what decide whether a field is really usable.
+PREFERRED_MARKET = "cn_a"
 
 
 class AliasEntry(BaseModel):
@@ -96,29 +110,82 @@ class FieldSearch:
         self,
         catalog: FieldCatalog,
         aliases: dict[str, AliasEntry],
+        metadata: MetadataCatalog | None = None,
+        *,
+        preferred_market: str | None = PREFERRED_MARKET,
     ) -> None:
         self.catalog = catalog
         self.aliases = aliases
+        self.metadata = metadata
+        self.preferred_market = preferred_market
         # Sort alias keys by length descending so the longest (most specific)
         # business term wins on substring match.
         self._alias_keys_by_length = sorted(aliases.keys(), key=len, reverse=True)
 
+        # Documents carry the Chinese name and description when metadata has
+        # them. Indexing only the English identifiers would leave the 32
+        # hand-written aliases as the sole Chinese entry point into the whole
+        # catalog, which is the language every research idea arrives in.
         records = catalog.records
         self._doc_tokens: list[list[str]] = [
-            tokenize(f"{r.table} {r.field}") for r in records
+            tokenize(self._document_for(record)) for record in records
         ]
+        # Relevance is decided by term overlap, not by the sign of the BM25
+        # score. BM25 IDF goes negative for a term present in more than half the
+        # corpus, so scoring alone would discard every hit for a common word like
+        # 日期 or 代码 — matched, ubiquitous, and silently dropped.
+        self._doc_token_sets: list[set[str]] = [set(tokens) for tokens in self._doc_tokens]
         self._bm25 = BM25Okapi(self._doc_tokens)
+
+    def _market_rank(self, record: FieldRecord) -> int:
+        """0 for in-scope or unknown markets, 1 for out-of-scope ones.
+
+        Used as the primary sort key rather than as a score multiplier: BM25
+        scores go negative for ubiquitous terms, and scaling a negative score
+        *raises* it — a multiplicative penalty would promote exactly the fields
+        it was meant to demote.
+
+        An unknown market ranks with the preferred one. Absent metadata must not
+        cost a field its place, or the 478 undescribed fields would sink out of
+        every result and become unreachable.
+        """
+        if self.metadata is None or self.preferred_market is None:
+            return 0
+        meta = self.metadata.get(record.table, record.field)
+        if meta is None or meta.market is None or meta.market == self.preferred_market:
+            return 0
+        return 1
+
+    def _document_for(self, record: FieldRecord) -> str:
+        parts = [record.table, record.field]
+        meta = self.metadata.get(record.table, record.field) if self.metadata else None
+        if meta is not None:
+            parts.extend(part for part in (meta.name_zh, meta.description_zh) if part)
+        return " ".join(parts)
 
     # ------------------------------------------------------------------ factories
 
     @classmethod
     def from_paths(
-        cls, catalog_path: Path | str, aliases_path: Path | str
+        cls,
+        catalog_path: Path | str,
+        aliases_path: Path | str,
+        metadata_path: Path | str | None = None,
     ) -> FieldSearch:
-        """Build a search from a generated JSONL catalog and an alias YAML."""
+        """Build a search from a generated JSONL catalog and an alias YAML.
+
+        ``metadata_path`` is optional so the search still works before the
+        dictionary has been synced; the constraint filters then behave as they
+        did before the metadata tier existed.
+        """
         catalog = FieldCatalog.load(catalog_path)
         aliases = _load_aliases(aliases_path)
-        return cls(catalog=catalog, aliases=aliases)
+        metadata = (
+            MetadataCatalog.load(metadata_path)
+            if metadata_path is not None and Path(metadata_path).exists()
+            else None
+        )
+        return cls(catalog=catalog, aliases=aliases, metadata=metadata)
 
     # ------------------------------------------------------------------ search
 
@@ -202,32 +269,51 @@ class FieldSearch:
         if not query_tokens or not self.catalog.records:
             return []
 
-        scores = self._bm25.get_scores(query_tokens)
-        # Pull more than `limit` so filtering can still fill the page.
-        top_k = min(len(self.catalog.records), max(limit * 4, limit))
-        ranked_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[
-            :top_k
+        query_set = set(query_tokens)
+        matched = [
+            idx
+            for idx, tokens in enumerate(self._doc_token_sets)
+            if tokens & query_set
         ]
+        if not matched:
+            return []
+
+        raw_scores = self._bm25.get_scores(query_tokens)
+        scores = {idx: float(raw_scores[idx]) for idx in matched}
+        # Pull more than `limit` so filtering can still fill the page.
+        top_k = min(len(matched), max(limit * 4, limit))
+        ranked_idx = sorted(
+            matched,
+            key=lambda i: (self._market_rank(self.catalog.records[i]), -scores[i]),
+        )[:top_k]
 
         out: list[FieldCandidate] = []
         for idx in ranked_idx:
-            score = float(scores[idx])
-            if score <= 0:
-                continue
+            score = scores[idx]
             record = self.catalog.records[idx]
-            # Catalog records carry no asset/frequency metadata; we cannot
-            # filter them by requirement constraints here. Alias hits (which do
-            # carry metadata) are always surfaced first, so this only affects
-            # the BM25 back-fill.
-            if req_asset is not None or req_freq is not None:
-                # Defer to alias tier when constraints are set: keep BM25 hits
-                # only if no alias metadata conflicts (catalog has none, so we
-                # leave them unfiltered but flagged).
-                pass
+            meta = (
+                self.metadata.get(record.table, record.field)
+                if self.metadata is not None
+                else None
+            )
+            # A described field must match the constraints. An undescribed one
+            # passes: `_passes_filter` treats None as "unknown, not excluded".
+            if not _passes_filter(
+                meta.asset_type if meta else None,
+                meta.frequency if meta else None,
+                req_asset,
+                req_freq,
+            ):
+                continue
             out.append(
                 FieldCandidate(
                     table=record.table,
                     field=record.field,
+                    meaning_zh=meta.name_zh if meta else "",
+                    asset_type=meta.asset_type if meta else None,
+                    frequency=meta.frequency if meta else None,
+                    unit=meta.unit if meta else None,
+                    metadata_source=meta.metadata_source if meta else None,
                     source_tier="bm25",
                     lexical_score=score,
                     recommendation_score=score,
