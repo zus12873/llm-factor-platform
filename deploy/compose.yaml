@@ -1,0 +1,77 @@
+# Single-host deployment.
+#
+# The shape of this file is one security decision: the worker has
+# `network_mode: none` and no credential in its environment. It computes factors
+# from a signed manifest and Parquet files on a shared volume, so it needs no
+# database, no model provider, and no route to either. A compromised worker
+# reaches nothing.
+#
+# That is why the queue is a directory rather than a broker: a broker would be a
+# network dependency, and the worker cannot have one.
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/backend.Dockerfile
+    environment:
+      APP_ENV: production
+      DATABASE_URL: sqlite+aiosqlite:////data/runtime/factor_platform.db
+      ARTIFACT_ROOT: /data/artifacts
+      JOB_ROOT: /data/jobs
+      SESSION_COOKIE_SECRET: ${SESSION_COOKIE_SECRET}
+      MANIFEST_SIGNING_KEY: ${MANIFEST_SIGNING_KEY}
+      WIND_ENABLED: ${WIND_ENABLED:-false}
+      WIND_HOST: ${WIND_HOST:-}
+      WIND_PORT: ${WIND_PORT:-3306}
+      WIND_USER: ${WIND_USER:-}
+      WIND_PASSWORD: ${WIND_PASSWORD:-}
+      WIND_DATABASE: ${WIND_DATABASE:-}
+      KIMI_CODING_BASE_URL: ${KIMI_CODING_BASE_URL:-}
+      KIMI_CODING_API_KEY: ${KIMI_CODING_API_KEY:-}
+      KIMI_METERED_API_KEY: ${KIMI_METERED_API_KEY:-}
+      KIMI_MODEL: ${KIMI_MODEL:-}
+      LOCAL_ONLY_MODE: ${LOCAL_ONLY_MODE:-false}
+    volumes:
+      - jobs:/data/jobs
+      - artifacts:/data/artifacts
+      - runtime:/data/runtime
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/worker.Dockerfile
+    # No network at all. The worker reads a signed manifest and Parquet files
+    # from a shared volume; it has nothing to reach out to, so it cannot.
+    network_mode: none
+    environment:
+      APP_ENV: production
+      PYTHONUNBUFFERED: "1"
+      # The only secret it holds, and only to *verify* a signature. It cannot
+      # sign, and it has no database or model credential.
+      MANIFEST_SIGNING_KEY: ${MANIFEST_SIGNING_KEY}
+    volumes:
+      - jobs:/data/jobs
+      - artifacts:/data/artifacts
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/frontend.Dockerfile
+    ports:
+      # Bound to loopback: this prototype has no TLS and no hardening for
+      # exposure. Publishing it on 0.0.0.0 would put an unauthenticated-by-
+      # default research tool on the network.
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  jobs:
+  artifacts:
+  runtime:
