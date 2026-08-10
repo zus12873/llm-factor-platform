@@ -1,14 +1,17 @@
 {
-  "description": "质量-价值等权",
+  "case_id": "en_quality_value",
+  "description": "English: quality and value blend",
+  "category": "composite",
+  "language": "en",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "用ROE和估值构建质量价值复合因子"
+    "research_idea": "Combine return on equity with book-to-price into an equal-weighted factor"
   },
   "provider_draft": {
-    "factor_name": "quality_value",
+    "factor_name": "en_quality_value",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
@@ -28,15 +31,15 @@
         },
         {
           "type": "call",
-          "op": "negative",
+          "op": "rank",
           "args": [
             {
               "type": "call",
-              "op": "rank",
+              "op": "negative",
               "args": [
                 {
                   "type": "variable",
-                  "name": "pe_ttm"
+                  "name": "pb"
                 }
               ]
             }
@@ -47,15 +50,14 @@
     "variables": [
       {
         "logical_name": "roe_ttm",
-        "meaning": "净资产收益率TTM",
-        "point_in_time_required": true
+        "meaning": "return on equity TTM"
       },
       {
-        "logical_name": "pe_ttm",
-        "meaning": "市盈率TTM"
+        "logical_name": "pb",
+        "meaning": "price to book"
       }
     ],
-    "formula_explanation": "rank(roe_ttm) + negative(rank(pe_ttm))"
+    "formula_explanation": "rank(roe_ttm) + rank(negative(pb))"
   },
   "expected_blocking_question_ids": [],
   "expected_formula_ast": {
@@ -74,15 +76,15 @@
       },
       {
         "type": "call",
-        "op": "negative",
+        "op": "rank",
         "args": [
           {
             "type": "call",
-            "op": "rank",
+            "op": "negative",
             "args": [
               {
                 "type": "variable",
-                "name": "pe_ttm"
+                "name": "pb"
               }
             ]
           }
@@ -91,18 +93,22 @@
     ]
   },
   "expected_tool_names": [
-    "wind.execute_generic_query_plan"
+    "wind.execute_generic_query_plan",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
   ],
   "expected_fields": [
     {
       "logical_name": "roe_ttm",
-      "point_in_time": true
+      "table": "asharettmhis",
+      "field": "s_fa_roe_ttm"
     },
     {
-      "logical_name": "pe_ttm"
+      "logical_name": "pb",
+      "table": "ashareeodderivativeindicator",
+      "field": "s_val_pb_new"
     }
   ],
-  "case_id": "quality_value",
-  "category": "composite",
-  "language": "zh"
+  "acceptance": []
 }

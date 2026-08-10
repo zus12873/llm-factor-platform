@@ -5,6 +5,16 @@ reproduce: which blocking clarifications it raises, the post-confirmation formul
 and the Wind tools/fields the planner should select. Cases are plain JSON so they
 double as acceptance fixtures and (via ``provider_draft``) as the canned LLM response
 that lets the CLI run offline.
+
+Two sets exist. The **golden** set is visible during development and is what the
+implementation is tuned against. The **hidden** set is held back and run once, at
+final acceptance, to answer a question the golden set structurally cannot: does
+the platform generalize, or has it been fitted to the cases it could see? Hidden
+cases are gitignored so they cannot leak into the repository history.
+
+That isolation is only as strong as the discipline behind it — the hidden set here
+was authored by the same party that wrote the implementation, so it detects
+accidental overfitting, not the deliberate kind.
 """
 
 from __future__ import annotations
@@ -21,6 +31,10 @@ from factor_platform.domain.models import ResearchRequest
 class GoldenCase(BaseModel):
     case_id: str
     description: str = ""
+    # Which factor family this exercises. ``ambiguous`` means the idea is
+    # deliberately under-specified and the platform must stop and ask.
+    category: str = "price_volume"
+    language: str = "zh"
     request: ResearchRequest
     # The canned _FactorSpecDraft JSON the FakeLLMProvider returns for this case.
     provider_draft: dict[str, Any]
@@ -36,17 +50,38 @@ class GoldenCase(BaseModel):
         return backend_root / "data" / "golden_cases"
 
 
+def _backend_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
 def golden_cases_dir(override: str | Path | None = None) -> Path:
-    backend_root = Path(__file__).resolve().parents[3]
-    return Path(override) if override else backend_root / "data" / "golden_cases"
+    return Path(override) if override else _backend_root() / "data" / "golden_cases"
+
+
+def hidden_cases_dir(override: str | Path | None = None) -> Path:
+    return Path(override) if override else _backend_root() / "data" / "hidden_cases"
+
+
+def _load_from(root: Path) -> list[GoldenCase]:
+    if not root.exists():
+        return []
+    return [
+        GoldenCase.model_validate_json(path.read_text(encoding="utf-8"))
+        for path in sorted(root.glob("*.json"))
+    ]
 
 
 def load_golden_cases(directory: str | Path | None = None) -> list[GoldenCase]:
-    root = golden_cases_dir(directory)
-    cases: list[GoldenCase] = []
-    for path in sorted(root.glob("*.json")):
-        cases.append(GoldenCase.model_validate_json(path.read_text(encoding="utf-8")))
-    return cases
+    return _load_from(golden_cases_dir(directory))
+
+
+def load_hidden_cases(directory: str | Path | None = None) -> list[GoldenCase]:
+    """Load the blind acceptance set.
+
+    Returns an empty list when the directory is absent, which is the normal state
+    for a fresh clone: the set is gitignored on purpose.
+    """
+    return _load_from(hidden_cases_dir(directory))
 
 
 def get_golden_case(case_id: str, directory: str | Path | None = None) -> GoldenCase:
@@ -56,4 +91,11 @@ def get_golden_case(case_id: str, directory: str | Path | None = None) -> Golden
     raise KeyError(f"unknown golden case: {case_id}")
 
 
-__all__ = ["GoldenCase", "get_golden_case", "golden_cases_dir", "load_golden_cases"]
+__all__ = [
+    "GoldenCase",
+    "get_golden_case",
+    "golden_cases_dir",
+    "hidden_cases_dir",
+    "load_golden_cases",
+    "load_hidden_cases",
+]

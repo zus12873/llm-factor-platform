@@ -1,14 +1,17 @@
 {
-  "description": "盈利质量歧义",
+  "case_id": "roe_ttm_rank",
+  "description": "ROE_TTM 横截面排名",
+  "category": "profitability",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "构建盈利质量因子"
+    "research_idea": "ROE_TTM 越高的公司盈利能力越强，做横截面排名"
   },
   "provider_draft": {
-    "factor_name": "profitability",
+    "factor_name": "roe_ttm_rank",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
@@ -18,21 +21,19 @@
       "args": [
         {
           "type": "variable",
-          "name": "profitability"
+          "name": "roe_ttm"
         }
       ]
     },
     "variables": [
       {
-        "logical_name": "profitability",
-        "meaning": "盈利质量"
+        "logical_name": "roe_ttm",
+        "meaning": "净资产收益率 ROE_TTM"
       }
     ],
-    "formula_explanation": "rank(profitability)"
+    "formula_explanation": "rank(roe_ttm)"
   },
-  "expected_blocking_question_ids": [
-    "profitability_definition"
-  ],
+  "expected_blocking_question_ids": [],
   "expected_formula_ast": {
     "type": "call",
     "op": "rank",
@@ -52,11 +53,11 @@
   "expected_fields": [
     {
       "logical_name": "roe_ttm",
-      "table": "asharefinancialindicator",
-      "field": "roe_ttm"
+      "table": "asharettmhis",
+      "field": "s_fa_roe_ttm"
     }
   ],
-  "case_id": "profitability_ambiguous",
-  "category": "ambiguous",
-  "language": "zh"
+  "acceptance": [
+    "点时可得：需公告日约束"
+  ]
 }

@@ -1,28 +1,31 @@
 {
-  "description": "20日低波动",
+  "case_id": "volatility_60d",
+  "description": "60日波动率",
+  "category": "price_volume",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "构建过去20日波动率最低的股票因子"
+    "research_idea": "过去60个交易日日收益的标准差，波动越低越好"
   },
   "provider_draft": {
-    "factor_name": "low_volatility_20d",
+    "factor_name": "volatility_60d",
     "hypothesis": "",
-    "direction": "higher_is_better",
+    "direction": "lower_is_better",
     "rebalance_frequency": "monthly",
     "formula_ast": {
       "type": "call",
-      "op": "negative",
+      "op": "rank",
       "args": [
         {
           "type": "call",
-          "op": "rank",
+          "op": "rolling_std",
           "args": [
             {
               "type": "call",
-              "op": "rolling_std",
+              "op": "rolling_return",
               "args": [
                 {
                   "type": "variable",
@@ -30,10 +33,13 @@
                 }
               ],
               "params": {
-                "window": 20
+                "window": 1
               }
             }
-          ]
+          ],
+          "params": {
+            "window": 60
+          }
         }
       ]
     },
@@ -43,20 +49,20 @@
         "meaning": "后复权收盘价"
       }
     ],
-    "formula_explanation": "negative(rank(rolling_std(close,20)))"
+    "formula_explanation": "rank(rolling_std(rolling_return(close,1),60))"
   },
   "expected_blocking_question_ids": [],
   "expected_formula_ast": {
     "type": "call",
-    "op": "negative",
+    "op": "rank",
     "args": [
       {
         "type": "call",
-        "op": "rank",
+        "op": "rolling_std",
         "args": [
           {
             "type": "call",
-            "op": "rolling_std",
+            "op": "rolling_return",
             "args": [
               {
                 "type": "variable",
@@ -64,10 +70,13 @@
               }
             ],
             "params": {
-              "window": 20
+              "window": 1
             }
           }
-        ]
+        ],
+        "params": {
+          "window": 60
+        }
       }
     ]
   },
@@ -84,7 +93,5 @@
       "field": "s_dq_adjclose"
     }
   ],
-  "case_id": "low_volatility_20d",
-  "category": "price_volume",
-  "language": "zh"
+  "acceptance": []
 }

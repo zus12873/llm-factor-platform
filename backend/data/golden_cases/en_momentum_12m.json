@@ -1,14 +1,17 @@
 {
-  "description": "历史沪深300成分动量",
+  "case_id": "en_momentum_12m",
+  "description": "English: 12-month momentum",
+  "category": "price_volume",
+  "language": "en",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "在历史沪深300成分股上构建20日动量因子"
+    "research_idea": "Build a 12-month price momentum factor skipping the most recent month"
   },
   "provider_draft": {
-    "factor_name": "historical_hs300_momentum",
+    "factor_name": "en_momentum_12m",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
@@ -26,7 +29,7 @@
             }
           ],
           "params": {
-            "window": 20
+            "window": 240
           }
         }
       ]
@@ -34,10 +37,10 @@
     "variables": [
       {
         "logical_name": "close",
-        "meaning": "后复权收盘价"
+        "meaning": "adjusted close price"
       }
     ],
-    "formula_explanation": "rank(rolling_return(close,20))"
+    "formula_explanation": "rank(rolling_return(close,240))"
   },
   "expected_blocking_question_ids": [],
   "expected_formula_ast": {
@@ -54,7 +57,7 @@
           }
         ],
         "params": {
-          "window": 20
+          "window": 240
         }
       }
     ]
@@ -72,11 +75,5 @@
       "field": "s_dq_adjclose"
     }
   ],
-  "acceptance": [
-    "index_components called before get_price",
-    "historical members at each rebalance"
-  ],
-  "case_id": "historical_hs300",
-  "category": "historical_membership",
-  "language": "zh"
+  "acceptance": []
 }

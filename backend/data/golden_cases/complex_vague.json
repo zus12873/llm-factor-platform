@@ -124,7 +124,10 @@
     ]
   },
   "expected_tool_names": [
-    "wind.get_price"
+    "wind.get_price",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
   ],
   "expected_fields": [
     {
@@ -136,5 +139,7 @@
   "acceptance": [
     "asks direction, window, weights and rebalance before confirmation"
   ],
-  "case_id": "complex_vague"
+  "case_id": "complex_vague",
+  "category": "ambiguous",
+  "language": "zh"
 }

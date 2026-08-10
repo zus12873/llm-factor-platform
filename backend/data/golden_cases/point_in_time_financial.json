@@ -57,5 +57,7 @@
     "requires report period and announcement date",
     "no look-ahead"
   ],
-  "case_id": "point_in_time_financial"
+  "case_id": "point_in_time_financial",
+  "category": "point_in_time_financial",
+  "language": "zh"
 }

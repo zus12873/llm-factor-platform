@@ -1,14 +1,17 @@
 {
-  "description": "增长歧义",
+  "case_id": "growth_vague_window",
+  "description": "增长口径与窗口均不明",
+  "category": "ambiguous",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "构建营收增长因子"
+    "research_idea": "成长性强的公司值得买入"
   },
   "provider_draft": {
-    "factor_name": "growth",
+    "factor_name": "growth_vague_window",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
@@ -25,7 +28,7 @@
     "variables": [
       {
         "logical_name": "growth",
-        "meaning": "营收增长"
+        "meaning": "成长性"
       }
     ],
     "formula_explanation": "rank(growth)"
@@ -39,19 +42,11 @@
     "args": [
       {
         "type": "variable",
-        "name": "revenue_yoy"
+        "name": "growth"
       }
     ]
   },
-  "expected_tool_names": [
-    "wind.execute_generic_query_plan"
-  ],
-  "expected_fields": [
-    {
-      "logical_name": "revenue_yoy"
-    }
-  ],
-  "case_id": "growth_ambiguous",
-  "category": "ambiguous",
-  "language": "zh"
+  "expected_tool_names": [],
+  "expected_fields": [],
+  "acceptance": []
 }

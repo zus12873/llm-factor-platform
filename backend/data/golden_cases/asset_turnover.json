@@ -1,0 +1,90 @@
+{
+  "case_id": "asset_turnover",
+  "description": "总资产周转率",
+  "category": "quality",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "营业收入与总资产之比，衡量资产使用效率"
+  },
+  "provider_draft": {
+    "factor_name": "asset_turnover",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "call",
+          "op": "divide",
+          "args": [
+            {
+              "type": "variable",
+              "name": "oper_rev"
+            },
+            {
+              "type": "variable",
+              "name": "tot_assets"
+            }
+          ]
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "oper_rev",
+        "meaning": "营业收入"
+      },
+      {
+        "logical_name": "tot_assets",
+        "meaning": "资产总计"
+      }
+    ],
+    "formula_explanation": "rank(oper_rev/tot_assets)"
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "call",
+        "op": "divide",
+        "args": [
+          {
+            "type": "variable",
+            "name": "oper_rev"
+          },
+          {
+            "type": "variable",
+            "name": "tot_assets"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "oper_rev",
+      "table": "ashareincome",
+      "field": "oper_rev"
+    },
+    {
+      "logical_name": "tot_assets",
+      "table": "asharebalancesheet",
+      "field": "tot_assets"
+    }
+  ],
+  "acceptance": []
+}

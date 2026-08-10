@@ -7,7 +7,10 @@ from factor_platform.factor.golden import load_golden_cases
 from factor_platform.factor.parser import FactorParser
 from factor_platform.llm.base import FakeLLMProvider
 
-EXPECTED_CASE_IDS = {
+# The Week-1 acceptance cases. The suite has grown past these (see
+# test_case_coverage.py for composition rules); these must never disappear,
+# because they are the ones the Week-1 gate was signed off against.
+FOUNDING_CASE_IDS = {
     "momentum_20d",
     "low_volatility_20d",
     "price_volume",
@@ -23,9 +26,20 @@ EXPECTED_CASE_IDS = {
 
 def test_all_golden_cases_have_complete_expected_contracts() -> None:
     cases = load_golden_cases()
-    assert len(cases) == 10
-    assert {case.case_id for case in cases} == EXPECTED_CASE_IDS
-    assert all(case.expected_formula_ast and case.expected_tool_names for case in cases)
+    assert {case.case_id for case in cases} >= FOUNDING_CASE_IDS
+    assert all(case.expected_formula_ast for case in cases)
+
+
+def test_concrete_cases_pin_the_tools_the_planner_must_choose() -> None:
+    """Only resolved cases can name tools.
+
+    An ambiguous case has no confirmed field bindings until the user answers, so
+    it has no determined retrieval plan either. Demanding a tool list for one
+    would mean inventing the answer the case exists to ask about.
+    """
+    for case in load_golden_cases():
+        if case.category != "ambiguous":
+            assert case.expected_tool_names, f"{case.case_id} pins no tools"
 
 
 @pytest.mark.parametrize("case", load_golden_cases(), ids=lambda case: case.case_id)

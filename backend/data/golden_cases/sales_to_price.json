@@ -1,14 +1,17 @@
 {
-  "description": "历史沪深300成分动量",
+  "case_id": "sales_to_price",
+  "description": "市销率倒数",
+  "category": "valuation",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "在历史沪深300成分股上构建20日动量因子"
+    "research_idea": "用 PS_TTM 的倒数构建销售收益率因子"
   },
   "provider_draft": {
-    "factor_name": "historical_hs300_momentum",
+    "factor_name": "sales_to_price",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
@@ -18,26 +21,23 @@
       "args": [
         {
           "type": "call",
-          "op": "rolling_return",
+          "op": "negative",
           "args": [
             {
               "type": "variable",
-              "name": "close"
+              "name": "ps_ttm"
             }
-          ],
-          "params": {
-            "window": 20
-          }
+          ]
         }
       ]
     },
     "variables": [
       {
-        "logical_name": "close",
-        "meaning": "后复权收盘价"
+        "logical_name": "ps_ttm",
+        "meaning": "市销率 PS_TTM"
       }
     ],
-    "formula_explanation": "rank(rolling_return(close,20))"
+    "formula_explanation": "rank(negative(ps_ttm))"
   },
   "expected_blocking_question_ids": [],
   "expected_formula_ast": {
@@ -46,37 +46,28 @@
     "args": [
       {
         "type": "call",
-        "op": "rolling_return",
+        "op": "negative",
         "args": [
           {
             "type": "variable",
-            "name": "close"
+            "name": "ps_ttm"
           }
-        ],
-        "params": {
-          "window": 20
-        }
+        ]
       }
     ]
   },
   "expected_tool_names": [
-    "wind.get_price",
+    "wind.execute_generic_query_plan",
     "wind.index_components",
     "wind.is_st_stock",
     "wind.is_suspended"
   ],
   "expected_fields": [
     {
-      "logical_name": "close",
-      "table": "ashareeodprices",
-      "field": "s_dq_adjclose"
+      "logical_name": "ps_ttm",
+      "table": "ashareeodderivativeindicator",
+      "field": "s_val_ps_ttm"
     }
   ],
-  "acceptance": [
-    "index_components called before get_price",
-    "historical members at each rebalance"
-  ],
-  "case_id": "historical_hs300",
-  "category": "historical_membership",
-  "language": "zh"
+  "acceptance": []
 }

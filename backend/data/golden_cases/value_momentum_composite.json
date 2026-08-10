@@ -1,20 +1,23 @@
 {
-  "description": "20日低波动",
+  "case_id": "value_momentum_composite",
+  "description": "价值与动量等权复合",
+  "category": "composite",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "构建过去20日波动率最低的股票因子"
+    "research_idea": "把账面市值比和20日动量等权相加构成复合因子"
   },
   "provider_draft": {
-    "factor_name": "low_volatility_20d",
+    "factor_name": "value_momentum_composite",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
     "formula_ast": {
       "type": "call",
-      "op": "negative",
+      "op": "add",
       "args": [
         {
           "type": "call",
@@ -22,7 +25,23 @@
           "args": [
             {
               "type": "call",
-              "op": "rolling_std",
+              "op": "negative",
+              "args": [
+                {
+                  "type": "variable",
+                  "name": "pb"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "call",
+          "op": "rank",
+          "args": [
+            {
+              "type": "call",
+              "op": "rolling_return",
               "args": [
                 {
                   "type": "variable",
@@ -41,14 +60,18 @@
       {
         "logical_name": "close",
         "meaning": "后复权收盘价"
+      },
+      {
+        "logical_name": "pb",
+        "meaning": "市净率 PB"
       }
     ],
-    "formula_explanation": "negative(rank(rolling_std(close,20)))"
+    "formula_explanation": "rank(negative(pb)) + rank(rolling_return(close,20))"
   },
   "expected_blocking_question_ids": [],
   "expected_formula_ast": {
     "type": "call",
-    "op": "negative",
+    "op": "add",
     "args": [
       {
         "type": "call",
@@ -56,7 +79,23 @@
         "args": [
           {
             "type": "call",
-            "op": "rolling_std",
+            "op": "negative",
+            "args": [
+              {
+                "type": "variable",
+                "name": "pb"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "call",
+        "op": "rank",
+        "args": [
+          {
+            "type": "call",
+            "op": "rolling_return",
             "args": [
               {
                 "type": "variable",
@@ -72,6 +111,7 @@
     ]
   },
   "expected_tool_names": [
+    "wind.execute_generic_query_plan",
     "wind.get_price",
     "wind.index_components",
     "wind.is_st_stock",
@@ -82,9 +122,14 @@
       "logical_name": "close",
       "table": "ashareeodprices",
       "field": "s_dq_adjclose"
+    },
+    {
+      "logical_name": "pb",
+      "table": "ashareeodderivativeindicator",
+      "field": "s_val_pb_new"
     }
   ],
-  "case_id": "low_volatility_20d",
-  "category": "price_volume",
-  "language": "zh"
+  "acceptance": [
+    "两个子因子先各自排名再相加"
+  ]
 }

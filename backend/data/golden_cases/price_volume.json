@@ -154,7 +154,10 @@
     ]
   },
   "expected_tool_names": [
-    "wind.get_price"
+    "wind.get_price",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
   ],
   "expected_fields": [
     {
@@ -168,5 +171,7 @@
       "field": "s_dq_amount"
     }
   ],
-  "case_id": "price_volume"
+  "case_id": "price_volume",
+  "category": "price_volume",
+  "language": "zh"
 }

@@ -1,16 +1,18 @@
 {
-  "description": "盈利质量歧义",
+  "case_id": "profitability_and_direction_vague",
+  "description": "口径与方向双重不明",
+  "category": "ambiguous",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "构建盈利质量因子"
+    "research_idea": "根据盈利能力筛选股票"
   },
   "provider_draft": {
-    "factor_name": "profitability",
+    "factor_name": "profitability_and_direction_vague",
     "hypothesis": "",
-    "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
     "formula_ast": {
       "type": "call",
@@ -25,13 +27,14 @@
     "variables": [
       {
         "logical_name": "profitability",
-        "meaning": "盈利质量"
+        "meaning": "盈利能力"
       }
     ],
     "formula_explanation": "rank(profitability)"
   },
   "expected_blocking_question_ids": [
-    "profitability_definition"
+    "profitability_definition",
+    "direction"
   ],
   "expected_formula_ast": {
     "type": "call",
@@ -39,24 +42,13 @@
     "args": [
       {
         "type": "variable",
-        "name": "roe_ttm"
+        "name": "profitability"
       }
     ]
   },
-  "expected_tool_names": [
-    "wind.execute_generic_query_plan",
-    "wind.index_components",
-    "wind.is_st_stock",
-    "wind.is_suspended"
-  ],
-  "expected_fields": [
-    {
-      "logical_name": "roe_ttm",
-      "table": "asharefinancialindicator",
-      "field": "roe_ttm"
-    }
-  ],
-  "case_id": "profitability_ambiguous",
-  "category": "ambiguous",
-  "language": "zh"
+  "expected_tool_names": [],
+  "expected_fields": [],
+  "acceptance": [
+    "两个阻塞问题必须同时提出，不能只问一个"
+  ]
 }

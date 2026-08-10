@@ -1,14 +1,17 @@
 {
-  "description": "20日低波动",
+  "case_id": "reversal_5d",
+  "description": "5日短期反转",
+  "category": "price_volume",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "构建过去20日波动率最低的股票因子"
+    "research_idea": "过去5个交易日跌得多的股票后续会反弹，构建短期反转因子"
   },
   "provider_draft": {
-    "factor_name": "low_volatility_20d",
+    "factor_name": "reversal_5d",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
@@ -18,22 +21,16 @@
       "args": [
         {
           "type": "call",
-          "op": "rank",
+          "op": "rolling_return",
           "args": [
             {
-              "type": "call",
-              "op": "rolling_std",
-              "args": [
-                {
-                  "type": "variable",
-                  "name": "close"
-                }
-              ],
-              "params": {
-                "window": 20
-              }
+              "type": "variable",
+              "name": "close"
             }
-          ]
+          ],
+          "params": {
+            "window": 5
+          }
         }
       ]
     },
@@ -43,7 +40,7 @@
         "meaning": "后复权收盘价"
       }
     ],
-    "formula_explanation": "negative(rank(rolling_std(close,20)))"
+    "formula_explanation": "negative(rolling_return(close,5))"
   },
   "expected_blocking_question_ids": [],
   "expected_formula_ast": {
@@ -52,22 +49,16 @@
     "args": [
       {
         "type": "call",
-        "op": "rank",
+        "op": "rolling_return",
         "args": [
           {
-            "type": "call",
-            "op": "rolling_std",
-            "args": [
-              {
-                "type": "variable",
-                "name": "close"
-              }
-            ],
-            "params": {
-              "window": 20
-            }
+            "type": "variable",
+            "name": "close"
           }
-        ]
+        ],
+        "params": {
+          "window": 5
+        }
       }
     ]
   },
@@ -84,7 +75,8 @@
       "field": "s_dq_adjclose"
     }
   ],
-  "case_id": "low_volatility_20d",
-  "category": "price_volume",
-  "language": "zh"
+  "acceptance": [
+    "5日收益取负",
+    "短期反转方向"
+  ]
 }

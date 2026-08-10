@@ -1,0 +1,119 @@
+{
+  "case_id": "accruals",
+  "description": "应计利润占比",
+  "category": "quality",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "净利润减经营现金流再除以总资产，应计越高质量越差"
+  },
+  "provider_draft": {
+    "factor_name": "accruals",
+    "hypothesis": "",
+    "direction": "lower_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "call",
+          "op": "divide",
+          "args": [
+            {
+              "type": "call",
+              "op": "subtract",
+              "args": [
+                {
+                  "type": "variable",
+                  "name": "net_profit"
+                },
+                {
+                  "type": "variable",
+                  "name": "cfo"
+                }
+              ]
+            },
+            {
+              "type": "variable",
+              "name": "tot_assets"
+            }
+          ]
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "net_profit",
+        "meaning": "净利润"
+      },
+      {
+        "logical_name": "cfo",
+        "meaning": "经营活动现金流净额"
+      },
+      {
+        "logical_name": "tot_assets",
+        "meaning": "资产总计"
+      }
+    ],
+    "formula_explanation": "rank((net_profit-cfo)/tot_assets)"
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "call",
+        "op": "divide",
+        "args": [
+          {
+            "type": "call",
+            "op": "subtract",
+            "args": [
+              {
+                "type": "variable",
+                "name": "net_profit"
+              },
+              {
+                "type": "variable",
+                "name": "cfo"
+              }
+            ]
+          },
+          {
+            "type": "variable",
+            "name": "tot_assets"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "net_profit",
+      "table": "ashareincome",
+      "field": "net_profit_excl_min_int_inc"
+    },
+    {
+      "logical_name": "cfo",
+      "table": "asharecashflow",
+      "field": "net_cash_flows_oper_act"
+    },
+    {
+      "logical_name": "tot_assets",
+      "table": "asharebalancesheet",
+      "field": "tot_assets"
+    }
+  ],
+  "acceptance": []
+}

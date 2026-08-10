@@ -1,14 +1,17 @@
 {
-  "description": "盈利质量歧义",
+  "case_id": "earnings_quality_vague",
+  "description": "盈利质量口径不明",
+  "category": "ambiguous",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "构建盈利质量因子"
+    "research_idea": "盈利质量好的公司长期表现更好"
   },
   "provider_draft": {
-    "factor_name": "profitability",
+    "factor_name": "earnings_quality_vague",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
@@ -18,17 +21,17 @@
       "args": [
         {
           "type": "variable",
-          "name": "profitability"
+          "name": "earnings_quality"
         }
       ]
     },
     "variables": [
       {
-        "logical_name": "profitability",
+        "logical_name": "earnings_quality",
         "meaning": "盈利质量"
       }
     ],
-    "formula_explanation": "rank(profitability)"
+    "formula_explanation": "rank(earnings_quality)"
   },
   "expected_blocking_question_ids": [
     "profitability_definition"
@@ -39,24 +42,11 @@
     "args": [
       {
         "type": "variable",
-        "name": "roe_ttm"
+        "name": "earnings_quality"
       }
     ]
   },
-  "expected_tool_names": [
-    "wind.execute_generic_query_plan",
-    "wind.index_components",
-    "wind.is_st_stock",
-    "wind.is_suspended"
-  ],
-  "expected_fields": [
-    {
-      "logical_name": "roe_ttm",
-      "table": "asharefinancialindicator",
-      "field": "roe_ttm"
-    }
-  ],
-  "case_id": "profitability_ambiguous",
-  "category": "ambiguous",
-  "language": "zh"
+  "expected_tool_names": [],
+  "expected_fields": [],
+  "acceptance": []
 }

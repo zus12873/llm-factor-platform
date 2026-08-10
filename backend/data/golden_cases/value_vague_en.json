@@ -1,14 +1,17 @@
 {
-  "description": "增长歧义",
+  "case_id": "value_vague_en",
+  "description": "English: vague valuation",
+  "category": "ambiguous",
+  "language": "en",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "构建营收增长因子"
+    "research_idea": "Cheap stocks by valuation tend to outperform"
   },
   "provider_draft": {
-    "factor_name": "growth",
+    "factor_name": "value_vague_en",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
@@ -18,20 +21,20 @@
       "args": [
         {
           "type": "variable",
-          "name": "growth"
+          "name": "valuation"
         }
       ]
     },
     "variables": [
       {
-        "logical_name": "growth",
-        "meaning": "营收增长"
+        "logical_name": "valuation",
+        "meaning": "valuation"
       }
     ],
-    "formula_explanation": "rank(growth)"
+    "formula_explanation": "rank(valuation)"
   },
   "expected_blocking_question_ids": [
-    "growth_definition"
+    "valuation_definition"
   ],
   "expected_formula_ast": {
     "type": "call",
@@ -39,19 +42,11 @@
     "args": [
       {
         "type": "variable",
-        "name": "revenue_yoy"
+        "name": "valuation"
       }
     ]
   },
-  "expected_tool_names": [
-    "wind.execute_generic_query_plan"
-  ],
-  "expected_fields": [
-    {
-      "logical_name": "revenue_yoy"
-    }
-  ],
-  "case_id": "growth_ambiguous",
-  "category": "ambiguous",
-  "language": "zh"
+  "expected_tool_names": [],
+  "expected_fields": [],
+  "acceptance": []
 }

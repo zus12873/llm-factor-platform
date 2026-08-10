@@ -1,14 +1,17 @@
 {
-  "description": "历史沪深300成分动量",
+  "case_id": "csi500_membership",
+  "description": "中证500历史成分内动量",
+  "category": "historical_membership",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
-    "universe": "000300.SH",
+    "universe": "000905.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "在历史沪深300成分股上构建20日动量因子"
+    "research_idea": "在中证500的历史成分股内构建20日动量因子"
   },
   "provider_draft": {
-    "factor_name": "historical_hs300_momentum",
+    "factor_name": "csi500_membership",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
@@ -73,10 +76,6 @@
     }
   ],
   "acceptance": [
-    "index_components called before get_price",
-    "historical members at each rebalance"
-  ],
-  "case_id": "historical_hs300",
-  "category": "historical_membership",
-  "language": "zh"
+    "按调整日回溯历史成分，禁止用当前成分回测"
+  ]
 }

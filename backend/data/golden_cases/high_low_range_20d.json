@@ -1,0 +1,137 @@
+{
+  "case_id": "high_low_range_20d",
+  "description": "20日振幅",
+  "category": "price_volume",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "用最高价与最低价之差刻画20日振幅"
+  },
+  "provider_draft": {
+    "factor_name": "high_low_range_20d",
+    "hypothesis": "",
+    "direction": "lower_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "call",
+          "op": "rolling_mean",
+          "args": [
+            {
+              "type": "call",
+              "op": "divide",
+              "args": [
+                {
+                  "type": "call",
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "type": "variable",
+                      "name": "high"
+                    },
+                    {
+                      "type": "variable",
+                      "name": "low"
+                    }
+                  ]
+                },
+                {
+                  "type": "variable",
+                  "name": "close"
+                }
+              ]
+            }
+          ],
+          "params": {
+            "window": 20
+          }
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "close",
+        "meaning": "后复权收盘价"
+      },
+      {
+        "logical_name": "high",
+        "meaning": "最高价"
+      },
+      {
+        "logical_name": "low",
+        "meaning": "最低价"
+      }
+    ],
+    "formula_explanation": "rank(rolling_mean((high-low)/close,20))"
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "call",
+        "op": "rolling_mean",
+        "args": [
+          {
+            "type": "call",
+            "op": "divide",
+            "args": [
+              {
+                "type": "call",
+                "op": "subtract",
+                "args": [
+                  {
+                    "type": "variable",
+                    "name": "high"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "low"
+                  }
+                ]
+              },
+              {
+                "type": "variable",
+                "name": "close"
+              }
+            ]
+          }
+        ],
+        "params": {
+          "window": 20
+        }
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.get_price",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "close",
+      "table": "ashareeodprices",
+      "field": "s_dq_adjclose"
+    },
+    {
+      "logical_name": "high",
+      "table": "ashareeodprices",
+      "field": "s_dq_high"
+    },
+    {
+      "logical_name": "low",
+      "table": "ashareeodprices",
+      "field": "s_dq_low"
+    }
+  ],
+  "acceptance": []
+}

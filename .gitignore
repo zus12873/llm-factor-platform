@@ -46,6 +46,11 @@ windquery/
 imgs/
 backend/data/generated/
 
+# Blind acceptance set. Kept out of the repository so it cannot be consulted —
+# accidentally or deliberately — while the implementation is being tuned. Run it
+# once, at final acceptance, and compare against the golden baseline.
+backend/data/hidden_cases/
+
 # IDE / OS
 .idea/
 .vscode/
@@ -54,3 +59,9 @@ Thumbs.db
 
 # Superpowers SDD scratch (ledger, briefs, reports)
 .superpowers/
+
+# Playwright MCP scratch output
+.playwright-mcp/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

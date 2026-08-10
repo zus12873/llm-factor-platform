@@ -1,0 +1,90 @@
+{
+  "case_id": "debt_to_asset",
+  "description": "资产负债率",
+  "category": "quality",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "负债合计与资产总计之比，杠杆越低越好"
+  },
+  "provider_draft": {
+    "factor_name": "debt_to_asset",
+    "hypothesis": "",
+    "direction": "lower_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "call",
+          "op": "divide",
+          "args": [
+            {
+              "type": "variable",
+              "name": "tot_liab"
+            },
+            {
+              "type": "variable",
+              "name": "tot_assets"
+            }
+          ]
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "tot_liab",
+        "meaning": "负债合计"
+      },
+      {
+        "logical_name": "tot_assets",
+        "meaning": "资产总计"
+      }
+    ],
+    "formula_explanation": "rank(tot_liab/tot_assets)"
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "call",
+        "op": "divide",
+        "args": [
+          {
+            "type": "variable",
+            "name": "tot_liab"
+          },
+          {
+            "type": "variable",
+            "name": "tot_assets"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "tot_liab",
+      "table": "asharebalancesheet",
+      "field": "tot_liab"
+    },
+    {
+      "logical_name": "tot_assets",
+      "table": "asharebalancesheet",
+      "field": "tot_assets"
+    }
+  ],
+  "acceptance": []
+}

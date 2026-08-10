@@ -1,14 +1,17 @@
 {
-  "description": "盈利质量歧义",
+  "case_id": "gross_margin_ttm",
+  "description": "毛利率",
+  "category": "profitability",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "构建盈利质量因子"
+    "research_idea": "用 TTM 毛利率衡量产品竞争力"
   },
   "provider_draft": {
-    "factor_name": "profitability",
+    "factor_name": "gross_margin_ttm",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
@@ -18,28 +21,26 @@
       "args": [
         {
           "type": "variable",
-          "name": "profitability"
+          "name": "gross_margin_ttm"
         }
       ]
     },
     "variables": [
       {
-        "logical_name": "profitability",
-        "meaning": "盈利质量"
+        "logical_name": "gross_margin_ttm",
+        "meaning": "毛利率 TTM"
       }
     ],
-    "formula_explanation": "rank(profitability)"
+    "formula_explanation": "rank(gross_margin_ttm)"
   },
-  "expected_blocking_question_ids": [
-    "profitability_definition"
-  ],
+  "expected_blocking_question_ids": [],
   "expected_formula_ast": {
     "type": "call",
     "op": "rank",
     "args": [
       {
         "type": "variable",
-        "name": "roe_ttm"
+        "name": "gross_margin_ttm"
       }
     ]
   },
@@ -51,12 +52,10 @@
   ],
   "expected_fields": [
     {
-      "logical_name": "roe_ttm",
-      "table": "asharefinancialindicator",
-      "field": "roe_ttm"
+      "logical_name": "gross_margin_ttm",
+      "table": "asharettmhis",
+      "field": "s_fa_grossprofitmargin_ttm"
     }
   ],
-  "case_id": "profitability_ambiguous",
-  "category": "ambiguous",
-  "language": "zh"
+  "acceptance": []
 }

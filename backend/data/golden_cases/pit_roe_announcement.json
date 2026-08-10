@@ -1,14 +1,17 @@
 {
-  "description": "盈利质量歧义",
+  "case_id": "pit_roe_announcement",
+  "description": "按公告日可得的 ROE",
+  "category": "point_in_time_financial",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "构建盈利质量因子"
+    "research_idea": "使用只在公告日之后才可得的 ROE_TTM，避免未来函数"
   },
   "provider_draft": {
-    "factor_name": "profitability",
+    "factor_name": "pit_roe_announcement",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
@@ -18,21 +21,20 @@
       "args": [
         {
           "type": "variable",
-          "name": "profitability"
+          "name": "roe_ttm"
         }
       ]
     },
     "variables": [
       {
-        "logical_name": "profitability",
-        "meaning": "盈利质量"
+        "logical_name": "roe_ttm",
+        "meaning": "净资产收益率 ROE_TTM",
+        "point_in_time_required": true
       }
     ],
-    "formula_explanation": "rank(profitability)"
+    "formula_explanation": "rank(roe_ttm)"
   },
-  "expected_blocking_question_ids": [
-    "profitability_definition"
-  ],
+  "expected_blocking_question_ids": [],
   "expected_formula_ast": {
     "type": "call",
     "op": "rank",
@@ -52,11 +54,12 @@
   "expected_fields": [
     {
       "logical_name": "roe_ttm",
-      "table": "asharefinancialindicator",
-      "field": "roe_ttm"
+      "table": "asharettmhis",
+      "field": "s_fa_roe_ttm"
     }
   ],
-  "case_id": "profitability_ambiguous",
-  "category": "ambiguous",
-  "language": "zh"
+  "acceptance": [
+    "必须保留报告期与公告日",
+    "as_of 早于公告日的行不可见"
+  ]
 }

@@ -1,0 +1,129 @@
+{
+  "case_id": "amihud_illiquidity",
+  "description": "Amihud 非流动性",
+  "category": "price_volume",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "用日收益绝对值除以成交额衡量非流动性，取过去20日均值"
+  },
+  "provider_draft": {
+    "factor_name": "amihud_illiquidity",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "call",
+          "op": "rolling_mean",
+          "args": [
+            {
+              "type": "call",
+              "op": "divide",
+              "args": [
+                {
+                  "type": "call",
+                  "op": "rolling_return",
+                  "args": [
+                    {
+                      "type": "variable",
+                      "name": "close"
+                    }
+                  ],
+                  "params": {
+                    "window": 1
+                  }
+                },
+                {
+                  "type": "variable",
+                  "name": "amount"
+                }
+              ]
+            }
+          ],
+          "params": {
+            "window": 20
+          }
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "close",
+        "meaning": "后复权收盘价"
+      },
+      {
+        "logical_name": "amount",
+        "meaning": "成交金额"
+      }
+    ],
+    "formula_explanation": "rank(rolling_mean(rolling_return(close,1)/amount,20))"
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "call",
+        "op": "rolling_mean",
+        "args": [
+          {
+            "type": "call",
+            "op": "divide",
+            "args": [
+              {
+                "type": "call",
+                "op": "rolling_return",
+                "args": [
+                  {
+                    "type": "variable",
+                    "name": "close"
+                  }
+                ],
+                "params": {
+                  "window": 1
+                }
+              },
+              {
+                "type": "variable",
+                "name": "amount"
+              }
+            ]
+          }
+        ],
+        "params": {
+          "window": 20
+        }
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan",
+    "wind.get_price",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "close",
+      "table": "ashareeodprices",
+      "field": "s_dq_adjclose"
+    },
+    {
+      "logical_name": "amount",
+      "table": "ashareeodprices",
+      "field": "s_dq_amount"
+    }
+  ],
+  "acceptance": [
+    "单位口径需确认：成交金额为万元"
+  ]
+}

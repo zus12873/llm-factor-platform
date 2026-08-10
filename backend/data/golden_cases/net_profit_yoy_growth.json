@@ -1,14 +1,17 @@
 {
-  "description": "盈利质量歧义",
+  "case_id": "net_profit_yoy_growth",
+  "description": "净利润同比增速",
+  "category": "growth",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "构建盈利质量因子"
+    "research_idea": "净利润同比增长率 net_profit_yoy 衡量成长性"
   },
   "provider_draft": {
-    "factor_name": "profitability",
+    "factor_name": "net_profit_yoy_growth",
     "hypothesis": "",
     "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
@@ -18,28 +21,26 @@
       "args": [
         {
           "type": "variable",
-          "name": "profitability"
+          "name": "net_profit_yoy"
         }
       ]
     },
     "variables": [
       {
-        "logical_name": "profitability",
-        "meaning": "盈利质量"
+        "logical_name": "net_profit_yoy",
+        "meaning": "净利润同比增长率"
       }
     ],
-    "formula_explanation": "rank(profitability)"
+    "formula_explanation": "rank(net_profit_yoy)"
   },
-  "expected_blocking_question_ids": [
-    "profitability_definition"
-  ],
+  "expected_blocking_question_ids": [],
   "expected_formula_ast": {
     "type": "call",
     "op": "rank",
     "args": [
       {
         "type": "variable",
-        "name": "roe_ttm"
+        "name": "net_profit_yoy"
       }
     ]
   },
@@ -51,12 +52,10 @@
   ],
   "expected_fields": [
     {
-      "logical_name": "roe_ttm",
+      "logical_name": "net_profit_yoy",
       "table": "asharefinancialindicator",
-      "field": "roe_ttm"
+      "field": "s_fa_yoynetprofit"
     }
   ],
-  "case_id": "profitability_ambiguous",
-  "category": "ambiguous",
-  "language": "zh"
+  "acceptance": []
 }

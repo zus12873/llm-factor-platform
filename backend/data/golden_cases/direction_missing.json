@@ -1,16 +1,18 @@
 {
-  "description": "历史沪深300成分动量",
+  "case_id": "direction_missing",
+  "description": "方向未声明",
+  "category": "ambiguous",
+  "language": "zh",
   "request": {
     "asset_type": "stock",
     "universe": "000300.SH",
     "start_date": "2023-01-01",
     "end_date": "2024-06-30",
-    "research_idea": "在历史沪深300成分股上构建20日动量因子"
+    "research_idea": "用20日成交量均值构建一个因子"
   },
   "provider_draft": {
-    "factor_name": "historical_hs300_momentum",
+    "factor_name": "direction_missing",
     "hypothesis": "",
-    "direction": "higher_is_better",
     "rebalance_frequency": "monthly",
     "formula_ast": {
       "type": "call",
@@ -18,11 +20,11 @@
       "args": [
         {
           "type": "call",
-          "op": "rolling_return",
+          "op": "rolling_mean",
           "args": [
             {
               "type": "variable",
-              "name": "close"
+              "name": "volume"
             }
           ],
           "params": {
@@ -33,24 +35,26 @@
     },
     "variables": [
       {
-        "logical_name": "close",
-        "meaning": "后复权收盘价"
+        "logical_name": "volume",
+        "meaning": "成交量"
       }
     ],
-    "formula_explanation": "rank(rolling_return(close,20))"
+    "formula_explanation": "rank(rolling_mean(volume,20))"
   },
-  "expected_blocking_question_ids": [],
+  "expected_blocking_question_ids": [
+    "direction"
+  ],
   "expected_formula_ast": {
     "type": "call",
     "op": "rank",
     "args": [
       {
         "type": "call",
-        "op": "rolling_return",
+        "op": "rolling_mean",
         "args": [
           {
             "type": "variable",
-            "name": "close"
+            "name": "volume"
           }
         ],
         "params": {
@@ -67,16 +71,12 @@
   ],
   "expected_fields": [
     {
-      "logical_name": "close",
+      "logical_name": "volume",
       "table": "ashareeodprices",
-      "field": "s_dq_adjclose"
+      "field": "s_dq_volume"
     }
   ],
   "acceptance": [
-    "index_components called before get_price",
-    "historical members at each rebalance"
-  ],
-  "case_id": "historical_hs300",
-  "category": "historical_membership",
-  "language": "zh"
+    "成交量高低哪个更好无法从想法推断，必须问"
+  ]
 }
