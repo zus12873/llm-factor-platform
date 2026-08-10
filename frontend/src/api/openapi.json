@@ -1,0 +1,2444 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Factor Platform",
+    "description": "自然语言到可执行、可复现、可审计因子的研究平台",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/sessions": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Create Session",
+        "operationId": "create_session_api_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSessionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}": {
+      "get": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Get Session",
+        "operationId": "get_session_api_sessions__session_id__get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/messages": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Submit Message",
+        "operationId": "submit_message_api_sessions__session_id__messages_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/confirm-formula": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Confirm Formula",
+        "operationId": "confirm_formula_api_sessions__session_id__confirm_formula_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpecBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/field-candidates": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Search Fields",
+        "operationId": "search_fields_api_sessions__session_id__field_candidates_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidatesBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/confirm-fields": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Confirm Fields",
+        "operationId": "confirm_fields_api_sessions__session_id__confirm_fields_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/manifest": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Build Manifest",
+        "operationId": "build_manifest_api_sessions__session_id__manifest_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuildBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/revise-formula": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Revise Formula",
+        "operationId": "revise_formula_api_sessions__session_id__revise_formula_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpecBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/revise-fields": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Revise Fields",
+        "operationId": "revise_fields_api_sessions__session_id__revise_fields_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/revise-request": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Revise Request",
+        "operationId": "revise_request_api_sessions__session_id__revise_request_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/cancel": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Cancel Execution",
+        "operationId": "cancel_execution_api_sessions__session_id__cancel_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/clone": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Clone Session",
+        "operationId": "clone_session_api_sessions__session_id__clone_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/events": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Stream Session Events",
+        "description": "Stream session events, resuming after ``Last-Event-ID`` when supplied.\n\n``replay_only`` returns the backlog and closes, which is what a client that\njust wants to catch up needs — and what makes this testable without a\nconnection that never ends.",
+        "operationId": "stream_session_events_api_sessions__session_id__events_get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "replay_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Replay Only"
+            }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Ambiguity": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "recommended": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommended"
+          },
+          "blocking": {
+            "type": "boolean",
+            "title": "Blocking",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "field"
+        ],
+        "title": "Ambiguity",
+        "description": "An unresolved choice persisted on a FactorSpec (e.g. missing rebalance)."
+      },
+      "AnnouncementTimingPolicy": {
+        "type": "string",
+        "enum": [
+          "conservative",
+          "as_reported"
+        ],
+        "title": "AnnouncementTimingPolicy",
+        "description": "What to assume when the publication moment is unknown.\n\n``conservative`` defers to the next session, which is the only choice that\ncannot manufacture look-ahead."
+      },
+      "AssetType": {
+        "type": "string",
+        "enum": [
+          "all",
+          "stock",
+          "index",
+          "fund",
+          "bond",
+          "futures",
+          "options"
+        ],
+        "title": "AssetType"
+      },
+      "BuildBody": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "title": "Expected Version"
+          },
+          "request": {
+            "$ref": "#/components/schemas/ResearchRequest"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_version",
+          "request"
+        ],
+        "title": "BuildBody"
+      },
+      "CandidatesBody": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "title": "Expected Version"
+          },
+          "candidates": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Candidates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_version"
+        ],
+        "title": "CandidatesBody"
+      },
+      "ClarificationQuestion": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "question_id": {
+            "type": "string",
+            "title": "Question Id"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "recommended": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommended"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          },
+          "blocking": {
+            "type": "boolean",
+            "title": "Blocking",
+            "default": false
+          },
+          "target_version": {
+            "type": "integer",
+            "title": "Target Version",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "question_id",
+          "question"
+        ],
+        "title": "ClarificationQuestion",
+        "description": "A question presented to the user, possibly blocking further progress."
+      },
+      "CloneBody": {
+        "properties": {
+          "new_session_id": {
+            "type": "string",
+            "title": "New Session Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "new_session_id"
+        ],
+        "title": "CloneBody"
+      },
+      "ComponentHealth": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "status"
+        ],
+        "title": "ComponentHealth"
+      },
+      "CreateSessionBody": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id"
+        ],
+        "title": "CreateSessionBody"
+      },
+      "DataRequirement": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "logical_name": {
+            "type": "string",
+            "title": "Logical Name"
+          },
+          "meaning": {
+            "type": "string",
+            "title": "Meaning",
+            "default": ""
+          },
+          "asset_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssetType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Frequency"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "point_in_time_required": {
+            "type": "boolean",
+            "title": "Point In Time Required",
+            "default": false
+          },
+          "financial_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Financial Period"
+          },
+          "announcement_date_required": {
+            "type": "boolean",
+            "title": "Announcement Date Required",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "logical_name"
+        ],
+        "title": "DataRequirement",
+        "description": "A single logical variable needed by a factor, with its data semantics."
+      },
+      "DataRules": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "use_adjusted_price": {
+            "type": "boolean",
+            "title": "Use Adjusted Price",
+            "default": true
+          },
+          "exclude_st": {
+            "type": "boolean",
+            "title": "Exclude St",
+            "default": true
+          },
+          "exclude_suspended": {
+            "type": "boolean",
+            "title": "Exclude Suspended",
+            "default": true
+          },
+          "min_listed_days": {
+            "type": "integer",
+            "title": "Min Listed Days",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "DataRules",
+        "description": "Universe and data-selection rules.\n\nThese were never transforms and are unaffected by ordering, so they stay as\nplain switches. The transform switches that used to live alongside them now\nbelong to :class:`PreprocessingPipeline`."
+      },
+      "ErrorCategory": {
+        "type": "string",
+        "enum": [
+          "input",
+          "field",
+          "empty_data",
+          "time_basis",
+          "formula",
+          "resource",
+          "infrastructure"
+        ],
+        "title": "ErrorCategory"
+      },
+      "ExecutionPlan": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ExecutionStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "warmup_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warmup Start"
+          },
+          "time_convention": {
+            "$ref": "#/components/schemas/TimeConvention"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "title": "ExecutionPlan",
+        "description": "An ordered, fully-determined retrieval plan.\n\nCarries its own ``time_convention`` rather than reading it back from the spec:\nthe plan is what gets signed, queued and replayed, so the timing rules that\ndecide when a signal is knowable have to travel with it."
+      },
+      "ExecutionPrice": {
+        "type": "string",
+        "enum": [
+          "NEXT_OPEN",
+          "NEXT_CLOSE",
+          "VWAP",
+          "NONE"
+        ],
+        "title": "ExecutionPrice"
+      },
+      "ExecutionResult": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExecutionStatus"
+          },
+          "artifact_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Uri"
+          },
+          "data_validation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValidationReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "formula_validation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValidationReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result_validation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValidationReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "log_summary": {
+            "type": "string",
+            "title": "Log Summary",
+            "default": ""
+          },
+          "resource_stats": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Resource Stats"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/StructuredError"
+            },
+            "type": "array",
+            "title": "Errors"
+          },
+          "revision_suggestion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Suggestion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ExecutionResult"
+      },
+      "ExecutionStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "running",
+          "completed",
+          "failed"
+        ],
+        "title": "ExecutionStatus"
+      },
+      "ExecutionStep": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "tool": {
+            "type": "string",
+            "title": "Tool"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose",
+            "default": ""
+          },
+          "arguments": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Arguments"
+          },
+          "inputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "output_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Schema"
+          },
+          "postprocessing": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postprocessing"
+          },
+          "validation": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Validation"
+          },
+          "failure_strategy": {
+            "type": "string",
+            "title": "Failure Strategy",
+            "default": "fail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool"
+        ],
+        "title": "ExecutionStep",
+        "description": "One deterministic retrieval/computation step (tool + bounded arguments)."
+      },
+      "FactorDirection": {
+        "type": "string",
+        "enum": [
+          "higher_is_better",
+          "lower_is_better",
+          "neutral"
+        ],
+        "title": "FactorDirection"
+      },
+      "FactorSpec-Input": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 1
+          },
+          "factor_name": {
+            "type": "string",
+            "title": "Factor Name"
+          },
+          "hypothesis": {
+            "type": "string",
+            "title": "Hypothesis",
+            "default": ""
+          },
+          "asset_type": {
+            "$ref": "#/components/schemas/AssetType"
+          },
+          "universe": {
+            "type": "string",
+            "title": "Universe"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/Frequency"
+          },
+          "rebalance_frequency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Frequency"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactorDirection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "formula_ast": {
+            "$ref": "#/components/schemas/FormulaNode-Input"
+          },
+          "canonical_formula": {
+            "type": "string",
+            "title": "Canonical Formula",
+            "default": ""
+          },
+          "formula_explanation": {
+            "type": "string",
+            "title": "Formula Explanation",
+            "default": ""
+          },
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/DataRequirement"
+            },
+            "type": "array",
+            "title": "Variables"
+          },
+          "data_rules": {
+            "$ref": "#/components/schemas/DataRules"
+          },
+          "preprocessing": {
+            "$ref": "#/components/schemas/PreprocessingPipeline"
+          },
+          "time_convention": {
+            "$ref": "#/components/schemas/TimeConvention"
+          },
+          "ambiguities": {
+            "items": {
+              "$ref": "#/components/schemas/Ambiguity"
+            },
+            "type": "array",
+            "title": "Ambiguities"
+          },
+          "source_evidence": {
+            "items": {
+              "$ref": "#/components/schemas/ReportEvidence"
+            },
+            "type": "array",
+            "title": "Source Evidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "factor_name",
+          "asset_type",
+          "universe",
+          "frequency",
+          "formula_ast"
+        ],
+        "title": "FactorSpec",
+        "description": "The confirmed, machine-checkable description of one factor.\n\n``formula_ast`` is the single source of truth. ``canonical_formula`` is\nrendered from it by the backend and is what the user actually confirms;\n``formula_explanation`` is the model's prose and is display-only. The model\nnever authors the confirmed formula, so what is signed off and what is\nexecuted cannot diverge."
+      },
+      "FactorSpec-Output": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 1
+          },
+          "factor_name": {
+            "type": "string",
+            "title": "Factor Name"
+          },
+          "hypothesis": {
+            "type": "string",
+            "title": "Hypothesis",
+            "default": ""
+          },
+          "asset_type": {
+            "$ref": "#/components/schemas/AssetType"
+          },
+          "universe": {
+            "type": "string",
+            "title": "Universe"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/Frequency"
+          },
+          "rebalance_frequency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Frequency"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactorDirection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "formula_ast": {
+            "$ref": "#/components/schemas/FormulaNode-Output"
+          },
+          "canonical_formula": {
+            "type": "string",
+            "title": "Canonical Formula",
+            "default": ""
+          },
+          "formula_explanation": {
+            "type": "string",
+            "title": "Formula Explanation",
+            "default": ""
+          },
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/DataRequirement"
+            },
+            "type": "array",
+            "title": "Variables"
+          },
+          "data_rules": {
+            "$ref": "#/components/schemas/DataRules"
+          },
+          "preprocessing": {
+            "$ref": "#/components/schemas/PreprocessingPipeline"
+          },
+          "time_convention": {
+            "$ref": "#/components/schemas/TimeConvention"
+          },
+          "ambiguities": {
+            "items": {
+              "$ref": "#/components/schemas/Ambiguity"
+            },
+            "type": "array",
+            "title": "Ambiguities"
+          },
+          "source_evidence": {
+            "items": {
+              "$ref": "#/components/schemas/ReportEvidence"
+            },
+            "type": "array",
+            "title": "Source Evidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "factor_name",
+          "asset_type",
+          "universe",
+          "frequency",
+          "formula_ast"
+        ],
+        "title": "FactorSpec",
+        "description": "The confirmed, machine-checkable description of one factor.\n\n``formula_ast`` is the single source of truth. ``canonical_formula`` is\nrendered from it by the backend and is what the user actually confirms;\n``formula_explanation`` is the model's prose and is display-only. The model\nnever authors the confirmed formula, so what is signed off and what is\nexecuted cannot diverge."
+      },
+      "FieldSelection": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "logical_name": {
+            "type": "string",
+            "title": "Logical Name"
+          },
+          "table": {
+            "type": "string",
+            "title": "Table"
+          },
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "time_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FieldTimeRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "point_in_time": {
+            "type": "boolean",
+            "title": "Point In Time",
+            "default": false
+          },
+          "announcement_date_field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Announcement Date Field"
+          },
+          "report_period_field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Period Field"
+          }
+        },
+        "type": "object",
+        "required": [
+          "logical_name",
+          "table",
+          "field"
+        ],
+        "title": "FieldSelection",
+        "description": "A user-confirmed mapping from a logical variable to a concrete Wind field."
+      },
+      "FieldTimeRole": {
+        "type": "string",
+        "enum": [
+          "observation",
+          "announcement",
+          "report_period",
+          "as_of"
+        ],
+        "title": "FieldTimeRole",
+        "description": "How a field's timestamp is interpreted for point-in-time correctness."
+      },
+      "FieldsBody": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "title": "Expected Version"
+          },
+          "field_selections": {
+            "items": {
+              "$ref": "#/components/schemas/FieldSelection"
+            },
+            "type": "array",
+            "title": "Field Selections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_version"
+        ],
+        "title": "FieldsBody"
+      },
+      "FormulaNode-Input": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "variable",
+              "literal",
+              "call"
+            ],
+            "title": "Type"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "op": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "add",
+                  "subtract",
+                  "multiply",
+                  "divide",
+                  "negative",
+                  "log",
+                  "rank",
+                  "rolling_return",
+                  "rolling_std",
+                  "rolling_mean",
+                  "fillna"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Op"
+          },
+          "args": {
+            "items": {
+              "$ref": "#/components/schemas/FormulaNode-Input"
+            },
+            "type": "array",
+            "title": "Args"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Params"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "FormulaNode",
+        "description": "A single node in the factor formula AST.\n\nShapes (mutually exclusive, enforced):\n  * ``variable`` -- references a confirmed data variable by ``name``;\n  * ``literal``  -- a numeric constant ``value``;\n  * ``call``     -- applies a registered ``op`` to ``args`` with optional ``params``."
+      },
+      "FormulaNode-Output": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "variable",
+              "literal",
+              "call"
+            ],
+            "title": "Type"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "op": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "add",
+                  "subtract",
+                  "multiply",
+                  "divide",
+                  "negative",
+                  "log",
+                  "rank",
+                  "rolling_return",
+                  "rolling_std",
+                  "rolling_mean",
+                  "fillna"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Op"
+          },
+          "args": {
+            "items": {
+              "$ref": "#/components/schemas/FormulaNode-Output"
+            },
+            "type": "array",
+            "title": "Args"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Params"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "FormulaNode",
+        "description": "A single node in the factor formula AST.\n\nShapes (mutually exclusive, enforced):\n  * ``variable`` -- references a confirmed data variable by ``name``;\n  * ``literal``  -- a numeric constant ``value``;\n  * ``call``     -- applies a registered ``op`` to ``args`` with optional ``params``."
+      },
+      "Frequency": {
+        "type": "string",
+        "enum": [
+          "daily",
+          "weekly",
+          "monthly",
+          "quarterly",
+          "yearly"
+        ],
+        "title": "Frequency"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthReport": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/ComponentHealth"
+            },
+            "type": "array",
+            "title": "Components"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "version",
+          "components"
+        ],
+        "title": "HealthReport"
+      },
+      "InformationAvailableTime": {
+        "type": "string",
+        "enum": [
+          "T_INTRADAY",
+          "T_AFTER_CLOSE",
+          "ANNOUNCEMENT_BEFORE_OPEN",
+          "ANNOUNCEMENT_AFTER_CLOSE"
+        ],
+        "title": "InformationAvailableTime",
+        "description": "When a researcher could actually have known the value."
+      },
+      "MessageBody": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "title": "Expected Version"
+          },
+          "request": {
+            "$ref": "#/components/schemas/ResearchRequest"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_version",
+          "request"
+        ],
+        "title": "MessageBody"
+      },
+      "ObservationTime": {
+        "type": "string",
+        "enum": [
+          "T_OPEN",
+          "T_CLOSE",
+          "REPORT_PERIOD"
+        ],
+        "title": "ObservationTime",
+        "description": "When the underlying datum is stamped."
+      },
+      "PreprocessingOperation": {
+        "type": "string",
+        "enum": [
+          "winsorize",
+          "zscore",
+          "industry_neutralize",
+          "fillna"
+        ],
+        "title": "PreprocessingOperation"
+      },
+      "PreprocessingPipeline": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 1
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/PreprocessingStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "type": "object",
+        "title": "PreprocessingPipeline",
+        "description": "An ordered, duplicate-free sequence of transforms."
+      },
+      "PreprocessingStep": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/PreprocessingOperation"
+          },
+          "target": {
+            "$ref": "#/components/schemas/PreprocessingTarget"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order",
+          "operation",
+          "target"
+        ],
+        "title": "PreprocessingStep"
+      },
+      "PreprocessingTarget": {
+        "type": "string",
+        "enum": [
+          "variables",
+          "factor"
+        ],
+        "title": "PreprocessingTarget",
+        "description": "What a step operates on.\n\n``variables`` runs before the formula, once per raw input; ``factor`` runs\nafter the formula, on its single output. This distinction is precisely what\na boolean switch could not express."
+      },
+      "ReportEvidence": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "page_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Number"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote",
+            "default": ""
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "formula_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula Context"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "text"
+          }
+        },
+        "type": "object",
+        "title": "ReportEvidence",
+        "description": "A piece of source text that justifies an extracted value."
+      },
+      "ResearchRequest": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "asset_type": {
+            "$ref": "#/components/schemas/AssetType"
+          },
+          "universe": {
+            "type": "string",
+            "title": "Universe"
+          },
+          "start_date": {
+            "type": "string",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "title": "End Date"
+          },
+          "research_idea": {
+            "type": "string",
+            "title": "Research Idea"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": "zh"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/Frequency",
+            "default": "daily"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactorDirection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "report_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Artifact Id"
+          },
+          "data_rules": {
+            "$ref": "#/components/schemas/DataRules"
+          },
+          "preprocessing": {
+            "$ref": "#/components/schemas/PreprocessingPipeline"
+          },
+          "time_convention": {
+            "$ref": "#/components/schemas/TimeConvention"
+          }
+        },
+        "type": "object",
+        "required": [
+          "asset_type",
+          "universe",
+          "start_date",
+          "end_date",
+          "research_idea"
+        ],
+        "title": "ResearchRequest",
+        "description": "A user's natural-language research idea plus its evaluation envelope."
+      },
+      "SessionSnapshot": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "factor_spec": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactorSpec-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "field_selections": {
+            "items": {
+              "$ref": "#/components/schemas/FieldSelection"
+            },
+            "type": "array",
+            "title": "Field Selections"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "generated_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated Code"
+          },
+          "code_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Sha256"
+          },
+          "execution_result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExecutionResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "artifact_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Uri"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StructuredError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ambiguities": {
+            "items": {
+              "$ref": "#/components/schemas/Ambiguity"
+            },
+            "type": "array",
+            "title": "Ambiguities"
+          },
+          "clarifications": {
+            "items": {
+              "$ref": "#/components/schemas/ClarificationQuestion"
+            },
+            "type": "array",
+            "title": "Clarifications"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "state",
+          "version"
+        ],
+        "title": "SessionSnapshot",
+        "description": "The folded, current state of a session, fully derivable from its events."
+      },
+      "SpecBody": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "title": "Expected Version"
+          },
+          "factor_spec": {
+            "$ref": "#/components/schemas/FactorSpec-Input"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_version",
+          "factor_spec"
+        ],
+        "title": "SpecBody"
+      },
+      "StructuredError": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "category": {
+            "$ref": "#/components/schemas/ErrorCategory"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "detail": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Detail"
+          },
+          "repairable": {
+            "type": "boolean",
+            "title": "Repairable",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "code",
+          "message"
+        ],
+        "title": "StructuredError"
+      },
+      "TimeConvention": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 1
+          },
+          "observation_time": {
+            "$ref": "#/components/schemas/ObservationTime",
+            "default": "T_CLOSE"
+          },
+          "information_available_time": {
+            "$ref": "#/components/schemas/InformationAvailableTime",
+            "default": "T_AFTER_CLOSE"
+          },
+          "signal_date": {
+            "type": "string",
+            "title": "Signal Date",
+            "default": "T"
+          },
+          "trade_date": {
+            "type": "string",
+            "title": "Trade Date",
+            "default": "T+1"
+          },
+          "execution_price": {
+            "$ref": "#/components/schemas/ExecutionPrice",
+            "default": "NEXT_OPEN"
+          },
+          "forward_return_start": {
+            "type": "string",
+            "title": "Forward Return Start",
+            "default": "T+1_OPEN"
+          },
+          "forward_return_end": {
+            "type": "string",
+            "title": "Forward Return End",
+            "default": "T+N_OPEN"
+          },
+          "announcement_timing_policy": {
+            "$ref": "#/components/schemas/AnnouncementTimingPolicy",
+            "default": "conservative"
+          }
+        },
+        "type": "object",
+        "title": "TimeConvention",
+        "description": "The signal/trade timing contract carried by a spec, plan and artifact.\n\nDefaults describe the首期 house convention: observe at the T close, treat it\nas knowable only after that close, form the signal on T, trade at the T+1\nopen, and measure forward returns from that same open."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ValidationFinding": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "severity": {
+            "$ref": "#/components/schemas/ValidationSeverity"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "evidence": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Evidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "severity",
+          "code",
+          "message"
+        ],
+        "title": "ValidationFinding"
+      },
+      "ValidationReport": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationFinding"
+            },
+            "type": "array",
+            "title": "Findings"
+          }
+        },
+        "type": "object",
+        "title": "ValidationReport"
+      },
+      "ValidationSeverity": {
+        "type": "string",
+        "enum": [
+          "error",
+          "warning",
+          "info"
+        ],
+        "title": "ValidationSeverity"
+      },
+      "VersionBody": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "title": "Expected Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_version"
+        ],
+        "title": "VersionBody"
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+/* Motion for step and card transitions.
+ *
+ * Every animation here is decorative. `prefers-reduced-motion` therefore
+ * disables all of it rather than shortening it: for someone with vestibular
+ * sensitivity a faster animation is still an animation, and none of this carries
+ * information the static layout does not already carry. */
+.workflow-step-enter {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.workflow-step-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+}
+
+.workflow-card {
+  transition: box-shadow 180ms ease-out;
+}
+
+.workflow-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+}
+
+.workflow-progress-indeterminate {
+  animation: workflow-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes workflow-sweep {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workflow-step-enter,
+  .workflow-step-enter-active,
+  .workflow-card,
+  .workflow-progress-indeterminate {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
