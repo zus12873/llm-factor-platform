@@ -18,20 +18,38 @@
 
 ---
 
-## ⚠️ 当前状态：开发中
+## ⚠️ 当前状态：离线开发完成，未接真实数据
 
-这是一个进行中的项目，**尚未可用于生产研究**。
+全部 36 个任务已实现并通过离线验证。**但它还没有连过一次真实的 Wind 数据库，
+也没有调用过一次真实的大模型。**
 
 | | 状态 |
 |---|---|
-| 领域契约、事件状态机、语义解析、澄清引擎、字段检索 | ✅ 已实现并测试 |
-| 公式编译、manifest 构建、隔离执行、三层校验 | ❌ 未开始 |
-| FastAPI 服务、React 工作台 | ❌ 未开始 |
-| 研报 PDF 解析、因子检验、因子库 | ❌ 未开始 |
-| **真实 Wind 数据库连接** | ❌ **从未跑通** |
-| **真实大模型接口** | ❌ **未实测**（测试全部走 FakeLLMProvider） |
+| 领域契约、事件状态机、语义解析、澄清引擎 | ✅ 已实现并测试 |
+| 字段发现（7,478 字段元数据 + 中文检索 + Schema/样本验证） | ✅ 已实现并测试 |
+| 公式编译、预处理流水线、签名 manifest、隔离 Worker | ✅ 已实现并测试 |
+| 数据 / 公式 / 结果三层校验、口径三值闸门 | ✅ 已实现并测试 |
+| FastAPI 服务、React 工作台、SSE 可恢复事件流 | ✅ 已实现并测试 |
+| 研报 PDF 解析、受限 OCR、因子抽取 | ✅ 已实现并测试 |
+| 因子检验（IC / 分位 / 换手）、因子库、多因子指数、本地认证 | ✅ 已实现并测试 |
+| **真实 Wind 数据库连接** | ❌ **从未跑通**（凭据待轮换） |
+| **真实大模型接口** | ❌ **未实测**（测试走 FakeLLMProvider） |
+| **Docker 镜像构建与 Compose 冒烟** | ❌ **未执行**（开发机无 Docker） |
 
-当前所有代码运行在**离线模式**下。详细进度见 [`docs/阶段汇报-2026-08-07.md`](docs/阶段汇报-2026-08-07.md)。
+「已实现并测试」指的是离线测试：Wind 与大模型是替身，但组件之间的每一道接缝
+都是真实的。真实浏览器、真实 uvicorn、真实 OCR 引擎、真实 Worker 进程均已跑通。
+
+| 门禁 | 结果 |
+|---|---|
+| `pytest`（后端） | 612 passed |
+| `vitest`（前端） | 28 passed |
+| `ruff` / `mypy` | 全过 / 82 个源文件无问题 |
+| 黄金验收集 | 37 / 37 |
+| 隐藏验收集 | 10 / 10（首次运行，与黄金集无差距） |
+
+- 功能与操作：[`docs/使用说明.md`](docs/使用说明.md)
+- 工程问题与优化：[`docs/工程优化记录.md`](docs/工程优化记录.md)
+- 验收证据与延后项：[`docs/acceptance/2026-08-10/README.md`](docs/acceptance/2026-08-10/README.md)
 
 ---
 
@@ -56,7 +74,7 @@
 | 层 | 选型 |
 |---|---|
 | 后端 | Python 3.11、FastAPI、Pydantic 2、SQLAlchemy 2、SQLite |
-| 前端 | React、TypeScript、Vite、Ant Design（未开始） |
+| 前端 | React 18、TypeScript、Vite、Ant Design、TanStack Query |
 | 数据 | Wind MySQL 只读副本；工件落 Parquet |
 | 模型 | 统一 `LLMProvider` 抽象，OpenAI 兼容接口 |
 | 工具链 | uv、pytest、ruff、mypy、Alembic |
@@ -65,27 +83,29 @@
 
 ## 快速开始
 
-需要 [uv](https://docs.astral.sh/uv/)。
+需要 [uv](https://docs.astral.sh/uv/) 与 Node 22+。
 
 ```bash
 # 安装依赖
 uv sync --project backend
+npm --prefix frontend install
 
-# 跑测试
-uv run --project backend pytest backend/tests -q
+# 全部离线运行，不需要任何凭据
+uv run --project backend pytest backend/tests -q          # 612 passed
+uv run --project backend factor-platform list-cases       # 37 个黄金案例
+uv run --project backend factor-platform run-case momentum_20d
+uv run --project backend factor-platform run-case-suite --set golden
 
-# 代码检查
-uv run --project backend ruff check backend/src backend/tests
-uv run --project backend mypy backend/src
-
-# 离线解析一个黄金案例（不需要任何凭据）
-uv run --project backend factor-platform list-cases
-uv run --project backend factor-platform parse-case momentum_20d
+# 起服务
+APP_ENV=test uv run --project backend uvicorn --factory \
+  factor_platform.main:create_app --port 8000
+npm --prefix frontend run dev                             # http://localhost:5173
 ```
 
 配置：复制 `.env.example` 为 `.env` 并填入真实值。`.env` 已被 gitignore。
+不填也能跑——平台设计上就能离线工作，界面会明确显示「离线模式：wind、llm」。
 
----
+完整的功能说明与操作流程见 [`docs/使用说明.md`](docs/使用说明.md)。
 
 ## 关于缺失的 Wind 数据字典
 
@@ -127,11 +147,15 @@ uv run --project backend factor-platform build-wind-catalog \
 
 | 文档 | 内容 |
 |---|---|
-| [`docs/阶段汇报-2026-08-07.md`](docs/阶段汇报-2026-08-07.md) | 当前进度、验证证据、风险 |
-| [`docs/技术设计方案.md`](docs/技术设计方案.md) | 设计思路、框架与功能 |
-| [`docs/技术设计方案问题与调整建议.md`](docs/技术设计方案问题与调整建议.md) | 技术评审意见（13 条） |
-| [`docs/superpowers/specs/`](docs/superpowers/specs/) | 架构设计（含修订记录） |
-| [`docs/superpowers/plans/`](docs/superpowers/plans/) | 实施计划，36 个任务 / 181 个步骤 |
+| [`docs/使用说明.md`](docs/使用说明.md) | **功能清单与操作流程** —— 从这里开始 |
+| [`docs/工程优化记录.md`](docs/工程优化记录.md) | **实现中遇到的问题与优化过程** |
+| [`docs/acceptance/2026-08-10/README.md`](docs/acceptance/2026-08-10/README.md) | 离线开发完成验收报告 |
+| [`docs/acceptance/deferred-credential-steps.md`](docs/acceptance/deferred-credential-steps.md) | 需要凭据才能完成的步骤清单 |
+| [`docs/技术设计方案.md`](docs/技术设计方案.md) | 设计思路与框架 |
+| [`docs/技术设计方案问题与调整建议.md`](docs/技术设计方案问题与调整建议.md) | 技术评审意见（13 条，驱动了 6 个修订任务） |
+| [`docs/阶段汇报-2026-08-07.md`](docs/阶段汇报-2026-08-07.md) | 中期阶段汇报（历史存档） |
+| [`docs/superpowers/plans/`](docs/superpowers/plans/) | 实施计划，36 个任务，含逐任务实现修订记录 |
+| [`docs/superpowers/specs/`](docs/superpowers/specs/) | 架构设计（含被取代条款的修订记录） |
 
 ---
 
