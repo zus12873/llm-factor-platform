@@ -232,6 +232,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reports/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Report
+         * @description Store a PDF, parse it, and attempt extraction.
+         */
+        post: operations["upload_report_api_reports_upload_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyze
+         * @description Evaluate a factor against forward returns.
+         */
+        post: operations["analyze_api_analysis_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -280,6 +320,47 @@ export interface components {
              */
             blocking: boolean;
         };
+        /** AnalysisRequest */
+        AnalysisRequest: {
+            factor: components["schemas"]["FramePayload"];
+            forward_returns: components["schemas"]["FramePayload"];
+            /**
+             * Groups
+             * @default 5
+             */
+            groups: number;
+        };
+        /** AnalysisResult */
+        AnalysisResult: {
+            ic: components["schemas"]["SeriesSummary"];
+            rank_ic: components["schemas"]["SeriesSummary"];
+            quantiles: components["schemas"]["QuantileReturns"];
+            /**
+             * Turnover Mean
+             * @default 0
+             */
+            turnover_mean: number;
+            /**
+             * Coverage Mean
+             * @default 0
+             */
+            coverage_mean: number;
+            /**
+             * Evaluated Dates
+             * @default 0
+             */
+            evaluated_dates: number;
+            /**
+             * Skipped Dates
+             * @default 0
+             */
+            skipped_dates: number;
+            /**
+             * Skipped Reason
+             * @default
+             */
+            skipped_reason: string;
+        };
         /**
          * AnnouncementTimingPolicy
          * @description What to assume when the publication moment is unknown.
@@ -294,6 +375,11 @@ export interface components {
          * @enum {string}
          */
         AssetType: "all" | "stock" | "index" | "fund" | "bond" | "futures" | "options";
+        /** Body_upload_report_api_reports_upload_post */
+        Body_upload_report_api_reports_upload_post: {
+            /** File */
+            file: string;
+        };
         /** BuildBody */
         BuildBody: {
             /** Expected Version */
@@ -442,6 +528,20 @@ export interface components {
          */
         ErrorCategory: "input" | "field" | "empty_data" | "time_basis" | "formula" | "resource" | "infrastructure";
         /**
+         * Excerpt
+         * @description One scored block, with the identifier the model must cite.
+         */
+        Excerpt: {
+            /** Evidence Id */
+            evidence_id: string;
+            /** Page Number */
+            page_number: number;
+            /** Text */
+            text: string;
+            /** Score */
+            score: number;
+        };
+        /**
          * ExecutionPlan
          * @description An ordered, fully-determined retrieval plan.
          *
@@ -540,6 +640,26 @@ export interface components {
              * @default fail
              */
             failure_strategy: string;
+        };
+        /** ExtractedFactor */
+        ExtractedFactor: {
+            /**
+             * Factor Name
+             * @default
+             */
+            factor_name: string;
+            /**
+             * Hypothesis
+             * @default
+             */
+            hypothesis: string;
+            /** Variables */
+            variables?: {
+                [key: string]: string;
+            }[];
+            /** Evidence */
+            evidence?: components["schemas"]["Excerpt"][];
+            formula_extraction: components["schemas"]["FormulaExtraction"];
         };
         /**
          * FactorDirection
@@ -697,6 +817,36 @@ export interface components {
             field_selections?: components["schemas"]["FieldSelection"][];
         };
         /**
+         * FormulaExtraction
+         * @description What was extracted, how sure we are, and what the user must do about it.
+         */
+        FormulaExtraction: {
+            status: components["schemas"]["FormulaExtractionStatus"];
+            /**
+             * Confidence
+             * @default 0
+             */
+            confidence: number;
+            /** Source Pages */
+            source_pages?: number[];
+            /**
+             * Extracted Text
+             * @default
+             */
+            extracted_text: string;
+            /**
+             * Warning
+             * @default
+             */
+            warning: string;
+            formula_ast?: components["schemas"]["FormulaNode-Output"] | null;
+        };
+        /**
+         * FormulaExtractionStatus
+         * @enum {string}
+         */
+        FormulaExtractionStatus: "extracted" | "needs_manual_confirmation";
+        /**
          * FormulaNode
          * @description A single node in the factor formula AST.
          *
@@ -751,6 +901,18 @@ export interface components {
             params?: {
                 [key: string]: number | string;
             };
+        };
+        /**
+         * FramePayload
+         * @description A date-indexed matrix in a JSON-friendly shape.
+         */
+        FramePayload: {
+            /** Dates */
+            dates: string[];
+            /** Codes */
+            codes: string[];
+            /** Values */
+            values: (number | null)[][];
         };
         /**
          * Frequency
@@ -841,6 +1003,24 @@ export interface components {
          */
         PreprocessingTarget: "variables" | "factor";
         /**
+         * QuantileReturns
+         * @description Mean forward return per quantile, lowest factor value first.
+         */
+        QuantileReturns: {
+            /** Means */
+            means?: number[];
+            /**
+             * Long Short Spread
+             * @default 0
+             */
+            long_short_spread: number;
+            /**
+             * Monotonic
+             * @default false
+             */
+            monotonic: boolean;
+        };
+        /**
          * ReportEvidence
          * @description A piece of source text that justifies an extracted value.
          */
@@ -901,6 +1081,20 @@ export interface components {
             data_rules?: components["schemas"]["DataRules"];
             preprocessing?: components["schemas"]["PreprocessingPipeline"];
             time_convention?: components["schemas"]["TimeConvention"];
+        };
+        /**
+         * SeriesSummary
+         * @description A metric series reduced to what a researcher reads first.
+         */
+        SeriesSummary: {
+            /** Mean */
+            mean: number;
+            /** Std */
+            std: number;
+            /** Positive Rate */
+            positive_rate: number;
+            /** Count */
+            count: number;
         };
         /**
          * SessionSnapshot
@@ -1011,6 +1205,23 @@ export interface components {
             forward_return_end: string;
             /** @default conservative */
             announcement_timing_policy: components["schemas"]["AnnouncementTimingPolicy"];
+        };
+        /** UploadResponse */
+        UploadResponse: {
+            /** Artifact Id */
+            artifact_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Page Count */
+            page_count: number;
+            /** Scanned Pages */
+            scanned_pages: number[];
+            extraction: components["schemas"]["ExtractedFactor"];
+            /**
+             * Capability Note
+             * @default 首期支持正文可复制、变量定义明确的中英文文本型研报。图片公式、复杂数学排版与扫描版仅提取正文线索，公式需人工确认。
+             */
+            capability_note: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1507,6 +1718,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_report_api_reports_upload_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_report_api_reports_upload_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analyze_api_analysis_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisResult"];
                 };
             };
             /** @description Validation Error */

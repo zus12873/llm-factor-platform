@@ -676,6 +676,90 @@
         }
       }
     },
+    "/api/reports/upload": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Upload Report",
+        "description": "Store a PDF, parse it, and attempt extraction.",
+        "operationId": "upload_report_api_reports_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_report_api_reports_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analysis": {
+      "post": {
+        "tags": [
+          "analysis"
+        ],
+        "summary": "Analyze",
+        "description": "Evaluate a factor against forward returns.",
+        "operationId": "analyze_api_analysis_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "tags": [
@@ -747,6 +831,74 @@
         "title": "Ambiguity",
         "description": "An unresolved choice persisted on a FactorSpec (e.g. missing rebalance)."
       },
+      "AnalysisRequest": {
+        "properties": {
+          "factor": {
+            "$ref": "#/components/schemas/FramePayload"
+          },
+          "forward_returns": {
+            "$ref": "#/components/schemas/FramePayload"
+          },
+          "groups": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 2.0,
+            "title": "Groups",
+            "default": 5
+          }
+        },
+        "type": "object",
+        "required": [
+          "factor",
+          "forward_returns"
+        ],
+        "title": "AnalysisRequest"
+      },
+      "AnalysisResult": {
+        "properties": {
+          "ic": {
+            "$ref": "#/components/schemas/SeriesSummary"
+          },
+          "rank_ic": {
+            "$ref": "#/components/schemas/SeriesSummary"
+          },
+          "quantiles": {
+            "$ref": "#/components/schemas/QuantileReturns"
+          },
+          "turnover_mean": {
+            "type": "number",
+            "title": "Turnover Mean",
+            "default": 0.0
+          },
+          "coverage_mean": {
+            "type": "number",
+            "title": "Coverage Mean",
+            "default": 0.0
+          },
+          "evaluated_dates": {
+            "type": "integer",
+            "title": "Evaluated Dates",
+            "default": 0
+          },
+          "skipped_dates": {
+            "type": "integer",
+            "title": "Skipped Dates",
+            "default": 0
+          },
+          "skipped_reason": {
+            "type": "string",
+            "title": "Skipped Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "ic",
+          "rank_ic",
+          "quantiles"
+        ],
+        "title": "AnalysisResult"
+      },
       "AnnouncementTimingPolicy": {
         "type": "string",
         "enum": [
@@ -768,6 +920,20 @@
           "options"
         ],
         "title": "AssetType"
+      },
+      "Body_upload_report_api_reports_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_report_api_reports_upload_post"
       },
       "BuildBody": {
         "properties": {
@@ -1045,6 +1211,35 @@
         ],
         "title": "ErrorCategory"
       },
+      "Excerpt": {
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "title": "Evidence Id"
+          },
+          "page_number": {
+            "type": "integer",
+            "title": "Page Number"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "page_number",
+          "text",
+          "score"
+        ],
+        "title": "Excerpt",
+        "description": "One scored block, with the identifier the model must cite."
+      },
       "ExecutionPlan": {
         "properties": {
           "schema_version": {
@@ -1260,6 +1455,45 @@
         ],
         "title": "ExecutionStep",
         "description": "One deterministic retrieval/computation step (tool + bounded arguments)."
+      },
+      "ExtractedFactor": {
+        "properties": {
+          "factor_name": {
+            "type": "string",
+            "title": "Factor Name",
+            "default": ""
+          },
+          "hypothesis": {
+            "type": "string",
+            "title": "Hypothesis",
+            "default": ""
+          },
+          "variables": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Variables"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Excerpt"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "formula_extraction": {
+            "$ref": "#/components/schemas/FormulaExtraction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "formula_extraction"
+        ],
+        "title": "ExtractedFactor"
       },
       "FactorDirection": {
         "type": "string",
@@ -1579,6 +1813,59 @@
         ],
         "title": "FieldsBody"
       },
+      "FormulaExtraction": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/FormulaExtractionStatus"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence",
+            "default": 0.0
+          },
+          "source_pages": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Source Pages"
+          },
+          "extracted_text": {
+            "type": "string",
+            "title": "Extracted Text",
+            "default": ""
+          },
+          "warning": {
+            "type": "string",
+            "title": "Warning",
+            "default": ""
+          },
+          "formula_ast": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FormulaNode-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "FormulaExtraction",
+        "description": "What was extracted, how sure we are, and what the user must do about it."
+      },
+      "FormulaExtractionStatus": {
+        "type": "string",
+        "enum": [
+          "extracted",
+          "needs_manual_confirmation"
+        ],
+        "title": "FormulaExtractionStatus"
+      },
       "FormulaNode-Input": {
         "properties": {
           "type": {
@@ -1758,6 +2045,49 @@
         ],
         "title": "FormulaNode",
         "description": "A single node in the factor formula AST.\n\nShapes (mutually exclusive, enforced):\n  * ``variable`` -- references a confirmed data variable by ``name``;\n  * ``literal``  -- a numeric constant ``value``;\n  * ``call``     -- applies a registered ``op`` to ``args`` with optional ``params``."
+      },
+      "FramePayload": {
+        "properties": {
+          "dates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dates"
+          },
+          "codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Codes"
+          },
+          "values": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dates",
+          "codes",
+          "values"
+        ],
+        "title": "FramePayload",
+        "description": "A date-indexed matrix in a JSON-friendly shape."
       },
       "Frequency": {
         "type": "string",
@@ -1944,6 +2274,30 @@
         "title": "PreprocessingTarget",
         "description": "What a step operates on.\n\n``variables`` runs before the formula, once per raw input; ``factor`` runs\nafter the formula, on its single output. This distinction is precisely what\na boolean switch could not express."
       },
+      "QuantileReturns": {
+        "properties": {
+          "means": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Means"
+          },
+          "long_short_spread": {
+            "type": "number",
+            "title": "Long Short Spread",
+            "default": 0.0
+          },
+          "monotonic": {
+            "type": "boolean",
+            "title": "Monotonic",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "QuantileReturns",
+        "description": "Mean forward return per quantile, lowest factor value first."
+      },
       "ReportEvidence": {
         "properties": {
           "schema_version": {
@@ -2086,6 +2440,35 @@
         ],
         "title": "ResearchRequest",
         "description": "A user's natural-language research idea plus its evaluation envelope."
+      },
+      "SeriesSummary": {
+        "properties": {
+          "mean": {
+            "type": "number",
+            "title": "Mean"
+          },
+          "std": {
+            "type": "number",
+            "title": "Std"
+          },
+          "positive_rate": {
+            "type": "number",
+            "title": "Positive Rate"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mean",
+          "std",
+          "positive_rate",
+          "count"
+        ],
+        "title": "SeriesSummary",
+        "description": "A metric series reduced to what a researcher reads first."
       },
       "SessionSnapshot": {
         "properties": {
@@ -2326,6 +2709,46 @@
         "type": "object",
         "title": "TimeConvention",
         "description": "The signal/trade timing contract carried by a spec, plan and artifact.\n\nDefaults describe the首期 house convention: observe at the T close, treat it\nas knowable only after that close, form the signal on T, trade at the T+1\nopen, and measure forward returns from that same open."
+      },
+      "UploadResponse": {
+        "properties": {
+          "artifact_id": {
+            "type": "string",
+            "title": "Artifact Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "page_count": {
+            "type": "integer",
+            "title": "Page Count"
+          },
+          "scanned_pages": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Scanned Pages"
+          },
+          "extraction": {
+            "$ref": "#/components/schemas/ExtractedFactor"
+          },
+          "capability_note": {
+            "type": "string",
+            "title": "Capability Note",
+            "default": "首期支持正文可复制、变量定义明确的中英文文本型研报。图片公式、复杂数学排版与扫描版仅提取正文线索，公式需人工确认。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "display_name",
+          "page_count",
+          "scanned_pages",
+          "extraction"
+        ],
+        "title": "UploadResponse"
       },
       "ValidationError": {
         "properties": {
