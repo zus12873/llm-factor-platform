@@ -21,12 +21,14 @@ from factor_platform.domain.errors import (
     DisputedMetricError,
     IllegalTransitionError,
     LLMResponseError,
+    RealExecutionUnavailableError,
 )
 from factor_platform.execution.manifest import (
     ManifestSchemaError,
     ManifestVerificationError,
 )
 from factor_platform.llm.data_boundary import LocalOnlyModeError, OutboundBlockedError
+from factor_platform.llm.router import NoHealthyProviderError
 from factor_platform.reports.pdf import ReportLimitError
 from factor_platform.wind.planner import PlanningError
 
@@ -40,7 +42,9 @@ ERROR_MAP: dict[type[Exception], tuple[int, str]] = {
     ManifestVerificationError: (400, "manifest_verification_failed"),
     OutboundBlockedError: (422, "outbound_blocked"),
     LocalOnlyModeError: (503, "local_only_mode"),
+    NoHealthyProviderError: (503, "llm_provider_unavailable"),
     LLMResponseError: (502, "llm_response_invalid"),
+    RealExecutionUnavailableError: (503, "real_execution_unavailable"),
     # 413 rather than 400: the request is well-formed, it is simply too large.
     ReportLimitError: (413, "report_limit_exceeded"),
     AnalysisError: (422, "factor_not_analyzable"),

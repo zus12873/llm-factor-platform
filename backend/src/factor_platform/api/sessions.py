@@ -42,6 +42,11 @@ class SpecBody(BaseModel):
     factor_spec: FactorSpec
 
 
+class ClarificationBody(BaseModel):
+    expected_version: int
+    answers: dict[str, str] = Field(default_factory=dict)
+
+
 class FieldsBody(BaseModel):
     expected_version: int
     field_selections: list[FieldSelection] = Field(default_factory=list)
@@ -83,19 +88,20 @@ async def get_session(session_id: str, workflow: Workflow) -> SessionSnapshot:
 
 
 @router.post("/{session_id}/messages")
-async def submit_message(
-    session_id: str, body: MessageBody, workflow: Workflow
-) -> SessionSnapshot:
+async def submit_message(session_id: str, body: MessageBody, workflow: Workflow) -> SessionSnapshot:
     return await workflow.submit_message(session_id, body.request, body.expected_version)
 
 
 @router.post("/{session_id}/confirm-formula")
-async def confirm_formula(
-    session_id: str, body: SpecBody, workflow: Workflow
+async def confirm_formula(session_id: str, body: SpecBody, workflow: Workflow) -> SessionSnapshot:
+    return await workflow.confirm_formula(session_id, body.factor_spec, body.expected_version)
+
+
+@router.post("/{session_id}/resolve-clarification")
+async def resolve_clarification(
+    session_id: str, body: ClarificationBody, workflow: Workflow
 ) -> SessionSnapshot:
-    return await workflow.confirm_formula(
-        session_id, body.factor_spec, body.expected_version
-    )
+    return await workflow.resolve_clarification(session_id, body.answers, body.expected_version)
 
 
 @router.post("/{session_id}/field-candidates")
@@ -105,47 +111,45 @@ async def search_fields(
     return await workflow.search_fields(session_id, body.candidates, body.expected_version)
 
 
-@router.post("/{session_id}/confirm-fields")
-async def confirm_fields(
-    session_id: str, body: FieldsBody, workflow: Workflow
+@router.post("/{session_id}/discover-fields")
+async def discover_fields(
+    session_id: str, body: VersionBody, workflow: Workflow
 ) -> SessionSnapshot:
-    return await workflow.confirm_fields(
-        session_id, body.field_selections, body.expected_version
-    )
+    return await workflow.discover_fields(session_id, body.expected_version)
+
+
+@router.post("/{session_id}/confirm-fields")
+async def confirm_fields(session_id: str, body: FieldsBody, workflow: Workflow) -> SessionSnapshot:
+    return await workflow.confirm_fields(session_id, body.field_selections, body.expected_version)
 
 
 @router.post("/{session_id}/manifest")
-async def build_manifest(
-    session_id: str, body: BuildBody, workflow: Workflow
-) -> SessionSnapshot:
+async def build_manifest(session_id: str, body: BuildBody, workflow: Workflow) -> SessionSnapshot:
     return await workflow.build_manifest(session_id, body.request, body.expected_version)
+
+
+@router.post("/{session_id}/execute-real-wind")
+async def execute_real_wind(
+    session_id: str, body: VersionBody, workflow: Workflow
+) -> SessionSnapshot:
+    return await workflow.execute_real_wind(session_id, body.expected_version)
 
 
 # --------------------------------------------------------------------------- revisions
 
 
 @router.post("/{session_id}/revise-formula")
-async def revise_formula(
-    session_id: str, body: SpecBody, workflow: Workflow
-) -> SessionSnapshot:
-    return await workflow.revise_formula(
-        session_id, body.factor_spec, body.expected_version
-    )
+async def revise_formula(session_id: str, body: SpecBody, workflow: Workflow) -> SessionSnapshot:
+    return await workflow.revise_formula(session_id, body.factor_spec, body.expected_version)
 
 
 @router.post("/{session_id}/revise-fields")
-async def revise_fields(
-    session_id: str, body: FieldsBody, workflow: Workflow
-) -> SessionSnapshot:
-    return await workflow.revise_fields(
-        session_id, body.field_selections, body.expected_version
-    )
+async def revise_fields(session_id: str, body: FieldsBody, workflow: Workflow) -> SessionSnapshot:
+    return await workflow.revise_fields(session_id, body.field_selections, body.expected_version)
 
 
 @router.post("/{session_id}/revise-request")
-async def revise_request(
-    session_id: str, body: MessageBody, workflow: Workflow
-) -> SessionSnapshot:
+async def revise_request(session_id: str, body: MessageBody, workflow: Workflow) -> SessionSnapshot:
     return await workflow.revise_request(session_id, body.request, body.expected_version)
 
 
@@ -157,9 +161,7 @@ async def cancel_execution(
 
 
 @router.post("/{session_id}/clone")
-async def clone_session(
-    session_id: str, body: CloneBody, workflow: Workflow
-) -> SessionSnapshot:
+async def clone_session(session_id: str, body: CloneBody, workflow: Workflow) -> SessionSnapshot:
     return await workflow.clone_session(session_id, body.new_session_id)
 
 

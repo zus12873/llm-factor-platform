@@ -15,8 +15,16 @@ since marked disputed.
 
 from __future__ import annotations
 
-from factor_platform.domain.models import ClarificationQuestion, FactorSpec
+from factor_platform.domain.formula import FormulaNode
+from factor_platform.domain.models import (
+    ClarificationQuestion,
+    DataRequirement,
+    FactorDirection,
+    FactorSpec,
+    Frequency,
+)
 from factor_platform.factor.metric_registry import MetricRegistry
+from factor_platform.factor.renderer import render_canonical_formula
 
 # Vague business terms, and the concrete forms that mean the user already chose.
 _PROFITABILITY_HINTS = ("盈利质量", "盈利能力", "profitability", "earnings quality")
@@ -26,11 +34,28 @@ _VALUATION_HINTS = ("估值", "估值因子", "valuation", "价值因子", "valu
 _VALUATION_CONCRETE = ("pe_ttm", "pb", "ps_ttm", "市盈率", "市净率")
 
 _GROWTH_HINTS = (
-    "营收增长", "收入增长", "利润增长", "成长性", "growth factor", "增长因子",
+    "营收增长",
+    "收入增长",
+    "利润增长",
+    "成长性",
+    "growth factor",
+    "增长因子",
 )
 _GROWTH_CONCRETE = (
-    "revenue_yoy", "net_profit_yoy", "operating_profit_yoy", "营收同比", "净利润同比",
+    "revenue_yoy",
+    "net_profit_yoy",
+    "operating_profit_yoy",
+    "营收同比",
+    "净利润同比",
 )
+
+_COMPOSITE_HINTS = ("复合因子", "composite factor")
+
+_QUESTION_CATEGORY = {
+    "profitability_definition": "profitability",
+    "valuation_definition": "valuation",
+    "growth_definition": "growth",
+}
 
 
 class ClarificationEngine:
@@ -39,18 +64,94 @@ class ClarificationEngine:
     def __init__(self, registry: MetricRegistry | None = None) -> None:
         self._registry = registry or MetricRegistry.load()
 
-    def questions(self, spec: FactorSpec) -> list[ClarificationQuestion]:
+    def questions(
+        self, spec: FactorSpec, research_idea: str | None = None
+    ) -> list[ClarificationQuestion]:
+        """Audit the model draft together with the user's original wording.
+
+        The original idea is authoritative for ambiguity detection. A model may
+        turn a vague term such as ``估值`` into a concrete PE formula while
+        drafting the spec; that must not silently resolve a choice the user never
+        made.
+        """
         return [
-            *self._profitability(spec),
-            *self._valuation(spec),
-            *self._growth(spec),
+            *self._profitability(spec, research_idea),
+            *self._valuation(spec, research_idea),
+            *self._growth(spec, research_idea),
             *self._direction(spec),
             *self._rebalance(spec),
         ]
 
+    def apply_answers(self, spec: FactorSpec, answers: dict[str, str]) -> FactorSpec:
+        """Apply explicit human choices to a draft without another model call."""
+        updated = spec.model_copy(deep=True)
+        for question_id, answer in answers.items():
+            if question_id == "direction":
+                updated.direction = FactorDirection(answer)
+                continue
+            if question_id == "rebalance_frequency":
+                updated.rebalance_frequency = Frequency(answer)
+                continue
+            category = _QUESTION_CATEGORY.get(question_id)
+            if category is None:
+                continue
+            definition = self._registry.get(answer)
+            if definition is None or definition.category != category:
+                raise ValueError(f"invalid clarification answer for {question_id}")
+            option_names = {option.lower() for option in self._registry.options_for(category)}
+            targets = {
+                variable.logical_name
+                for variable in updated.variables
+                if variable.logical_name.lower() in option_names
+            }
+            if not targets and len(updated.variables) == 1:
+                targets = {updated.variables[0].logical_name}
+            updated.formula_explanation = (
+                f"人工确认采用 {definition.display_zh}（{definition.key}）作为该口径。"
+            )
+            if not targets:
+                # The model may have silently expanded a vague idea into a
+                # multi-variable formula (for example cash flow / profit).
+                # The human's explicit choice supersedes that guess: replace
+                # the whole guessed expression with the selected registered
+                # metric instead of trying to splice it into unrelated leaves.
+                updated.variables = [
+                    DataRequirement(
+                        logical_name=answer.lower(),
+                        meaning=definition.display_zh,
+                        asset_type=updated.asset_type,
+                        frequency=updated.frequency,
+                        unit=definition.unit,
+                        point_in_time_required=definition.time_role == "report_period",
+                    )
+                ]
+                updated.formula_ast = FormulaNode(type="variable", name=answer.lower())
+                continue
+            replacement = answer.lower()
+            updated.variables = [
+                DataRequirement(
+                    **{
+                        **variable.model_dump(mode="python"),
+                        "logical_name": replacement,
+                        "meaning": definition.display_zh,
+                        "unit": definition.unit,
+                        "point_in_time_required": definition.time_role == "report_period",
+                        "announcement_date_required": False,
+                    }
+                )
+                if variable.logical_name in targets
+                else variable
+                for variable in updated.variables
+            ]
+            updated.formula_ast = _rename_variables(updated.formula_ast, targets, replacement)
+        updated.canonical_formula = render_canonical_formula(updated.formula_ast)
+        return updated
+
     # -- rules ---------------------------------------------------------------
 
-    def _profitability(self, spec: FactorSpec) -> list[ClarificationQuestion]:
+    def _profitability(
+        self, spec: FactorSpec, research_idea: str | None
+    ) -> list[ClarificationQuestion]:
         return self._vague_term(
             spec,
             hints=_PROFITABILITY_HINTS,
@@ -58,9 +159,12 @@ class ClarificationEngine:
             question_id="profitability_definition",
             question="请明确「盈利质量」的具体口径。",
             category="profitability",
+            research_idea=research_idea,
         )
 
-    def _valuation(self, spec: FactorSpec) -> list[ClarificationQuestion]:
+    def _valuation(
+        self, spec: FactorSpec, research_idea: str | None
+    ) -> list[ClarificationQuestion]:
         return self._vague_term(
             spec,
             hints=_VALUATION_HINTS,
@@ -68,9 +172,10 @@ class ClarificationEngine:
             question_id="valuation_definition",
             question="请明确「估值」的具体指标。",
             category="valuation",
+            research_idea=research_idea,
         )
 
-    def _growth(self, spec: FactorSpec) -> list[ClarificationQuestion]:
+    def _growth(self, spec: FactorSpec, research_idea: str | None) -> list[ClarificationQuestion]:
         return self._vague_term(
             spec,
             hints=_GROWTH_HINTS,
@@ -78,6 +183,7 @@ class ClarificationEngine:
             question_id="growth_definition",
             question="请明确「增长」的具体口径。",
             category="growth",
+            research_idea=research_idea,
         )
 
     def _vague_term(
@@ -89,9 +195,20 @@ class ClarificationEngine:
         question_id: str,
         question: str,
         category: str,
+        research_idea: str | None,
     ) -> list[ClarificationQuestion]:
-        blob = self._blob(spec)
-        if not _hits(blob, hints) or _hits(blob, concrete):
+        spec_blob = self._blob(spec)
+        idea_blob = (research_idea or "").lower()
+        # Registered composite templates may intentionally supply a default for
+        # one leg (the golden quality-value case is the canonical example). The
+        # standalone vague-factor cases must still stop before such a guess.
+        vague_in_idea = (
+            not _hits(idea_blob, _COMPOSITE_HINTS)
+            and _hits(idea_blob, hints)
+            and not _hits(idea_blob, concrete)
+        )
+        vague_in_spec = _hits(spec_blob, hints) and not _hits(spec_blob, concrete)
+        if not (vague_in_idea or vague_in_spec):
             return []
         return [
             self._blocking(
@@ -158,6 +275,14 @@ class ClarificationEngine:
 
 def _hits(blob: str, needles: tuple[str, ...]) -> bool:
     return any(needle.lower() in blob for needle in needles)
+
+
+def _rename_variables(node: FormulaNode, targets: set[str], replacement: str) -> FormulaNode:
+    updated = node.model_copy(deep=True)
+    if updated.type == "variable" and updated.name in targets:
+        updated.name = replacement
+    updated.args = [_rename_variables(child, targets, replacement) for child in updated.args]
+    return updated
 
 
 __all__ = ["ClarificationEngine"]

@@ -75,6 +75,7 @@ class ManifestRuntime:
             factor,
             PipelineContext(industries=industries or {}),
         )
+        factor = _trim_to_requested_range(factor, manifest)
 
         output_dir.mkdir(parents=True, exist_ok=True)
         result_path = output_dir / "result.parquet"
@@ -104,17 +105,14 @@ class ManifestRuntime:
         for selection in manifest.field_selections:
             path = input_dir / f"{selection.logical_name}.parquet"
             if not path.exists():
-                raise RuntimeError_(
-                    f"input for {selection.logical_name!r} is missing at {path}"
-                )
+                raise RuntimeError_(f"input for {selection.logical_name!r} is missing at {path}")
             variables[selection.logical_name] = pd.read_parquet(path)
 
-        expected = {artifact.sha256 for artifact in manifest.input_artifacts}
-        actual = {
-            _sha256(input_dir / f"{s.logical_name}.parquet")
-            for s in manifest.field_selections
-        }
-        if expected and not expected & actual:
+        expected = sorted(artifact.sha256 for artifact in manifest.input_artifacts)
+        actual = sorted(
+            _sha256(input_dir / f"{s.logical_name}.parquet") for s in manifest.field_selections
+        )
+        if expected != actual:
             raise RuntimeError_(
                 "input artifact hashes do not match the manifest; the inputs on "
                 "disk are not the ones this manifest was built for"
@@ -139,6 +137,17 @@ def _empty_like(variables: dict[str, pd.DataFrame]) -> pd.DataFrame:
         return pd.DataFrame()
     template = next(iter(variables.values()))
     return pd.DataFrame(index=template.index, columns=template.columns, dtype=float)
+
+
+def _trim_to_requested_range(factor: pd.DataFrame, manifest: Manifest) -> pd.DataFrame:
+    """Keep warm-up rows as inputs but never publish them as requested output."""
+    start = manifest.execution_plan.metadata.get("start_date")
+    end = manifest.execution_plan.metadata.get("end_date")
+    if not isinstance(start, str) or not isinstance(end, str) or factor.empty:
+        return factor
+    dates = pd.to_datetime(factor.index)
+    mask = (dates >= pd.Timestamp(start)) & (dates <= pd.Timestamp(end))
+    return factor.loc[mask]
 
 
 def _sha256(path: Path) -> str:

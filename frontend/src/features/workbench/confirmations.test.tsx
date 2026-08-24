@@ -15,6 +15,7 @@ import { FieldCandidateTable } from "./FieldCandidateTable"
 import { FormulaConfirmation } from "./FormulaConfirmation"
 import { CodePane } from "./CodePane"
 import { ValidationFindings } from "./ValidationFindings"
+import { ResultPane } from "./ResultPane"
 
 const CANDIDATES = [
   {
@@ -184,5 +185,28 @@ describe("ValidationFindings", () => {
     )
     expect(screen.getByText("1 项阻塞问题")).toBeInTheDocument()
     expect(screen.getByText("1 项提示")).toBeInTheDocument()
+  })
+})
+
+describe("ResultPane", () => {
+  it("keeps the real source and unreviewed status attached to the result", () => {
+    render(
+      <ResultPane
+        result={
+          {
+            status: "completed",
+            resource_stats: {
+              source: "real_wind",
+              rows: 10,
+              non_null_rate: 0.8,
+              metric_review_status: { ADJ_CLOSE: "unreviewed" },
+            },
+          } as never
+        }
+      />,
+    )
+    expect(screen.getByText("real_wind")).toBeInTheDocument()
+    expect(screen.getByText("ADJ_CLOSE: unreviewed")).toBeInTheDocument()
+    expect(screen.getByText(/含未复核口径/)).toBeInTheDocument()
   })
 })

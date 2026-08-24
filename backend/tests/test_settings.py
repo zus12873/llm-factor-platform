@@ -47,6 +47,15 @@ def test_report_excerpts_require_a_positive_char_limit() -> None:
         )
 
 
+def test_coding_plan_url_and_key_must_be_configured_together() -> None:
+    with pytest.raises(ValidationError, match="configured together"):
+        Settings(
+            app_env="test",
+            kimi_coding_api_key="unit-test-only",  # pragma: allowlist secret
+            kimi_model="test-model",
+        )
+
+
 def test_outbound_filter_is_built_from_settings() -> None:
     settings = Settings(
         app_env="test",
@@ -56,3 +65,28 @@ def test_outbound_filter_is_built_from_settings() -> None:
     boundary = settings.outbound_filter()
     assert boundary.check({"report_excerpt": "x" * 400}) is None
     assert boundary.check({"report_excerpt": "x" * 600}) is not None
+
+
+def test_provider_specific_models_fall_back_to_legacy_model() -> None:
+    settings = Settings(
+        app_env="test",
+        kimi_coding_base_url="https://coding.example.com/v1",
+        kimi_coding_api_key="unit-test-only",  # pragma: allowlist secret
+        kimi_metered_api_key="unit-test-only",  # pragma: allowlist secret
+        kimi_model="legacy-model",
+    )
+    assert settings.coding_model == "legacy-model"
+    assert settings.metered_model == "legacy-model"
+
+
+def test_provider_specific_models_do_not_require_legacy_model() -> None:
+    settings = Settings(
+        app_env="test",
+        kimi_coding_base_url="https://coding.example.com/v1",
+        kimi_coding_api_key="unit-test-only",  # pragma: allowlist secret
+        kimi_coding_model="coding-model",
+        kimi_metered_api_key="unit-test-only",  # pragma: allowlist secret
+        kimi_metered_model="metered-model",
+    )
+    assert settings.coding_model == "coding-model"
+    assert settings.metered_model == "metered-model"

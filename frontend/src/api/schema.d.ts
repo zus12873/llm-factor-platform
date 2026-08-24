@@ -72,6 +72,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sessions/{session_id}/resolve-clarification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Clarification */
+        post: operations["resolve_clarification_api_sessions__session_id__resolve_clarification_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sessions/{session_id}/field-candidates": {
         parameters: {
             query?: never;
@@ -83,6 +100,23 @@ export interface paths {
         put?: never;
         /** Search Fields */
         post: operations["search_fields_api_sessions__session_id__field_candidates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/discover-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Discover Fields */
+        post: operations["discover_fields_api_sessions__session_id__discover_fields_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -117,6 +151,23 @@ export interface paths {
         put?: never;
         /** Build Manifest */
         post: operations["build_manifest_api_sessions__session_id__manifest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/execute-real-wind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute Real Wind */
+        post: operations["execute_real_wind_api_sessions__session_id__execute_real_wind_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -395,6 +446,15 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /** ClarificationBody */
+        ClarificationBody: {
+            /** Expected Version */
+            expected_version: number;
+            /** Answers */
+            answers?: {
+                [key: string]: string;
+            };
+        };
         /**
          * ClarificationQuestion
          * @description A question presented to the user, possibly blocking further progress.
@@ -540,6 +600,13 @@ export interface components {
             text: string;
             /** Score */
             score: number;
+            /** Bbox */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
         };
         /**
          * ExecutionPlan
@@ -653,6 +720,7 @@ export interface components {
              * @default
              */
             hypothesis: string;
+            direction?: components["schemas"]["FactorDirection"] | null;
             /** Variables */
             variables?: {
                 [key: string]: string;
@@ -775,6 +843,53 @@ export interface components {
             ambiguities?: components["schemas"]["Ambiguity"][];
             /** Source Evidence */
             source_evidence?: components["schemas"]["ReportEvidence"][];
+        };
+        /**
+         * FieldCandidateBinding
+         * @description A candidate tied to the logical variable it may satisfy in this session.
+         */
+        FieldCandidateBinding: {
+            /**
+             * Schema Version
+             * @default 1
+             */
+            schema_version: number;
+            /** Table */
+            table: string;
+            /** Field */
+            field: string;
+            /**
+             * Meaning Zh
+             * @default
+             */
+            meaning_zh: string;
+            /**
+             * Meaning En
+             * @default
+             */
+            meaning_en: string;
+            asset_type?: components["schemas"]["AssetType"] | null;
+            frequency?: components["schemas"]["Frequency"] | null;
+            time_role?: components["schemas"]["FieldTimeRole"] | null;
+            /** Unit */
+            unit?: string | null;
+            /** Metadata Source */
+            metadata_source?: string | null;
+            /**
+             * Source Tier
+             * @default bm25
+             */
+            source_tier: string;
+            /** Lexical Score */
+            lexical_score?: number | null;
+            /** Recommendation Score */
+            recommendation_score?: number | null;
+            /** Evidence */
+            evidence?: string | null;
+            /** Logical Name */
+            logical_name: string;
+            /** Schema Status */
+            schema_status?: string | null;
         };
         /**
          * FieldSelection
@@ -1114,6 +1229,8 @@ export interface components {
             version: number;
             request?: components["schemas"]["ResearchRequest"] | null;
             factor_spec?: components["schemas"]["FactorSpec-Output"] | null;
+            /** Field Candidates */
+            field_candidates?: components["schemas"]["FieldCandidateBinding"][];
             /** Field Selections */
             field_selections?: components["schemas"]["FieldSelection"][];
             plan?: components["schemas"]["ExecutionPlan"] | null;
@@ -1416,6 +1533,41 @@ export interface operations {
             };
         };
     };
+    resolve_clarification_api_sessions__session_id__resolve_clarification_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     search_fields_api_sessions__session_id__field_candidates_post: {
         parameters: {
             query?: never;
@@ -1428,6 +1580,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CandidatesBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discover_fields_api_sessions__session_id__discover_fields_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionBody"];
             };
         };
         responses: {
@@ -1498,6 +1685,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["BuildBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    execute_real_wind_api_sessions__session_id__execute_real_wind_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionBody"];
             };
         };
         responses: {

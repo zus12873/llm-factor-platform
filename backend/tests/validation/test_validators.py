@@ -70,6 +70,38 @@ def test_an_empty_sample_warns_rather_than_blocks() -> None:
     """The field may be perfectly valid; the window is the user's decision."""
     report = DataValidator().validate({"close": pd.DataFrame()})
     assert report.has_warning("empty_sample")
+
+
+def test_unreviewed_source_magnitude_warns_but_allows_trial(
+    registry: MetricRegistry,
+) -> None:
+    report = DataValidator(registry).validate(
+        {"roe_ttm": frame([[3000.0] * 5] * 6)},
+        metric_keys={"roe_ttm": "ROE_TTM"},
+    )
+    assert report.has_warning("implausible_input_magnitude")
+    assert not report.has_error("implausible_input_magnitude")
+
+
+def test_reviewed_source_magnitude_is_blocking() -> None:
+    registry = MetricRegistry.from_mapping(
+        {
+            "X": {
+                "display_zh": "X",
+                "definition": "reviewed test metric",
+                "wind_table": "t",
+                "wind_field": "f",
+                "plausible_range": [0.0, 10.0],
+                "review_status": "reviewed",
+                "reviewer": "unit-test",
+                "reviewed_at": "2026-08-14",
+            }
+        }
+    )
+    report = DataValidator(registry).validate(
+        {"x": frame([[20.0] * 5] * 6)}, metric_keys={"x": "X"}
+    )
+    assert report.has_error("implausible_input_magnitude")
     assert not report.has_error("empty_sample")
 
 
@@ -193,6 +225,17 @@ def test_a_result_inside_the_registered_range_passes(registry: MetricRegistry) -
     sane = frame([[12.0, 15.0, 8.0, 20.0, 11.0]] * 6)
     report = ResultValidator(registry).validate(sane, metric_keys=["ROE_TTM"])
     assert not report.has_error("implausible_magnitude")
+
+
+def test_composite_result_can_skip_source_metric_bounds(
+    registry: MetricRegistry,
+) -> None:
+    composite = frame([[3000.0] * 5] * 6)
+    report = ResultValidator(registry).validate(
+        composite, metric_keys=["ROE_TTM"], apply_metric_bounds=False
+    )
+    assert not report.has_error("implausible_magnitude")
+    assert report.has_warning("unreviewed_metric")
 
 
 def test_an_unreviewed_metric_warns_so_the_label_travels(

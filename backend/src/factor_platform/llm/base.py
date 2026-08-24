@@ -5,8 +5,9 @@ is validated into a Pydantic model. ``parse_structured_content`` is the single p
 that turns a content string into a typed object, so the "invalid output ->
 ``LLMResponseError``" guarantee is identical for every provider.
 
-``FakeLLMProvider`` is a deterministic, offline implementation used by tests and by
-the golden CLI when no real Kimi key is configured.
+``FakeLLMProvider`` is a deterministic, offline implementation used only by tests
+and explicitly offline golden-case commands.  The application composition root
+never selects it implicitly.
 """
 
 from __future__ import annotations

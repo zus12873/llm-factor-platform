@@ -13,6 +13,7 @@ from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
 import httpx
+from pydantic import SecretStr
 
 from factor_platform.domain.errors import LLMResponseError
 from factor_platform.llm.base import (
@@ -23,6 +24,7 @@ from factor_platform.llm.base import (
 )
 from factor_platform.llm.prompts import build_schema_instruction
 from factor_platform.llm.usage import LLMUsageSink
+from factor_platform.secrets import reveal_secret
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -34,16 +36,20 @@ class OpenAICompatibleProvider:
         *,
         name: str,
         base_url: str,
-        api_key: str,
+        api_key: SecretStr | str,
         model: str,
+        reasoning_effort: str | None = None,
+        temperature: float | None = 0,
         usage_sink: LLMUsageSink | None = None,
         client: httpx.AsyncClient | None = None,
         timeout: float = 30.0,
     ) -> None:
         self.name = name
         self._base_url = base_url.rstrip("/")
-        self._api_key = api_key
+        self._api_key = api_key if isinstance(api_key, SecretStr) else SecretStr(api_key)
         self.model = model
+        self.reasoning_effort = reasoning_effort
+        self.temperature = temperature
         self._usage_sink = usage_sink
         self._client = client if client is not None else httpx.AsyncClient(timeout=timeout)
         self._owns_client = client is None
@@ -63,7 +69,7 @@ class OpenAICompatibleProvider:
             )
             if response.status_code != 200:
                 raise LLMResponseError(
-                    f"HTTP {response.status_code}: {response.text[:200]}",
+                    f"LLM provider returned HTTP {response.status_code}",
                     provider=self.name,
                 )
             data = response.json()
@@ -75,7 +81,10 @@ class OpenAICompatibleProvider:
             )
         except httpx.HTTPError as exc:
             self._record(request_id, False, usage, start)
-            raise LLMResponseError(f"transport error: {exc}", provider=self.name) from exc
+            raise LLMResponseError(
+                f"LLM provider transport error ({type(exc).__name__})",
+                provider=self.name,
+            ) from exc
         except Exception:
             self._record(request_id, False, usage, start)
             raise
@@ -96,7 +105,7 @@ class OpenAICompatibleProvider:
                 latency_ms=(time.monotonic() - start) * 1000,
             )
         except httpx.HTTPError as exc:
-            return ProviderHealth(healthy=False, error=str(exc))
+            return ProviderHealth(healthy=False, error=type(exc).__name__)
 
     async def aclose(self) -> None:
         if self._owns_client:
@@ -104,7 +113,7 @@ class OpenAICompatibleProvider:
 
     def _headers(self) -> dict[str, str]:
         return {
-            "Authorization": f"Bearer {self._api_key}",
+            "Authorization": f"Bearer {reveal_secret(self._api_key)}",
             "Content-Type": "application/json",
         }
 
@@ -114,18 +123,34 @@ class OpenAICompatibleProvider:
         response_model: type[BaseModel],
     ) -> dict[str, Any]:
         rendered = [{"role": message.role, "content": message.content} for message in messages]
-        # Inject the JSON-schema instruction when the caller did not supply a system message.
-        if not any(part["role"] == "system" for part in rendered):
+        schema_instruction = build_schema_instruction(response_model)
+        system_index = next(
+            (index for index, part in enumerate(rendered) if part["role"] == "system"),
+            None,
+        )
+        if system_index is None:
             rendered = [
-                {"role": "system", "content": build_schema_instruction(response_model)},
+                {"role": "system", "content": schema_instruction},
                 *rendered,
             ]
-        return {
+        else:
+            # response_format=json_object constrains syntax only. The exact target
+            # schema must still be present even when a stage supplies its own
+            # system instruction (FactorParser and ReportExtractor both do).
+            rendered[system_index] = {
+                **rendered[system_index],
+                "content": f"{rendered[system_index]['content']}\n\n{schema_instruction}",
+            }
+        payload: dict[str, Any] = {
             "model": self.model,
             "messages": rendered,
-            "temperature": 0,
             "response_format": {"type": "json_object"},
         }
+        if self.temperature is not None:
+            payload["temperature"] = self.temperature
+        if self.reasoning_effort:
+            payload["reasoning_effort"] = self.reasoning_effort
+        return payload
 
     def _record(
         self,

@@ -5,7 +5,7 @@
  * a researcher who does not know Wind is disconnected will read a fake-data run
  * as a real one. Degraded state is shown continuously rather than only on error.
  */
-import { Layout, Menu, Tag, Typography } from "antd"
+import { Layout, Menu, Space, Tag, Typography } from "antd"
 import { Link, Outlet, useLocation } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "../api/client"
@@ -34,7 +34,16 @@ function HealthBadge() {
     .filter((c) => c.status !== "ok")
     .map((c) => c.name)
 
-  if (offline.length === 0) return <Tag color="green">全部就绪</Tag>
+  if (offline.length === 0) {
+    const llm = data.components.find((component) => component.name === "llm")
+    return (
+      <Space size={4}>
+        <Tag color="green">全部就绪</Tag>
+        <Tag color="green">Wind 真实连接</Tag>
+        {llm?.detail && <Tag color="blue">{llm.detail}</Tag>}
+      </Space>
+    )
+  }
   return <Tag color="orange">离线模式：{offline.join("、")}</Tag>
 }
 

@@ -22,22 +22,42 @@ unconfirmed field stops the workflow while it is still free to stop.
 
 from __future__ import annotations
 
+import asyncio
+import json
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 from factor_platform.db.repository import SessionRepository
+from factor_platform.domain.errors import RealExecutionUnavailableError
 from factor_platform.domain.models import (
+    ErrorCategory,
+    ExecutionResult,
+    ExecutionStatus,
     FactorSpec,
+    FieldCandidateBinding,
     FieldSelection,
+    FieldTimeRole,
     ResearchRequest,
     SessionSnapshot,
+    StructuredError,
+    ValidationReport,
+)
+from factor_platform.execution.real_wind import (
+    RealWindCaseRunner,
+    RealWindExecutionError,
+    apply_confirmed_announcement_requirements,
+    complete_registered_selections,
 )
 from factor_platform.factor.clarification import ClarificationEngine
 from factor_platform.factor.metric_registry import MetricRegistry
 from factor_platform.factor.parser import FactorParser
+from factor_platform.factor.renderer import render_canonical_formula
 from factor_platform.llm.base import LLMProvider
 from factor_platform.orchestration.states import EventType
+from factor_platform.wind.field_search import FieldSearch
 from factor_platform.wind.planner import WindPlanner
+from factor_platform.wind.schema_verify import SchemaVerifier
 
 
 class WorkflowService:
@@ -51,12 +71,19 @@ class WorkflowService:
         *,
         registry: MetricRegistry | None = None,
         clarifier: ClarificationEngine | None = None,
+        field_search: FieldSearch | None = None,
+        schema_verifier: SchemaVerifier | None = None,
+        real_wind_runner: RealWindCaseRunner | None = None,
     ) -> None:
         self._repository = repository
         self._parser = FactorParser(provider)
         self._planner = planner
         self._registry = registry or MetricRegistry.load()
         self._clarifier = clarifier or ClarificationEngine(self._registry)
+        aliases_path = Path(__file__).resolve().parents[3] / "data" / "wind_aliases.yaml"
+        self._field_search = field_search or FieldSearch.from_aliases_path(aliases_path)
+        self._schema_verifier = schema_verifier
+        self._real_wind_runner = real_wind_runner
 
     # ------------------------------------------------------------------ session
 
@@ -81,13 +108,16 @@ class WorkflowService:
         # --- unlocked window: the only external call in this method ---
         spec = await self._parser.parse(request)
 
-        questions = self._clarifier.questions(spec)
+        questions = self._clarifier.questions(spec, request.research_idea)
         blocking = [q for q in questions if q.blocking]
         if blocking:
             await self._repository.append_event(
                 session_id,
                 EventType.CLARIFICATION_REQUESTED,
-                {"clarifications": [_json(q) for q in questions]},
+                {
+                    "factor_spec": _json(spec),
+                    "clarifications": [_json(q) for q in questions],
+                },
                 version,
             )
         else:
@@ -100,12 +130,19 @@ class WorkflowService:
         return await self._snapshot(session_id)
 
     async def resolve_clarification(
-        self, session_id: str, spec: FactorSpec, expected_version: int
+        self,
+        session_id: str,
+        answers: dict[str, str],
+        expected_version: int,
     ) -> SessionSnapshot:
+        snapshot = await self._snapshot(session_id)
+        if snapshot.factor_spec is None:
+            raise ValueError("clarification draft is missing its factor spec")
+        spec = self._clarifier.apply_answers(snapshot.factor_spec, answers)
         await self._repository.append_event(
             session_id,
             EventType.CLARIFICATION_RESOLVED,
-            {"factor_spec": _json(spec)},
+            {"factor_spec": _json(spec), "clarifications": []},
             expected_version,
         )
         snapshot = await self._snapshot(session_id)
@@ -120,10 +157,11 @@ class WorkflowService:
     async def confirm_formula(
         self, session_id: str, spec: FactorSpec, expected_version: int
     ) -> SessionSnapshot:
+        confirmed = _canonical_spec(spec)
         await self._repository.append_event(
             session_id,
             EventType.FORMULA_CONFIRMED,
-            {"factor_spec": _json(spec)},
+            {"factor_spec": _json(confirmed)},
             expected_version,
         )
         return await self._snapshot(session_id)
@@ -137,6 +175,63 @@ class WorkflowService:
             session_id,
             EventType.FIELD_CANDIDATES_FOUND,
             {"field_candidates": [_json(c) for c in candidates]},
+            expected_version,
+        )
+        return await self._snapshot(session_id)
+
+    async def discover_fields(self, session_id: str, expected_version: int) -> SessionSnapshot:
+        """Find bounded, local candidates and verify their live schema when available."""
+        snapshot = await self._snapshot(session_id)
+        if snapshot.factor_spec is None:
+            raise ValueError("cannot discover fields before a formula is confirmed")
+
+        candidates: list[FieldCandidateBinding] = []
+        for requirement in snapshot.factor_spec.variables:
+            definition = self._registry.get(requirement.logical_name)
+            if definition is not None:
+                candidates.append(
+                    FieldCandidateBinding(
+                        logical_name=requirement.logical_name,
+                        table=definition.wind_table,
+                        field=definition.wind_field,
+                        meaning_zh=definition.display_zh,
+                        unit=definition.unit,
+                        time_role=(
+                            FieldTimeRole(definition.time_role) if definition.time_role else None
+                        ),
+                        metadata_source="metric_registry",
+                        source_tier="registry",
+                        evidence=f"registry:{definition.key}",
+                    )
+                )
+            for candidate in self._field_search.search(requirement, limit=5):
+                candidates.append(
+                    FieldCandidateBinding(
+                        logical_name=requirement.logical_name,
+                        **candidate.model_dump(mode="python"),
+                    )
+                )
+
+        deduplicated: list[FieldCandidateBinding] = []
+        seen: set[tuple[str, str, str]] = set()
+        for candidate in candidates:
+            key = (candidate.logical_name, candidate.table, candidate.field)
+            if key in seen:
+                continue
+            seen.add(key)
+            if self._schema_verifier is not None:
+                verdict = await self._schema_verifier.verify(
+                    candidate, expected_time_role=candidate.time_role
+                )
+                candidate = candidate.model_copy(update={"schema_status": verdict.status.value})
+            else:
+                candidate = candidate.model_copy(update={"schema_status": "not_verified"})
+            deduplicated.append(candidate)
+
+        await self._repository.append_event(
+            session_id,
+            EventType.FIELD_CANDIDATES_FOUND,
+            {"field_candidates": [_json(candidate) for candidate in deduplicated]},
             expected_version,
         )
         return await self._snapshot(session_id)
@@ -155,11 +250,27 @@ class WorkflowService:
         for selection in selections:
             if self._registry.get(selection.logical_name) is not None:
                 self._registry.enforce(selection.logical_name)
+            if self._schema_verifier is not None:
+                verdict = await self._schema_verifier.verify(
+                    FieldCandidateBinding(
+                        logical_name=selection.logical_name,
+                        table=selection.table,
+                        field=selection.field,
+                        time_role=selection.time_role,
+                    ),
+                    expected_time_role=selection.time_role,
+                )
+                if verdict.is_blocking:
+                    from factor_platform.wind.planner import PlanningError
+
+                    raise PlanningError(f"field verification failed: {verdict.status.value}")
+
+        completed = complete_registered_selections(list(selections), self._registry)
 
         await self._repository.append_event(
             session_id,
             EventType.FIELDS_CONFIRMED,
-            {"field_selections": [_json(s) for s in selections]},
+            {"field_selections": [_json(s) for s in completed]},
             expected_version,
         )
         return await self._snapshot(session_id)
@@ -177,7 +288,9 @@ class WorkflowService:
         if snapshot.factor_spec is None:
             raise ValueError("cannot build a manifest before a formula is confirmed")
 
-        plan = self._planner.plan(snapshot.factor_spec, snapshot.field_selections, request)
+        selections = complete_registered_selections(snapshot.field_selections, self._registry)
+        confirmed_spec = apply_confirmed_announcement_requirements(snapshot.factor_spec, selections)
+        plan = self._planner.plan(confirmed_spec, selections, request)
 
         await self._repository.append_event(
             session_id,
@@ -187,13 +300,108 @@ class WorkflowService:
         )
         return await self._snapshot(session_id)
 
+    # ---------------------------------------------------------------- execution
+
+    async def execute_real_wind(self, session_id: str, expected_version: int) -> SessionSnapshot:
+        """Run the confirmed plan with backend-only Wind access and an isolated worker."""
+        if self._real_wind_runner is None:
+            raise RealExecutionUnavailableError(
+                "real Wind execution is not configured in this environment"
+            )
+        snapshot = await self._snapshot(session_id)
+        if snapshot.request is None or snapshot.factor_spec is None or snapshot.plan is None:
+            raise ValueError("real execution requires request, confirmed spec, and plan")
+
+        version = await self._repository.append_event(
+            session_id, EventType.EXECUTION_STARTED, {}, expected_version
+        )
+        selections = complete_registered_selections(snapshot.field_selections, self._registry)
+        spec = apply_confirmed_announcement_requirements(
+            _canonical_spec(snapshot.factor_spec), selections
+        )
+        try:
+            run = await asyncio.to_thread(
+                self._real_wind_runner.run,
+                case_id=f"session-{session_id}",
+                spec=spec,
+                request=snapshot.request,
+                selections=selections,
+                plan=snapshot.plan,
+            )
+            validation = json.loads(
+                (Path(run.run_dir) / "validation.json").read_text(encoding="utf-8")
+            )
+            artifact_uri = str(
+                (Path(run.run_dir) / "artifacts" / run.job_id / "result.parquet").resolve()
+            )
+            review_status = dict(run.metric_review_status)
+            for selection in selections:
+                if self._registry.get(selection.logical_name) is None:
+                    review_status[selection.logical_name.upper()] = "unreviewed"
+            result = ExecutionResult(
+                status=ExecutionStatus.COMPLETED,
+                artifact_uri=artifact_uri,
+                data_validation=ValidationReport.model_validate(validation["data"]),
+                formula_validation=ValidationReport.model_validate(validation["formula"]),
+                result_validation=ValidationReport.model_validate(validation["result"]),
+                log_summary="真实 Wind 取数、隔离 Worker 与三层校验已完成",
+                resource_stats={
+                    "rows": run.result_rows,
+                    "columns": run.result_columns,
+                    "non_null_rate": run.result_non_null_rate,
+                    "metric_review_status": review_status,
+                    "source": "real_wind",
+                },
+            )
+        except Exception as exc:  # persist a scrubbed failure instead of hiding it
+            message = (
+                str(exc)
+                if isinstance(exc, RealWindExecutionError)
+                else f"real execution failed ({type(exc).__name__}); details redacted"
+            )
+            error = StructuredError(
+                category=ErrorCategory.INFRASTRUCTURE,
+                code="real_wind_execution_failed",
+                message=message,
+            )
+            failed = ExecutionResult(
+                status=ExecutionStatus.FAILED,
+                log_summary=message,
+                errors=[error],
+            )
+            await self._repository.append_event(
+                session_id,
+                EventType.EXECUTION_FAILED,
+                {"execution_result": _json(failed), "last_error": _json(error)},
+                version,
+            )
+            return await self._snapshot(session_id)
+
+        validating_version = await self._repository.append_event(
+            session_id,
+            EventType.EXECUTION_SUCCEEDED,
+            {"execution_result": _json(result), "artifact_uri": artifact_uri},
+            version,
+        )
+        await self._repository.append_event(
+            session_id,
+            EventType.VALIDATION_PASSED,
+            {"execution_result": _json(result), "artifact_uri": artifact_uri},
+            validating_version,
+        )
+        return await self._snapshot(session_id)
+
     # ------------------------------------------------------------------ revisions
 
     async def revise_formula(
         self, session_id: str, spec: FactorSpec, expected_version: int
     ) -> SessionSnapshot:
+        confirmed = _canonical_spec(spec)
         return await self._revise(
-            session_id, EventType.FORMULA_REVISED, {"factor_spec": _json(spec)}, expected_version
+            session_id,
+            EventType.FORMULA_REVISED,
+            {"factor_spec": _json(confirmed)},
+            expected_version,
         )
 
     async def revise_fields(
@@ -236,21 +444,13 @@ class WorkflowService:
             expected_version,
         )
 
-    async def cancel_execution(
-        self, session_id: str, expected_version: int
-    ) -> SessionSnapshot:
-        return await self._revise(
-            session_id, EventType.EXECUTION_CANCELLED, {}, expected_version
-        )
+    async def cancel_execution(self, session_id: str, expected_version: int) -> SessionSnapshot:
+        return await self._revise(session_id, EventType.EXECUTION_CANCELLED, {}, expected_version)
 
     async def rerun(self, session_id: str, expected_version: int) -> SessionSnapshot:
-        return await self._revise(
-            session_id, EventType.RERUN_REQUESTED, {}, expected_version
-        )
+        return await self._revise(session_id, EventType.RERUN_REQUESTED, {}, expected_version)
 
-    async def clone_session(
-        self, source_session_id: str, new_session_id: str
-    ) -> SessionSnapshot:
+    async def clone_session(self, source_session_id: str, new_session_id: str) -> SessionSnapshot:
         """Seed a new session from another's definition; artifacts do not carry over."""
         source = await self._snapshot(source_session_id)
         await self._repository.create_session(new_session_id)
@@ -292,6 +492,10 @@ class WorkflowService:
 def _json(model: Any) -> Any:
     """Dump to JSON-safe primitives, since payloads round-trip through SQLite."""
     return model.model_dump(mode="json") if hasattr(model, "model_dump") else model
+
+
+def _canonical_spec(spec: FactorSpec) -> FactorSpec:
+    return spec.model_copy(update={"canonical_formula": render_canonical_formula(spec.formula_ast)})
 
 
 __all__ = ["WorkflowService"]

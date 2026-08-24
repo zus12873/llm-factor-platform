@@ -9,10 +9,15 @@ exchange); the router itself only answers "which provider is healthy right now?"
 from __future__ import annotations
 
 import time
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from factor_platform.domain.errors import DomainError
-from factor_platform.llm.base import LLMProvider, ProviderHealth
+from factor_platform.llm.base import ChatMessage, LLMProvider, ProviderHealth
 from factor_platform.llm.data_boundary import LocalOnlyModeError
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
 
 
 class NoHealthyProviderError(DomainError):
@@ -20,6 +25,8 @@ class NoHealthyProviderError(DomainError):
 
 
 class ProviderRouter:
+    name = "configured-provider-router"
+
     def __init__(
         self,
         providers: list[LLMProvider],
@@ -27,8 +34,6 @@ class ProviderRouter:
         health_ttl_seconds: float = 60.0,
         local_only_mode: bool = False,
     ) -> None:
-        if not providers:
-            raise ValueError("ProviderRouter requires at least one provider")
         self._providers = list(providers)
         self._health_ttl = health_ttl_seconds
         self._cache: dict[str, tuple[bool, float]] = {}
@@ -48,6 +53,26 @@ class ProviderRouter:
             if health.healthy:
                 return provider
         raise NoHealthyProviderError("no healthy LLM provider available")
+
+    async def structured_chat(
+        self, messages: list[ChatMessage], response_model: type[BaseModel]
+    ) -> Any:
+        """Pin one healthy provider for this complete structured exchange."""
+        provider = await self.active_provider()
+        return await provider.structured_chat(messages, response_model)
+
+    async def stream_chat(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
+        """Select before yielding; never switch after output has begun."""
+        provider = await self.active_provider()
+        async for chunk in provider.stream_chat(messages):
+            yield chunk
+
+    async def health_check(self) -> ProviderHealth:
+        try:
+            await self.active_provider()
+        except (LocalOnlyModeError, NoHealthyProviderError) as exc:
+            return ProviderHealth(healthy=False, error=type(exc).__name__)
+        return ProviderHealth(healthy=True)
 
     def invalidate(self, name: str | None = None) -> None:
         """Drop cached health for ``name`` (or all providers when ``None``)."""

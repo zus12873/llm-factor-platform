@@ -45,6 +45,17 @@ _TABLE_NAME: Final = re.compile(r"^#\s*(.+?)_数据字典\s*$", re.M)
 _FIELD_NAME: Final = re.compile(r"^[A-Z][A-Z0-9_]{2,}$")
 _TYPE: Final = re.compile(r"^(?:VARCHAR2|NUMBER|DATE|CHAR|CLOB|FLOAT|INTEGER)\b", re.I)
 _FILL_RATE: Final = re.compile(r"^(\d+(?:\.\d+)?)%$")
+_TYPE_VALUE: Final = re.compile(
+    r"(?:VARCHAR2|NUMBER|CHAR)\s*\([\d\s,]+\)|\b(?:DATE|CLOB|FLOAT|INTEGER)\b",
+    re.I,
+)
+_FILL_RATE_VALUE: Final = re.compile(r"(\d+(?:\.\d+)?)%")
+_FIELD_AND_TYPE: Final = re.compile(
+    r"\b([A-Z][A-Z0-9_]{2,})\s+"
+    r"((?:VARCHAR2|NUMBER|CHAR)\s*\([\d\s,]+\)|(?:DATE|CLOB|FLOAT|INTEGER))"
+    r"(?=$|\s)",
+    re.I,
+)
 
 # A row that collapsed into a neighbouring cell still keeps its parts in order.
 _FOLDED: Final = re.compile(
@@ -81,9 +92,9 @@ _SOURCE_DB_MARKET: Final[tuple[tuple[str, str], ...]] = (
 _KEY_FREQUENCY: Final[tuple[tuple[str, Frequency], ...]] = (
     ("交易日期", Frequency.DAILY),
     ("交易日", Frequency.DAILY),
-    ("日期", Frequency.DAILY),
     ("报告期", Frequency.QUARTERLY),
     ("截止日期", Frequency.QUARTERLY),
+    ("日期", Frequency.DAILY),
 )
 
 # Field name -> the date role it plays for every other field in its table.
@@ -181,23 +192,62 @@ class DictionaryBuilder:
         if len(cells) < 3:
             return None
 
-        name_zh, field_cell = cells[1], cells[2]
-        rest = cells[3:]
+        # PDF-to-Markdown extraction sometimes inserts pipes inside a Chinese
+        # display name, shifting the field from column 3 to column 4. Locate the
+        # first unambiguous Wind identifier instead of assuming a fixed column.
+        field_index = next(
+            (index for index, cell in enumerate(cells[2:], start=2) if _FIELD_NAME.match(cell)),
+            None,
+        )
+        embedded_type: str | None = None
+        embedded_name: str | None = None
+        if field_index is None:
+            # A damaged row may contain an earlier, unrelated ``FIELD TYPE``
+            # pair and then the real row folded into a later cell. The last
+            # recoverable pair is the one belonging to the collapsed row.
+            combined_candidates = [
+                (index, match, cell)
+                for index, cell in enumerate(cells[2:], start=2)
+                if (match := _FIELD_AND_TYPE.search(cell)) is not None
+            ]
+            combined = combined_candidates[-1] if combined_candidates else None
+            if combined is not None:
+                field_index, match, cell = combined
+                field_cell = match.group(1)
+                embedded_type = re.sub(r"\s+", "", match.group(2))
+                embedded_name = cell[: match.start()].strip()
+            else:
+                field_cell = ""
+        else:
+            field_cell = cells[field_index]
 
-        if _FIELD_NAME.match(field_cell):
-            data_type = next((c for c in rest if _TYPE.match(c)), None)
+        if field_index is not None:
+            name_zh = embedded_name or " ".join(cells[1:field_index]).strip()
+            rest = cells[field_index + 1 :]
+            if embedded_type is not None:
+                rest = [embedded_type, *rest]
+            type_match = next(
+                (match for cell in rest if (match := _TYPE_VALUE.search(cell)) is not None),
+                None,
+            )
+            data_type = (
+                re.sub(r"\s+", "", type_match.group(0)) if type_match is not None else None
+            )
             fill_rate = next(
                 (
                     float(m.group(1)) / 100
                     for c in rest
-                    if (m := _FILL_RATE.match(c)) is not None
+                    if (m := _FILL_RATE_VALUE.search(c)) is not None
                 ),
                 None,
             )
-            description = next(
-                (c for c in reversed(rest) if c and not _TYPE.match(c) and not _FILL_RATE.match(c)),
-                "",
-            )
+            description = ""
+            for cell in reversed(rest):
+                residual = _TYPE_VALUE.sub("", cell)
+                residual = _FILL_RATE_VALUE.sub("", residual).strip()
+                if residual:
+                    description = residual
+                    break
             return field_cell.lower(), name_zh, data_type, fill_rate, description
 
         # Field name and type collapsed into one cell, or the whole row folded

@@ -43,6 +43,7 @@ PERMANENT_KEYS: Final[frozenset[str]] = frozenset(
 _REQUEST: Final[frozenset[str]] = frozenset({"request"})
 _PARSE: Final[frozenset[str]] = frozenset({"ambiguities", "clarifications"})
 _DEFINITION: Final[frozenset[str]] = frozenset({"factor_spec"})
+_FIELD_CANDIDATES: Final[frozenset[str]] = frozenset({"field_candidates"})
 _FIELDS: Final[frozenset[str]] = frozenset({"field_selections"})
 _PLAN: Final[frozenset[str]] = frozenset({"plan"})
 _BUILD: Final[frozenset[str]] = frozenset({"generated_code", "code_sha256"})
@@ -51,18 +52,26 @@ _DIAGNOSTICS: Final[frozenset[str]] = frozenset({"last_error"})
 
 # Everything foldable from a payload.
 FOLDED_KEYS: Final[frozenset[str]] = (
-    _REQUEST | _PARSE | _DEFINITION | _FIELDS | _PLAN | _BUILD | _RESULTS | _DIAGNOSTICS
+    _REQUEST
+    | _PARSE
+    | _DEFINITION
+    | _FIELD_CANDIDATES
+    | _FIELDS
+    | _PLAN
+    | _BUILD
+    | _RESULTS
+    | _DIAGNOSTICS
 )
 
 # --------------------------------------------------------------------------- per-event policy
 
 WRITES: Final[Mapping[EventType, frozenset[str]]] = {
     EventType.PARSE_STARTED: _REQUEST,
-    EventType.CLARIFICATION_REQUESTED: _PARSE,
+    EventType.CLARIFICATION_REQUESTED: _PARSE | _DEFINITION,
     EventType.CLARIFICATION_RESOLVED: _PARSE | _DEFINITION,
     EventType.FORMULA_PROPOSED: _DEFINITION,
     EventType.FORMULA_CONFIRMED: _DEFINITION,
-    EventType.FIELD_CANDIDATES_FOUND: frozenset(),
+    EventType.FIELD_CANDIDATES_FOUND: _FIELD_CANDIDATES,
     EventType.FIELDS_CONFIRMED: _FIELDS,
     EventType.CODE_GENERATED: _PLAN | _BUILD,
     EventType.EXECUTION_STARTED: frozenset(),
@@ -91,10 +100,19 @@ WRITES: Final[Mapping[EventType, frozenset[str]]] = {
 INVALIDATES: Final[Mapping[EventType, frozenset[str]]] = {
     # A new research idea invalidates the parse itself, not just its consequences.
     EventType.REQUEST_REVISED: (
-        _PARSE | _DEFINITION | _FIELDS | _PLAN | _BUILD | _RESULTS | _DIAGNOSTICS
+        _PARSE
+        | _DEFINITION
+        | _FIELD_CANDIDATES
+        | _FIELDS
+        | _PLAN
+        | _BUILD
+        | _RESULTS
+        | _DIAGNOSTICS
     ),
     # A different formula needs different inputs, hence a different everything.
-    EventType.FORMULA_REVISED: _FIELDS | _PLAN | _BUILD | _RESULTS | _DIAGNOSTICS,
+    EventType.FORMULA_REVISED: (
+        _FIELD_CANDIDATES | _FIELDS | _PLAN | _BUILD | _RESULTS | _DIAGNOSTICS
+    ),
     # Different columns: the retrieval plan and the build both change.
     EventType.FIELDS_REVISED: _PLAN | _BUILD | _RESULTS | _DIAGNOSTICS,
     # Universe and date range change *which rows* are fetched, not what is
@@ -111,7 +129,9 @@ INVALIDATES: Final[Mapping[EventType, frozenset[str]]] = {
     # Rerun keeps the definition, fields and build; only the output is redone.
     EventType.RERUN_REQUESTED: _RESULTS | _DIAGNOSTICS,
     # A clone inherits the definition and must recompute everything after it.
-    EventType.SESSION_CLONED: _PARSE | _FIELDS | _PLAN | _BUILD | _RESULTS | _DIAGNOSTICS,
+    EventType.SESSION_CLONED: (
+        _PARSE | _FIELD_CANDIDATES | _FIELDS | _PLAN | _BUILD | _RESULTS | _DIAGNOSTICS
+    ),
 }
 
 _NOTHING: Final[frozenset[str]] = frozenset()
@@ -156,9 +176,7 @@ def fold_events(session_id: str, events: Sequence[FoldedEvent]) -> SessionSnapsh
             if value is not None:
                 folded[key] = value
 
-    return SessionSnapshot(
-        session_id=session_id, state=state.value, version=version, **folded
-    )
+    return SessionSnapshot(session_id=session_id, state=state.value, version=version, **folded)
 
 
 __all__ = [

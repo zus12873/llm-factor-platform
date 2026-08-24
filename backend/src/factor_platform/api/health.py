@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from factor_platform.llm.base import LLMProvider
 from factor_platform.settings import Settings
 
 router = APIRouter(prefix="/api", tags=["health"])
@@ -45,10 +46,15 @@ def get_settings_dependency() -> Settings:  # pragma: no cover - overridden by t
     raise NotImplementedError("settings dependency is wired in main.create_app")
 
 
+def get_llm_provider() -> LLMProvider:  # pragma: no cover - overridden by the app
+    raise NotImplementedError("LLM provider dependency is wired in main.create_app")
+
+
 @router.get("/health")
 async def health(
     engine: Annotated[AsyncEngine, Depends(get_engine)],
     settings: Annotated[Settings, Depends(get_settings_dependency)],
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
 ) -> HealthReport:
     components: list[ComponentHealth] = []
 
@@ -58,37 +64,45 @@ async def health(
         components.append(ComponentHealth(name="database", status="ok"))
     except Exception:  # noqa: BLE001 - the message could name the file path
         components.append(
-            ComponentHealth(
-                name="database", status="down", detail="database did not answer"
-            )
+            ComponentHealth(name="database", status="down", detail="database did not answer")
         )
 
     components.append(
         ComponentHealth(
             name="wind",
             status="ok" if settings.wind_enabled else "disabled",
-            detail=(
-                "configured" if settings.wind_enabled else "WIND_ENABLED is false"
-            ),
+            detail=("configured" if settings.wind_enabled else "WIND_ENABLED is false"),
         )
     )
 
     has_model = bool(settings.kimi_coding_api_key or settings.kimi_metered_api_key)
-    components.append(
-        ComponentHealth(
+    if settings.local_only_mode:
+        llm_component = ComponentHealth(
             name="llm",
-            status=(
-                "disabled"
-                if settings.local_only_mode
-                else ("ok" if has_model else "unconfigured")
-            ),
+            status="disabled",
+            detail="LOCAL_ONLY_MODE forbids external model calls",
+        )
+    elif not has_model:
+        llm_component = ComponentHealth(
+            name="llm", status="unconfigured", detail="no provider key set"
+        )
+    else:
+        provider_health = await provider.health_check()
+        active_provider = provider
+        select_active = getattr(provider, "active_provider", None)
+        if provider_health.healthy and callable(select_active):
+            active_provider = await select_active()
+        llm_component = ComponentHealth(
+            name="llm",
+            status="ok" if provider_health.healthy else "unreachable",
             detail=(
-                "LOCAL_ONLY_MODE forbids external model calls"
-                if settings.local_only_mode
-                else ("provider configured" if has_model else "no provider key set")
+                f"{active_provider.name} / "
+                f"{getattr(active_provider, 'model', 'configured model')} reachable"
+                if provider_health.healthy
+                else "configured provider did not answer"
             ),
         )
-    )
+    components.append(llm_component)
 
     components.append(
         ComponentHealth(
@@ -108,4 +122,10 @@ async def health(
     )
 
 
-__all__ = ["ComponentHealth", "HealthReport", "get_engine", "router"]
+__all__ = [
+    "ComponentHealth",
+    "HealthReport",
+    "get_engine",
+    "get_llm_provider",
+    "router",
+]

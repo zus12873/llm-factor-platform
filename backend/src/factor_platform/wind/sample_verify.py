@@ -17,9 +17,10 @@ block. "The column exists, your window has no rows" is a fact the user acts on.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Final
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from factor_platform.domain.models import FieldCandidate, QueryShape
 from factor_platform.wind.schema_verify import (
@@ -116,7 +117,7 @@ class SampleVerdict(BaseModel):
     status: VerificationStatus
     row_count: int = 0
     non_null_rate: float = 0.0
-    sample_values: list[Any] = []
+    sample_values: list[Any] = Field(default_factory=list)
     plan: SamplePlan | None = None
     detail: str = ""
 
@@ -125,12 +126,38 @@ class SampleVerdict(BaseModel):
         return self.status in BLOCKING_STATUSES
 
 
-_SAMPLE_SQL = """
-SELECT *
+_COLUMN_SQL = """
+SELECT LOWER(COLUMN_NAME) AS column_name
 FROM information_schema.COLUMNS
-WHERE TABLE_NAME = %(table)s AND COLUMN_NAME = %(field)s
-LIMIT %(row_limit)s
+WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) = %(table)s
 """
+
+_IDENTIFIER = re.compile(r"[a-z][a-z0-9_]*\Z")
+_CODE_FIELDS: Final[tuple[str, ...]] = (
+    "s_info_windcode",
+    "s_con_windcode",
+    "windcode",
+    "s_info_code",
+)
+_ROLE_FIELDS: Final[dict[QueryShape, dict[str, tuple[str, ...]]]] = {
+    QueryShape.POINT_RANGE: {
+        "sample_time": ("trade_dt", "price_date", "opdate"),
+    },
+    QueryShape.REPORT_PERIOD: {
+        "report_period": ("report_period",),
+    },
+    QueryShape.ANNOUNCEMENT_RANGE: {
+        "announcement_date": ("ann_dt", "ann_date"),
+    },
+    QueryShape.STATIC_LOOKUP: {},
+    QueryShape.INTERVAL_OVERLAP: {
+        "interval_start": ("s_con_indate", "entry_dt"),
+        "interval_end": ("s_con_outdate", "remove_dt"),
+    },
+    QueryShape.CROSS_SECTION_ASOF: {
+        "sample_time": ("trade_dt", "s_con_indate", "opdate"),
+    },
+}
 
 
 class SampleVerifier:
@@ -142,14 +169,55 @@ class SampleVerifier:
     async def verify(self, candidate: FieldCandidate, plan: SamplePlan) -> SampleVerdict:
         table = candidate.table.strip().lower()
         field = candidate.field.strip().lower()
-        params: dict[str, Any] = {
-            "table": table,
-            "field": field,
-            "security_count": plan.security_count,
-            "period_count": plan.period_count,
-            "row_limit": plan.row_limit,
+        _safe_identifier(table, "table")
+        _safe_identifier(field, "field")
+
+        # Identifiers cannot be bound by MySQL. Resolve them against the live
+        # schema first, then interpolate only the exact lowercase names returned
+        # by information_schema. This keeps the business-table read controlled
+        # without pretending that querying COLUMNS is a data sample.
+        schema_rows = await self._executor.fetch(_COLUMN_SQL, {"table": table})
+        columns = {
+            str(row.get("column_name") or row.get("COLUMN_NAME") or "").lower()
+            for row in schema_rows
         }
-        rows = await self._executor.fetch(_SAMPLE_SQL, params)
+        if field not in columns:
+            return SampleVerdict(
+                table=table,
+                field=field,
+                status=VerificationStatus.FIELD_INVALID,
+                plan=plan,
+                detail=f"column {field!r} disappeared before the sample read",
+            )
+
+        role_fields: dict[str, str] = {}
+        for role, candidates in _ROLE_FIELDS[plan.shape].items():
+            resolved = next((name for name in candidates if name in columns), None)
+            if resolved is None:
+                return SampleVerdict(
+                    table=table,
+                    field=field,
+                    status=VerificationStatus.TIME_ROLE_INVALID,
+                    plan=plan,
+                    detail=(
+                        f"{table!r} has no verified {role} column required by "
+                        f"the {plan.shape.value} query shape"
+                    ),
+                )
+            role_fields[role] = resolved
+
+        code_field = next((name for name in _CODE_FIELDS if name in columns), None)
+        select_parts = [f"{field} AS value"]
+        if code_field is not None and code_field != field:
+            select_parts.append(f"{code_field} AS sample_code")
+        select_parts.extend(
+            f"{name} AS {role}" for role, name in role_fields.items() if name != field
+        )
+        sample_sql = (
+            f"SELECT {', '.join(select_parts)} FROM {table} "
+            f"WHERE {field} IS NOT NULL LIMIT %(row_limit)s"
+        )
+        rows = await self._executor.fetch(sample_sql, {"row_limit": plan.row_limit})
 
         if not rows:
             return SampleVerdict(
@@ -165,7 +233,7 @@ class SampleVerifier:
                 ),
             )
 
-        values = [_value_of(row, field) for row in rows]
+        values = [_value_of(row, "value") for row in rows]
         non_null = [value for value in values if value is not None]
         rate = len(non_null) / len(values)
         sparse = rate < SPARSE_THRESHOLD
@@ -200,6 +268,12 @@ def _value_of(row: dict[str, Any], field: str) -> Any:
     ignored = {"s_info_windcode", "trade_dt", "report_period", "ann_dt"}
     remaining = [value for key, value in lowered.items() if key not in ignored]
     return remaining[0] if remaining else None
+
+
+def _safe_identifier(value: str, label: str) -> str:
+    if not _IDENTIFIER.fullmatch(value):
+        raise ValueError(f"invalid Wind {label}: {value!r}")
+    return value
 
 
 __all__ = [

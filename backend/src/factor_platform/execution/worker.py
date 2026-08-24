@@ -19,10 +19,13 @@ Three habits keep that true:
 
 from __future__ import annotations
 
+import contextlib
+import importlib
 import json
-import resource
+import os
 from collections.abc import Mapping
 from pathlib import Path
+from types import ModuleType
 
 from pydantic import BaseModel
 
@@ -39,6 +42,17 @@ from factor_platform.execution.runtime import ManifestRuntime, RuntimeResult
 DEFAULT_CPU_SECONDS = 900
 DEFAULT_MEMORY_BYTES = 4 * 1024**3
 DEFAULT_FILE_SIZE_BYTES = 2 * 1024**3
+
+
+def _load_resource_module() -> ModuleType | None:
+    """Return the POSIX resource module when this platform provides it."""
+    try:
+        return importlib.import_module("resource")
+    except ModuleNotFoundError:
+        return None
+
+
+_RESOURCE = _load_resource_module()
 
 
 class WorkerResult(BaseModel):
@@ -131,9 +145,10 @@ class Worker:
         _apply_resource_limits()
         output_dir = self._artifacts / job.job_id
         try:
-            runtime_result = self._runtime.execute(
-                manifest, self._inputs / job.job_id, output_dir
-            )
+            with _isolated_environment(environment):
+                runtime_result = self._runtime.execute(
+                    manifest, self._inputs / job.job_id, output_dir
+                )
         except Exception as exc:  # noqa: BLE001 - classified and reported, not swallowed
             return self._failed(
                 job,
@@ -148,7 +163,7 @@ class Worker:
         (output_dir / "result.json").write_text(
             runtime_result.model_dump_json(indent=2), encoding="utf-8"
         )
-        result_uri = (output_dir / "result.parquet").as_uri()
+        result_uri = (output_dir / "result.parquet").resolve().as_uri()
         self._store.complete(job.job_id, result_uri=result_uri)
         return WorkerResult(
             status="completed",
@@ -191,17 +206,51 @@ def _apply_resource_limits() -> None:
     Best-effort: a platform that refuses a limit should not stop the job, but the
     limits that do apply bound a runaway computation to this process.
     """
-    for which, limit in (
-        (resource.RLIMIT_CPU, DEFAULT_CPU_SECONDS),
-        (resource.RLIMIT_AS, DEFAULT_MEMORY_BYTES),
-        (resource.RLIMIT_FSIZE, DEFAULT_FILE_SIZE_BYTES),
+    if _RESOURCE is None:
+        return
+
+    getrlimit = getattr(_RESOURCE, "getrlimit", None)
+    setrlimit = getattr(_RESOURCE, "setrlimit", None)
+    infinity = getattr(_RESOURCE, "RLIM_INFINITY", None)
+    limits = (
+        (getattr(_RESOURCE, "RLIMIT_CPU", None), DEFAULT_CPU_SECONDS),
+        (getattr(_RESOURCE, "RLIMIT_AS", None), DEFAULT_MEMORY_BYTES),
+        (getattr(_RESOURCE, "RLIMIT_FSIZE", None), DEFAULT_FILE_SIZE_BYTES),
+    )
+    if (
+        not callable(getrlimit)
+        or not callable(setrlimit)
+        or infinity is None
+        or any(which is None for which, _ in limits)
     ):
+        return
+
+    for which, limit in limits:
+        assert which is not None
         try:
-            soft, hard = resource.getrlimit(which)
-            ceiling = limit if hard == resource.RLIM_INFINITY else min(limit, hard)
-            resource.setrlimit(which, (ceiling, hard))
+            soft, hard = getrlimit(which)
+            ceiling = limit if hard == infinity else min(limit, hard)
+            setrlimit(which, (ceiling, hard))
         except (ValueError, OSError):
             continue
+
+
+@contextlib.contextmanager
+def _isolated_environment(environment: Mapping[str, str]):
+    """Expose only the worker allowlist while executing the manifest runtime.
+
+    Production workers already run in their own process/container. Applying the
+    same boundary here also protects the single-process CLI acceptance path,
+    where the backend fetched Wind data immediately before invoking a worker.
+    """
+    original = dict(os.environ)
+    os.environ.clear()
+    os.environ.update(environment)
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(original)
 
 
 def read_result(path: Path) -> dict[str, object]:

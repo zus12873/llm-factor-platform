@@ -99,6 +99,15 @@ export function FieldCandidateTable({
             dataIndex: "source_tier",
             render: (value: string) => <Tag>{value}</Tag>,
           },
+          {
+            title: "真实 Schema",
+            dataIndex: "schema_status",
+            render: (value: string | null) => (
+              <Tag color={value?.startsWith("schema_valid") ? "green" : "orange"}>
+                {value ?? "未验证"}
+              </Tag>
+            ),
+          },
         ]}
       />
       <Button

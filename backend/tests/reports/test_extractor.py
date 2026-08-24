@@ -70,7 +70,13 @@ def draft(**overrides: object) -> str:
         "factor_name": "quality",
         "hypothesis": "ROE 高的股票收益更好",
         "confidence": 0.9,
+        "direction": "higher_is_better",
         "extracted_formula_text": "rank(ROE_TTM)",
+        "formula_ast": {
+            "type": "call",
+            "op": "rank",
+            "args": [{"type": "variable", "name": "roe_ttm"}],
+        },
         "variables": [{"logical_name": "roe_ttm", "meaning": "净资产收益率"}],
         "cited_evidence_ids": ["p1b1"],
     }
@@ -138,6 +144,37 @@ async def test_a_confident_extraction_carries_its_evidence() -> None:
 async def test_the_extraction_records_what_it_read() -> None:
     result = await extractor(draft()).extract(report())
     assert result.formula_extraction.extracted_text == "rank(ROE_TTM)"
+    assert result.formula_extraction.formula_ast is not None
+    assert result.formula_extraction.formula_ast.op == "rank"
+    assert result.direction == "higher_is_better"
+
+
+def test_evidence_keeps_the_source_bbox() -> None:
+    excerpts = score_blocks(report())
+    assert excerpts
+    assert all(len(excerpt.bbox) == 4 for excerpt in excerpts)
+
+
+async def test_report_draft_normalizes_logical_names_for_ast_validation() -> None:
+    result = await extractor(
+        draft(
+            variables=[{"logical_name": "ROE_TTM", "meaning": "净资产收益率"}],
+            formula_ast={
+                "type": "call",
+                "op": "rank",
+                "args": [{"type": "variable", "name": "ROE_TTM"}],
+            },
+        )
+    ).extract(report())
+    assert result.variables[0]["logical_name"] == "roe_ttm"
+    assert result.formula_extraction.formula_ast is not None
+    assert result.formula_extraction.formula_ast.args[0].name == "roe_ttm"
+
+
+async def test_incomplete_high_confidence_draft_requires_manual_confirmation() -> None:
+    result = await extractor(draft(direction=None, formula_ast=None)).extract(report())
+    assert result.formula_extraction.status is FormulaExtractionStatus.NEEDS_MANUAL_CONFIRMATION
+    assert "所需字段" in result.formula_extraction.warning
 
 
 # --------------------------------------------------------------------------- refusals
@@ -154,6 +191,9 @@ async def test_low_confidence_forces_manual_confirmation() -> None:
     result = await extractor(draft(confidence=CONFIDENCE_THRESHOLD - 0.1)).extract(report())
     assert result.formula_extraction.status is FormulaExtractionStatus.NEEDS_MANUAL_CONFIRMATION
     assert "置信度" in result.formula_extraction.warning
+    assert result.factor_name == "quality"
+    assert result.variables[0]["logical_name"] == "roe_ttm"
+    assert result.formula_extraction.formula_ast is not None
 
 
 async def test_a_multi_column_page_forces_manual_confirmation() -> None:

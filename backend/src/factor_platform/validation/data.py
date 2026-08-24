@@ -21,6 +21,7 @@ from factor_platform.domain.models import (
     ValidationReport,
     ValidationSeverity,
 )
+from factor_platform.factor.metric_registry import MetricRegistry, ReviewStatus
 
 #: Below this fraction of non-null values the input is too thin to rank on.
 SPARSE_THRESHOLD = 0.5
@@ -40,12 +41,16 @@ def _finding(
 class DataValidator:
     """Audits the fetched input frames before anything is computed."""
 
+    def __init__(self, registry: MetricRegistry | None = None) -> None:
+        self._registry = registry or MetricRegistry.load()
+
     def validate(
         self,
         variables: Mapping[str, pd.DataFrame],
         *,
         expected_start: str | None = None,
         expected_end: str | None = None,
+        metric_keys: Mapping[str, str] | None = None,
     ) -> ValidationReport:
         findings: list[ValidationFinding] = []
 
@@ -62,7 +67,47 @@ class DataValidator:
 
         for name, frame in variables.items():
             findings.extend(self._one(name, frame, expected_start, expected_end))
+            metric_key = (metric_keys or {}).get(name)
+            if metric_key:
+                findings.extend(self._magnitude(name, frame, metric_key))
         return ValidationReport(findings=findings)
+
+    def _magnitude(
+        self, name: str, frame: pd.DataFrame, metric_key: str
+    ) -> list[ValidationFinding]:
+        """Check source values in their own units before formula transforms."""
+        definition = self._registry.get(metric_key)
+        if definition is None or definition.plausible_range is None or frame.empty:
+            return []
+        numeric = frame.apply(pd.to_numeric, errors="coerce")
+        if not numeric.notna().to_numpy().any():
+            return []
+        observed_low = float(numeric.min().min())
+        observed_high = float(numeric.max().max())
+        low, high = definition.plausible_range
+        if observed_low >= low and observed_high <= high:
+            return []
+        severity = (
+            ValidationSeverity.ERROR
+            if definition.review_status is ReviewStatus.REVIEWED
+            else ValidationSeverity.WARNING
+        )
+        return [
+            _finding(
+                severity,
+                "implausible_input_magnitude",
+                (
+                    f"{name} source values [{observed_low:.4g}, {observed_high:.4g}] "
+                    f"exceed the registered range [{low:g}, {high:g}] for {metric_key}; "
+                    "verify units and outliers before publication"
+                ),
+                variable=name,
+                metric=metric_key,
+                observed=[observed_low, observed_high],
+                expected=[low, high],
+                review_status=definition.review_status.value,
+            )
+        ]
 
     def _one(
         self,

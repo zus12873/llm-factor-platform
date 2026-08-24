@@ -13,6 +13,7 @@
 # unit must stay unknown rather than default to something plausible.
 #
 # unit vocabulary:
+#   hand                one trading hand (100 shares for ordinary A-shares)
 #   cny                 元
 #   ten_thousand_cny    万元
 #   share               股
@@ -41,9 +42,9 @@ units:
 
   # --- volume and turnover ---
   ashareeodprices.s_dq_volume:
-    unit: ten_thousand_share
+    unit: hand
     verified: false
-    note: 待确认是股还是万股 —— 这一条直接影响换手率口径
+    note: information_schema 与本地 WDS 均描述为成交量（手）；仍待老师确认研究换算习惯
   ashareeodprices.s_dq_amount:
     unit: ten_thousand_cny
     verified: false

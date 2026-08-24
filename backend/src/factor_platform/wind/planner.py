@@ -41,6 +41,7 @@ from factor_platform.domain.models import (
     ResearchRequest,
 )
 from factor_platform.factor.metric_registry import MetricRegistry
+from factor_platform.wind.adapter import ADJUSTED_PRICE_FIELD_MAP, PRICE_FIELD_MAP
 from factor_platform.wind.capabilities import CapabilityCatalog
 from factor_platform.wind.metadata_catalog import MetadataCatalog
 
@@ -84,6 +85,11 @@ class WindPlanner:
             dependency.table.lower()
             for dependency in (price_tool.source_dependencies if price_tool else ())
         )
+        self._price_output_by_source: dict[str, str] = {
+            source.lower(): output
+            for mapping in (PRICE_FIELD_MAP, ADJUSTED_PRICE_FIELD_MAP)
+            for output, source in mapping.items()
+        }
 
     def plan(
         self,
@@ -105,9 +111,7 @@ class WindPlanner:
 
         for variable in spec.variables:
             steps.append(
-                self._retrieval_step(
-                    bindings[variable.logical_name], spec, warmup_start, request
-                )
+                self._retrieval_step(bindings[variable.logical_name], spec, warmup_start, request)
             )
 
         return ExecutionPlan(
@@ -118,18 +122,14 @@ class WindPlanner:
                 "start_date": request.start_date,
                 "end_date": request.end_date,
                 "universe": spec.universe,
-                "confirmed_fields": [
-                    f"{s.logical_name} -> {s.table}.{s.field}" for s in confirmed
-                ],
+                "confirmed_fields": [f"{s.logical_name} -> {s.table}.{s.field}" for s in confirmed],
             },
         )
 
     # ------------------------------------------------------------------ refusals
 
     @staticmethod
-    def _reject_unconfirmed(
-        spec: FactorSpec, bindings: dict[str, FieldSelection]
-    ) -> None:
+    def _reject_unconfirmed(spec: FactorSpec, bindings: dict[str, FieldSelection]) -> None:
         missing = [v.logical_name for v in spec.variables if v.logical_name not in bindings]
         if missing:
             raise PlanningError(
@@ -208,8 +208,9 @@ class WindPlanner:
         warmup_start: str,
         request: ResearchRequest,
     ) -> ExecutionStep:
+        price_output = self._price_output_by_source.get(selection.field.lower())
         served_by_price_tool = (
-            selection.logical_name in self._price_outputs
+            price_output in self._price_outputs
             and selection.table.lower() in self._price_tables
             and not selection.point_in_time
         )
@@ -221,7 +222,7 @@ class WindPlanner:
                     "order_book_ids": "$universe",
                     "start_date": warmup_start,
                     "end_date": request.end_date,
-                    "fields": [selection.logical_name],
+                    "fields": [price_output],
                     "adjust_type": "post" if spec.data_rules.use_adjusted_price else "none",
                 },
                 inputs=[selection.logical_name],
@@ -237,13 +238,19 @@ class WindPlanner:
     ) -> ExecutionStep:
         shape = _shape_for(selection)
         arguments: dict[str, Any] = {
-            "shape": shape.value,
-            "table": selection.table,
-            "field": selection.field,
+            "query_shape": shape.value,
+            "table_name": selection.table,
+            "selected_fields": [selection.field],
+            "code_field": "s_info_windcode",
             "order_book_ids": "$universe",
             "start_date": warmup_start,
             "end_date": request.end_date,
         }
+
+        if shape in {QueryShape.POINT_RANGE, QueryShape.CROSS_SECTION_ASOF}:
+            arguments["observation_date"] = "trade_dt"
+        elif shape is QueryShape.ANNOUNCEMENT_RANGE:
+            arguments["announcement_date"] = selection.announcement_date_field or selection.field
 
         if selection.point_in_time or shape is QueryShape.REPORT_PERIOD:
             if not selection.announcement_date_field:
@@ -252,9 +259,16 @@ class WindPlanner:
                     "binding carries no announcement date field; without one there "
                     "is no way to know when the value became public"
                 )
-            arguments["announcement_date_field"] = selection.announcement_date_field
-            arguments["report_period_field"] = selection.report_period_field
+            arguments["announcement_date"] = selection.announcement_date_field
+            arguments["report_period"] = selection.report_period_field or "report_period"
             arguments["as_of_offset_days"] = _announcement_offset(spec)
+            # A report announced near the beginning of the requested window has
+            # a report_period in the previous year. Fetch enough prior periods
+            # for point-in-time alignment instead of starting at the signal date.
+            arguments["start_date"] = (
+                date.fromisoformat(request.start_date) - timedelta(days=730)
+            ).isoformat()
+            arguments["as_of_date"] = request.end_date
 
         return ExecutionStep(
             tool=f"{_TOOL_PREFIX}execute_generic_query_plan",

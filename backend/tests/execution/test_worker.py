@@ -12,6 +12,7 @@ nothing, and a manifest that fails verification never reaches the compute path.
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 from pathlib import Path
 
@@ -19,8 +20,10 @@ import pandas as pd
 import pytest
 
 from factor_platform.domain.models import ErrorCategory
+from factor_platform.execution import worker as worker_module
 from factor_platform.execution.job_store import JobStatus, JobStore, ManualClock
 from factor_platform.execution.manifest import InputArtifact, sign
+from factor_platform.execution.runtime import ManifestRuntime, RuntimeError_
 from factor_platform.execution.worker import Worker
 from tests.execution.test_manifest import SIGNING_KEY, build
 
@@ -66,9 +69,7 @@ def queue_job(store: JobStore, tmp_path: Path, *, key: str = SIGNING_KEY):
     prices.to_parquet(staged)
     digest = hashlib.sha256(staged.read_bytes()).hexdigest()
 
-    manifest = build(
-        inputs=[InputArtifact(uri=staged.as_uri(), sha256=digest, rows=len(DATES))]
-    )
+    manifest = build(inputs=[InputArtifact(uri=staged.as_uri(), sha256=digest, rows=len(DATES))])
     signed = sign(manifest, key=key)
     job_id = store.enqueue(
         session_id="s1",
@@ -105,12 +106,42 @@ def test_the_environment_is_built_from_an_allowlist(
     assert "SOME_FUTURE_SECRET" not in worker.clean_environment()
 
 
+def test_runtime_cannot_read_parent_wind_or_model_credentials(
+    tmp_path: Path,
+    store: JobStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class InspectingRuntime:
+        def execute(self, manifest, input_dir, output_dir):  # noqa: ANN001
+            for forbidden in ("WIND_PASSWORD", "KIMI_CODING_API_KEY"):
+                assert forbidden not in os.environ
+            return worker_module.ManifestRuntime().execute(manifest, input_dir, output_dir)
+
+    monkeypatch.setenv("WIND_PASSWORD", "unit-test-only")  # pragma: allowlist secret
+    monkeypatch.setenv("KIMI_CODING_API_KEY", "unit-test-only")  # pragma: allowlist secret
+    isolated = Worker(
+        store,
+        signing_key=SIGNING_KEY,
+        artifact_root=tmp_path / "artifacts",
+        input_root=tmp_path / "inputs",
+        runtime=InspectingRuntime(),  # type: ignore[arg-type]
+    )
+    queue_job(store, tmp_path)
+    assert isolated.run_once().status == "completed"
+
+
+def test_resource_limits_are_optional_on_non_posix_platforms(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows has no ``resource`` module; importing or running a worker must work."""
+    monkeypatch.setattr(worker_module, "_RESOURCE", None)
+    worker_module._apply_resource_limits()
+
+
 # --------------------------------------------------------------------------- happy path
 
 
-def test_a_signed_job_runs_to_completion(
-    worker: Worker, store: JobStore, tmp_path: Path
-) -> None:
+def test_a_signed_job_runs_to_completion(worker: Worker, store: JobStore, tmp_path: Path) -> None:
     job_id, _ = queue_job(store, tmp_path)
     result = worker.run_once()
 
@@ -119,6 +150,43 @@ def test_a_signed_job_runs_to_completion(
     assert store.status_of(job_id) is JobStatus.COMPLETED
     assert (tmp_path / "artifacts" / job_id / "result.parquet").exists()
     assert (tmp_path / "artifacts" / job_id / "result.json").exists()
+
+
+def test_runtime_uses_warmup_for_compute_but_trims_it_from_output(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "inputs"
+    input_dir.mkdir()
+    dates = pd.to_datetime(["2023-12-29", "2024-01-02", "2024-06-28", "2024-07-01"])
+    prices = pd.DataFrame([[1.0], [2.0], [3.0], [4.0]], index=dates, columns=CODES[:1])
+    path = input_dir / "close.parquet"
+    prices.to_parquet(path)
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    manifest = build(inputs=[InputArtifact(uri=path.as_uri(), sha256=digest, rows=len(prices))])
+
+    result = ManifestRuntime().execute(manifest, input_dir, tmp_path / "output")
+    factor = pd.read_parquet(tmp_path / "output" / "result.parquet")
+
+    assert result.rows == 2
+    assert list(factor.index) == list(pd.to_datetime(["2024-01-02", "2024-06-28"]))
+
+
+def test_relative_roots_produce_an_absolute_result_uri(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    relative_store = JobStore("jobs")
+    relative_worker = Worker(
+        relative_store,
+        signing_key=SIGNING_KEY,
+        artifact_root="artifacts",
+        input_root="inputs",
+    )
+    queue_job(relative_store, tmp_path)
+    result = relative_worker.run_once()
+    assert result.status == "completed"
+    assert result.result_uri is not None
+    assert result.result_uri.startswith("file:///")
 
 
 def test_the_result_records_the_manifest_it_came_from(
@@ -150,9 +218,7 @@ def test_a_tampered_manifest_never_reaches_the_compute_path(
     assert not (tmp_path / "artifacts" / job_id / "result.parquet").exists()
 
 
-def test_a_cancelled_job_writes_no_result(
-    worker: Worker, store: JobStore, tmp_path: Path
-) -> None:
+def test_a_cancelled_job_writes_no_result(worker: Worker, store: JobStore, tmp_path: Path) -> None:
     """A partial artifact is worse than none: it looks like output."""
     job_id, _ = queue_job(store, tmp_path)
     claimed = store.claim_next("other-worker")
@@ -183,3 +249,24 @@ def test_missing_inputs_fail_the_job_rather_than_producing_an_empty_factor(
     assert result.status == "failed"
     assert result.error is not None
     assert "missing" in result.error.message.lower()
+
+
+def test_every_manifest_input_hash_must_match_not_merely_one(
+    tmp_path: Path,
+) -> None:
+    """Regression: one matching hash must not mask another missing artifact."""
+    input_dir = tmp_path / "inputs"
+    input_dir.mkdir()
+    prices = pd.DataFrame([[1.0], [2.0]], index=DATES[:2], columns=CODES[:1])
+    path = input_dir / "close.parquet"
+    prices.to_parquet(path)
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    manifest = build(
+        inputs=[
+            InputArtifact(uri=path.as_uri(), sha256=digest, rows=2),
+            InputArtifact(uri="file:///missing.parquet", sha256="b" * 64, rows=2),
+        ]
+    )
+
+    with pytest.raises(RuntimeError_, match="hashes do not match"):
+        ManifestRuntime().execute(manifest, input_dir, tmp_path / "output")

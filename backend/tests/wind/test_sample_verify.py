@@ -41,6 +41,17 @@ class FakeQuery:
 
     async def fetch(self, sql: str, params: dict[str, Any]) -> list[dict[str, Any]]:
         self.calls.append((sql, dict(params)))
+        if "information_schema.COLUMNS" in sql:
+            return [
+                {"column_name": "s_info_windcode"},
+                {"column_name": "trade_dt"},
+                {"column_name": "report_period"},
+                {"column_name": "ann_dt"},
+                {"column_name": "s_con_indate"},
+                {"column_name": "s_con_outdate"},
+                {"column_name": "s_dq_close"},
+                {"column_name": "oper_rev"},
+            ]
         return list(self.rows)
 
 
@@ -165,10 +176,57 @@ async def test_the_sample_query_is_bounded(
     assert params["row_limit"] <= 200
 
 
-async def test_identifiers_are_bound_not_interpolated(
+async def test_business_table_is_sampled_after_schema_validation(
     verifier: SampleVerifier, fake_query: FakeQuery
 ) -> None:
     await verifier.verify(candidate(), plan_for_shape(QueryShape.POINT_RANGE))
     sql, params = fake_query.calls[-1]
-    assert params["table"] == "ashareeodprices"
-    assert params["field"] == "s_dq_close"
+    assert "FROM ashareeodprices" in sql
+    assert "s_dq_close AS value" in sql
+    assert "information_schema" not in sql
+    assert params == {"row_limit": 60}
+
+
+async def test_identifiers_are_resolved_through_information_schema_first(
+    verifier: SampleVerifier, fake_query: FakeQuery
+) -> None:
+    await verifier.verify(candidate(), plan_for_shape(QueryShape.POINT_RANGE))
+    schema_sql, schema_params = fake_query.calls[0]
+    assert "information_schema.COLUMNS" in schema_sql
+    assert schema_params == {"table": "ashareeodprices"}
+
+
+async def test_malicious_identifier_is_rejected_before_business_query(
+    verifier: SampleVerifier, fake_query: FakeQuery
+) -> None:
+    with pytest.raises(ValueError, match="invalid Wind table"):
+        await verifier.verify(
+            candidate(table="ashareeodprices; drop table x"),
+            plan_for_shape(QueryShape.POINT_RANGE),
+        )
+    assert fake_query.calls == []
+
+
+async def test_missing_shape_role_is_structural_failure(
+    verifier: SampleVerifier, fake_query: FakeQuery
+) -> None:
+    original_fetch = fake_query.fetch
+
+    async def without_interval_roles(
+        sql: str, params: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        if "information_schema.COLUMNS" in sql:
+            fake_query.calls.append((sql, dict(params)))
+            return [
+                {"column_name": "s_info_windcode"},
+                {"column_name": "s_dq_close"},
+            ]
+        return await original_fetch(sql, params)
+
+    fake_query.fetch = without_interval_roles  # type: ignore[method-assign]
+    verdict = await verifier.verify(
+        candidate(), plan_for_shape(QueryShape.INTERVAL_OVERLAP)
+    )
+    assert verdict.status is VerificationStatus.TIME_ROLE_INVALID
+    assert verdict.is_blocking is True
+    assert len(fake_query.calls) == 1

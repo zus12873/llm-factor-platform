@@ -86,6 +86,21 @@ def test_a_page_with_no_text_layer_is_flagged_as_scanned(parser: PdfParser) -> N
     assert report.scanned_pages == [1]
 
 
+def test_bilingual_ocr_fixture_is_image_only_and_visibly_nonblank() -> None:
+    """Acceptance fixture must exercise OCR, not an invisible or text-layer PDF."""
+    import pymupdf
+
+    path = FIXTURES / "scanned_bilingual.pdf"
+    document = pymupdf.open(path)
+    try:
+        assert not document[0].get_text().strip()
+        pixmap = document[0].get_pixmap(matrix=pymupdf.Matrix(0.25, 0.25), alpha=False)
+        values = memoryview(pixmap.samples)
+        assert max(values) - min(values) > 50
+    finally:
+        document.close()
+
+
 def test_a_sparse_but_genuine_text_page_is_not_called_a_scan(
     parser: PdfParser,
 ) -> None:

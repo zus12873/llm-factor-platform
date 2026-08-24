@@ -94,12 +94,8 @@ def _passes_filter(
     Entries with ``None`` asset/frequency are always allowed (catalog rows
     carry no metadata); only conflicting concrete values are filtered out.
     """
-    asset_ok = not (
-        req_asset is not None and entry_asset is not None and entry_asset != req_asset
-    )
-    freq_ok = not (
-        req_freq is not None and entry_freq is not None and entry_freq != req_freq
-    )
+    asset_ok = not (req_asset is not None and entry_asset is not None and entry_asset != req_asset)
+    freq_ok = not (req_freq is not None and entry_freq is not None and entry_freq != req_freq)
     return asset_ok and freq_ok
 
 
@@ -135,7 +131,7 @@ class FieldSearch:
         # corpus, so scoring alone would discard every hit for a common word like
         # 日期 or 代码 — matched, ubiquitous, and silently dropped.
         self._doc_token_sets: list[set[str]] = [set(tokens) for tokens in self._doc_tokens]
-        self._bm25 = BM25Okapi(self._doc_tokens)
+        self._bm25 = BM25Okapi(self._doc_tokens) if self._doc_tokens else None
 
     def _market_rank(self, record: FieldRecord) -> int:
         """0 for in-scope or unknown markets, 1 for out-of-scope ones.
@@ -187,11 +183,18 @@ class FieldSearch:
         )
         return cls(catalog=catalog, aliases=aliases, metadata=metadata)
 
+    @classmethod
+    def from_aliases_path(cls, aliases_path: Path | str) -> FieldSearch:
+        """Build the exact-alias tier when the licensed full catalog is absent.
+
+        The checked-in alias registry is sufficient for known platform metrics;
+        BM25 remains unavailable until an authorized local catalog is supplied.
+        """
+        return cls(catalog=FieldCatalog([]), aliases=_load_aliases(aliases_path))
+
     # ------------------------------------------------------------------ search
 
-    def search(
-        self, requirement: DataRequirement, limit: int = 10
-    ) -> list[FieldCandidate]:
+    def search(self, requirement: DataRequirement, limit: int = 10) -> list[FieldCandidate]:
         query = requirement.meaning.strip()
         req_asset = requirement.asset_type
         req_freq = requirement.frequency
@@ -234,15 +237,11 @@ class FieldSearch:
                 continue
             if key in query:
                 entry = self.aliases[key]
-                if _passes_filter(
-                    entry.asset_type, entry.frequency, req_asset, req_freq
-                ):
+                if _passes_filter(entry.asset_type, entry.frequency, req_asset, req_freq):
                     return [self._candidate_from_alias(entry, lexical_score=0.9)]
         return []
 
-    def _candidate_from_alias(
-        self, entry: AliasEntry, *, lexical_score: float
-    ) -> FieldCandidate:
+    def _candidate_from_alias(self, entry: AliasEntry, *, lexical_score: float) -> FieldCandidate:
         return FieldCandidate(
             table=entry.table,
             field=entry.field,
@@ -270,14 +269,11 @@ class FieldSearch:
             return []
 
         query_set = set(query_tokens)
-        matched = [
-            idx
-            for idx, tokens in enumerate(self._doc_token_sets)
-            if tokens & query_set
-        ]
+        matched = [idx for idx, tokens in enumerate(self._doc_token_sets) if tokens & query_set]
         if not matched:
             return []
 
+        assert self._bm25 is not None
         raw_scores = self._bm25.get_scores(query_tokens)
         scores = {idx: float(raw_scores[idx]) for idx in matched}
         # Pull more than `limit` so filtering can still fill the page.
@@ -292,9 +288,7 @@ class FieldSearch:
             score = scores[idx]
             record = self.catalog.records[idx]
             meta = (
-                self.metadata.get(record.table, record.field)
-                if self.metadata is not None
-                else None
+                self.metadata.get(record.table, record.field) if self.metadata is not None else None
             )
             # A described field must match the constraints. An undescribed one
             # passes: `_passes_filter` treats None as "unknown, not excluded".

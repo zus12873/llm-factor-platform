@@ -27,10 +27,12 @@ from collections.abc import Sequence
 from enum import StrEnum
 from typing import Final
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from factor_platform.domain.errors import DomainError
 from factor_platform.domain.formula import FormulaNode
+from factor_platform.domain.models import DataRequirement, FactorDirection
+from factor_platform.factor.ast_checks import check_ast
 from factor_platform.llm.base import ChatMessage, LLMProvider
 from factor_platform.llm.data_boundary import (
     GuardedProvider,
@@ -77,6 +79,7 @@ class Excerpt(BaseModel):
     page_number: int
     text: str
     score: float
+    bbox: tuple[float, float, float, float]
 
 
 class FormulaExtraction(BaseModel):
@@ -93,9 +96,25 @@ class FormulaExtraction(BaseModel):
 class ExtractedFactor(BaseModel):
     factor_name: str = ""
     hypothesis: str = ""
+    direction: FactorDirection | None = None
     variables: list[dict[str, str]] = Field(default_factory=list)
     evidence: list[Excerpt] = Field(default_factory=list)
     formula_extraction: FormulaExtraction
+
+
+class _ExtractedVariableDraft(BaseModel):
+    """One report variable with stable keys for downstream confirmation."""
+
+    logical_name: str
+    meaning: str = ""
+
+    @field_validator("logical_name")
+    @classmethod
+    def normalize_logical_name(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not normalized:
+            raise ValueError("logical_name must not be empty")
+        return normalized
 
 
 class _ExtractionDraft(BaseModel):
@@ -103,9 +122,11 @@ class _ExtractionDraft(BaseModel):
 
     factor_name: str = ""
     hypothesis: str = ""
+    direction: FactorDirection | None = None
     confidence: float = 0.0
     extracted_formula_text: str = ""
-    variables: list[dict[str, str]] = Field(default_factory=list)
+    formula_ast: FormulaNode | None = None
+    variables: list[_ExtractedVariableDraft] = Field(default_factory=list)
     cited_evidence_ids: list[str] = Field(default_factory=list)
 
 
@@ -129,6 +150,7 @@ def score_blocks(report: ParsedReport) -> list[Excerpt]:
                     page_number=page.page_number,
                     text=block.text[:MAX_EXCERPT_CHARS],
                     score=score,
+                    bbox=block.bbox,
                 )
             )
     excerpts.sort(key=lambda e: (-e.score, e.page_number, e.evidence_id))
@@ -187,6 +209,8 @@ class ReportExtractor:
         excerpts: Sequence[Excerpt],
         report: ParsedReport,
     ) -> ExtractedFactor:
+        variables = [variable.model_dump() for variable in draft.variables]
+        formula_ast = _normalize_formula_names(draft.formula_ast)
         known = {excerpt.evidence_id for excerpt in excerpts}
         invented = [eid for eid in draft.cited_evidence_ids if eid not in known]
         if invented:
@@ -207,8 +231,13 @@ class ReportExtractor:
             return _manual(
                 f"第 {unreliable} 页为多栏或含图片版式，正文顺序可能错乱，"
                 "公式需人工确认",
-                excerpts,
+                cited or excerpts,
+                factor_name=draft.factor_name,
+                hypothesis=draft.hypothesis,
+                direction=draft.direction,
+                variables=variables,
                 extracted_text=draft.extracted_formula_text,
+                formula_ast=formula_ast,
                 confidence=draft.confidence,
             )
 
@@ -216,21 +245,68 @@ class ReportExtractor:
             return _manual(
                 f"公式识别置信度 {draft.confidence:.2f} 低于阈值 "
                 f"{CONFIDENCE_THRESHOLD}，需人工确认",
-                excerpts,
+                cited or excerpts,
+                factor_name=draft.factor_name,
+                hypothesis=draft.hypothesis,
+                direction=draft.direction,
+                variables=variables,
                 extracted_text=draft.extracted_formula_text,
+                formula_ast=formula_ast,
+                confidence=draft.confidence,
+            )
+
+        missing: list[str] = []
+        if not variables:
+            missing.append("variables")
+        if formula_ast is None:
+            missing.append("formula_ast")
+        if draft.direction is None:
+            missing.append("direction")
+        if missing:
+            return _manual(
+                f"模型未提供可执行因子草稿所需字段 {missing}，需人工确认",
+                cited or excerpts,
+                factor_name=draft.factor_name,
+                hypothesis=draft.hypothesis,
+                direction=draft.direction,
+                variables=variables,
+                extracted_text=draft.extracted_formula_text,
+                formula_ast=formula_ast,
+                confidence=draft.confidence,
+            )
+
+        assert formula_ast is not None
+        requirements = [DataRequirement.model_validate(variable) for variable in variables]
+        ast_errors = [
+            finding.code
+            for finding in check_ast(formula_ast, requirements).findings
+            if finding.severity == "error"
+        ]
+        if ast_errors:
+            return _manual(
+                f"模型公式 AST 未通过后端校验 {sorted(ast_errors)}，需人工确认",
+                cited or excerpts,
+                factor_name=draft.factor_name,
+                hypothesis=draft.hypothesis,
+                direction=draft.direction,
+                variables=variables,
+                extracted_text=draft.extracted_formula_text,
+                formula_ast=formula_ast,
                 confidence=draft.confidence,
             )
 
         return ExtractedFactor(
             factor_name=draft.factor_name,
             hypothesis=draft.hypothesis,
-            variables=draft.variables,
+            direction=draft.direction,
+            variables=variables,
             evidence=list(cited),
             formula_extraction=FormulaExtraction(
                 status=FormulaExtractionStatus.EXTRACTED,
                 confidence=draft.confidence,
                 source_pages=pages,
                 extracted_text=draft.extracted_formula_text,
+                formula_ast=formula_ast,
             ),
         )
 
@@ -245,20 +321,43 @@ def _unreliable_pages(report: ParsedReport, pages: Sequence[int]) -> list[int]:
     ]
 
 
+def _normalize_formula_names(node: FormulaNode | None) -> FormulaNode | None:
+    if node is None:
+        return None
+    if node.type == "variable":
+        assert node.name is not None
+        return node.model_copy(update={"name": node.name.strip().lower()})
+    if node.type == "call":
+        return node.model_copy(
+            update={"args": [_normalize_formula_names(arg) for arg in node.args]}
+        )
+    return node
+
+
 def _manual(
     warning: str,
     excerpts: Sequence[Excerpt],
     *,
+    factor_name: str = "",
+    hypothesis: str = "",
+    direction: FactorDirection | None = None,
+    variables: list[dict[str, str]] | None = None,
     extracted_text: str = "",
+    formula_ast: FormulaNode | None = None,
     confidence: float = 0.0,
 ) -> ExtractedFactor:
     return ExtractedFactor(
+        factor_name=factor_name,
+        hypothesis=hypothesis,
+        direction=direction,
+        variables=list(variables or []),
         evidence=list(excerpts),
         formula_extraction=FormulaExtraction(
             status=FormulaExtractionStatus.NEEDS_MANUAL_CONFIRMATION,
             confidence=confidence,
             source_pages=sorted({e.page_number for e in excerpts}),
             extracted_text=extracted_text,
+            formula_ast=formula_ast,
             warning=warning,
         ),
     )

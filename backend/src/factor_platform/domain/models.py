@@ -217,6 +217,13 @@ class FieldCandidate(BaseModel):
     evidence: str | None = None
 
 
+class FieldCandidateBinding(FieldCandidate):
+    """A candidate tied to the logical variable it may satisfy in this session."""
+
+    logical_name: str
+    schema_status: str | None = None
+
+
 class FieldSelection(BaseModel):
     """A user-confirmed mapping from a logical variable to a concrete Wind field."""
 
@@ -344,6 +351,7 @@ class SessionSnapshot(BaseModel):
     version: int
     request: ResearchRequest | None = None
     factor_spec: FactorSpec | None = None
+    field_candidates: list[FieldCandidateBinding] = Field(default_factory=list)
     field_selections: list[FieldSelection] = Field(default_factory=list)
     plan: ExecutionPlan | None = None
     generated_code: str | None = None
@@ -370,6 +378,7 @@ __all__ = [
     "FactorDirection",
     "FactorSpec",
     "FieldCandidate",
+    "FieldCandidateBinding",
     "FieldSelection",
     "FieldTimeRole",
     "Frequency",

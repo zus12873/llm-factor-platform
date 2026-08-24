@@ -29,9 +29,14 @@ credentials.json
 *.db
 *.sqlite
 *.sqlite3
+*.parquet
 data/artifacts/
 data/runtime/
 logs/
+/tmp/
+
+# Local Wind connectivity notebook
+Wind取数尝试.ipynb
 
 # Archives
 *.rar

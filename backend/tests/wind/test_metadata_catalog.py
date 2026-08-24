@@ -126,6 +126,20 @@ def test_quarterly_frequency_is_derived_from_the_business_key(tmp_path: Path) ->
     assert records[("ashareincome", "oper_rev")].frequency is Frequency.QUARTERLY
 
 
+def test_report_period_wins_over_a_generic_date_in_a_financial_key(
+    tmp_path: Path,
+) -> None:
+    _write_dictionary(
+        tmp_path,
+        "AShareTTMHis",
+        business_key="Wind代码 , 报告期 , 公告日期",
+        rows="| 1 | 报告期 | REPORT_PERIOD | VARCHAR2(8) | | 100.00% | 报告期 |",
+    )
+    record = DictionaryBuilder(tmp_path).build()[0]
+
+    assert record.frequency is Frequency.QUARTERLY
+
+
 def test_an_unrecognised_business_key_leaves_frequency_unset(tmp_path: Path) -> None:
     """Guessing daily for a static description table would corrupt every filter."""
     _write_dictionary(
@@ -211,6 +225,57 @@ def test_an_unparseable_row_is_skipped_rather_than_guessed(tmp_path: Path) -> No
     )
     records = DictionaryBuilder(tmp_path).build()
     assert [r.field for r in records] == ["s_dq_close"]
+
+
+@pytest.mark.parametrize(
+    ("row", "field", "name_zh"),
+    [
+        (
+            "| 39 | 净资产收益率 | (TTM) | S_FA_ROE_TTM | NUMBER(20,4) | "
+            "95.00% | ROE 描述 |",
+            "s_fa_roe_ttm",
+            "净资产收益率 (TTM)",
+        ),
+        (
+            "| 32 | 经营活动产生 | 的现金流量净额 | NET_CASH_FLOWS_OPER_ACT | "
+            "NUMBER(20,4) | 99.00% | 现金流描述 |",
+            "net_cash_flows_oper_act",
+            "经营活动产生 的现金流量净额",
+        ),
+        (
+            "| 156 | 营业收入同比 | 增长率(%) | S_FA_YOY_OR NUMBER(20,4) | "
+            "91.00% | | 同比描述 |",
+            "s_fa_yoy_or",
+            "营业收入同比 增长率(%)",
+        ),
+    ],
+)
+def test_a_name_split_across_cells_does_not_shift_the_field_column(
+    tmp_path: Path, row: str, field: str, name_zh: str
+) -> None:
+    _write_dictionary(tmp_path, "SplitCells", rows=row)
+    records = DictionaryBuilder(tmp_path).build()
+
+    assert len(records) == 1
+    assert records[0].field == field
+    assert records[0].name_zh == name_zh
+    assert records[0].data_type == "NUMBER(20,4)"
+
+
+def test_type_fill_rate_and_description_folded_into_one_cell_are_separated(
+    tmp_path: Path,
+) -> None:
+    row = (
+        "| 148 | 同比增长率-归 | 属母公司股东 | 的净利润(%) | "
+        "S_FA_YOYNETPROFIT | | NUMBER(20 ,4) 91.00% 净利润同比增长率； |"
+    )
+    _write_dictionary(tmp_path, "FoldedTail", rows=row)
+    record = DictionaryBuilder(tmp_path).build()[0]
+
+    assert record.field == "s_fa_yoynetprofit"
+    assert record.data_type == "NUMBER(20,4)"
+    assert record.fill_rate == pytest.approx(0.91)
+    assert record.description_zh == "净利润同比增长率；"
 
 
 # --------------------------------------------------------------------------- market

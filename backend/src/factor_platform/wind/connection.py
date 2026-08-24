@@ -27,6 +27,7 @@ from typing import Any
 
 import pymysql  # type: ignore[import-untyped]
 
+from factor_platform.secrets import reveal_secret
 from factor_platform.settings import Settings
 
 _LOG = logging.getLogger(__name__)
@@ -108,7 +109,7 @@ class WindConnectionFactory:
             "host": host,
             "port": settings.wind_port,
             "user": user,
-            "password": password_secret.get_secret_value(),
+            "password": reveal_secret(password_secret),
             "database": database,
             "charset": _DEFAULT_CHARSET,
             "connect_timeout": _DEFAULT_CONNECT_TIMEOUT_SEC,

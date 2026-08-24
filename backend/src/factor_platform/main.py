@@ -21,14 +21,18 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from factor_platform.api import analysis, events, health, reports, sessions
 from factor_platform.api.errors import ERROR_MAP, domain_exception_handler
 from factor_platform.db.repository import SessionRepository
+from factor_platform.execution.real_wind import RealWindCaseRunner
 from factor_platform.factor.metric_registry import MetricRegistry
-from factor_platform.llm.base import FakeLLMProvider, LLMProvider
+from factor_platform.llm.base import LLMProvider
+from factor_platform.llm.factory import build_llm_provider
 from factor_platform.orchestration.service import WorkflowService
 from factor_platform.reports.extractor import ReportExtractor
 from factor_platform.settings import Settings, get_settings
 from factor_platform.wind.adapter import RQ_WIND_CAPABILITIES
 from factor_platform.wind.capabilities import CapabilityCatalog
 from factor_platform.wind.planner import WindPlanner
+from factor_platform.wind.query_executor import WindQueryExecutor
+from factor_platform.wind.schema_verify import SchemaVerifier
 
 
 def create_app(
@@ -40,17 +44,31 @@ def create_app(
     """Build the application, injecting anything a test needs to replace."""
     resolved_settings = settings or get_settings()
     resolved_engine = engine or create_async_engine(resolved_settings.database_url)
-    # Falls back to the offline double so the app starts without a model key —
-    # the platform is usable offline by design, and refusing to boot would make
-    # that untrue.
-    resolved_provider = provider or FakeLLMProvider()
+    # Missing credentials and LOCAL_ONLY_MODE both produce an unavailable router;
+    # the application must never silently keep using FakeLLMProvider.
+    resolved_provider = provider or build_llm_provider(resolved_settings)
 
     registry = MetricRegistry.load()
+    schema_verifier = (
+        SchemaVerifier(
+            WindQueryExecutor(resolved_settings),
+            database=resolved_settings.wind_database or "",
+        )
+        if resolved_settings.wind_enabled
+        else None
+    )
+    real_wind_runner = (
+        RealWindCaseRunner(resolved_settings, registry=registry)
+        if resolved_settings.wind_enabled
+        else None
+    )
     workflow = WorkflowService(
         SessionRepository(resolved_engine),
         resolved_provider,
         WindPlanner(CapabilityCatalog.from_registry(RQ_WIND_CAPABILITIES), registry),
         registry=registry,
+        schema_verifier=schema_verifier,
+        real_wind_runner=real_wind_runner,
     )
 
     app = FastAPI(
@@ -72,6 +90,7 @@ def create_app(
     app.dependency_overrides[events.get_engine] = lambda: resolved_engine
     app.dependency_overrides[health.get_engine] = lambda: resolved_engine
     app.dependency_overrides[health.get_settings_dependency] = lambda: resolved_settings
+    app.dependency_overrides[health.get_llm_provider] = lambda: resolved_provider
 
     for exception_type in ERROR_MAP:
         app.add_exception_handler(exception_type, domain_exception_handler)

@@ -22,6 +22,7 @@ export type SessionSnapshot = components["schemas"]["SessionSnapshot"]
 export type FactorSpecOut = components["schemas"]["FactorSpec-Output"]
 export type FactorSpecIn = components["schemas"]["FactorSpec-Input"]
 export type FieldSelection = components["schemas"]["FieldSelection"]
+export type FieldCandidateBinding = components["schemas"]["FieldCandidateBinding"]
 export type ResearchRequest = components["schemas"]["ResearchRequest"]
 export type HealthReport = components["schemas"]["HealthReport"]
 
@@ -85,6 +86,21 @@ export const apiClient = {
       factor_spec: spec,
     }),
 
+  resolveClarification: (
+    sessionId: string,
+    expectedVersion: number,
+    answers: Record<string, string>,
+  ) =>
+    post<SessionSnapshot>(`/api/sessions/${sessionId}/resolve-clarification`, {
+      expected_version: expectedVersion,
+      answers,
+    }),
+
+  discoverFields: (sessionId: string, expectedVersion: number) =>
+    post<SessionSnapshot>(`/api/sessions/${sessionId}/discover-fields`, {
+      expected_version: expectedVersion,
+    }),
+
   confirmFields: (
     sessionId: string,
     expectedVersion: number,
@@ -105,6 +121,21 @@ export const apiClient = {
     post<SessionSnapshot>(`/api/sessions/${sessionId}/revise-formula`, {
       expected_version: expectedVersion,
       factor_spec: spec,
+    }),
+
+  reviseFields: (
+    sessionId: string,
+    expectedVersion: number,
+    selections: FieldSelection[],
+  ) =>
+    post<SessionSnapshot>(`/api/sessions/${sessionId}/revise-fields`, {
+      expected_version: expectedVersion,
+      field_selections: selections,
+    }),
+
+  executeRealWind: (sessionId: string, expectedVersion: number) =>
+    post<SessionSnapshot>(`/api/sessions/${sessionId}/execute-real-wind`, {
+      expected_version: expectedVersion,
     }),
 
   cancel: (sessionId: string, expectedVersion: number) =>

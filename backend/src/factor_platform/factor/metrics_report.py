@@ -203,7 +203,11 @@ async def _run_one(case: GoldenCase) -> tuple[list[str], list[CaseFailure]]:
             )
         )
 
-    raised = [q.question_id for q in ClarificationEngine().questions(spec) if q.blocking]
+    raised = [
+        q.question_id
+        for q in ClarificationEngine().questions(spec, case.request.research_idea)
+        if q.blocking
+    ]
     expected = set(case.expected_blocking_question_ids)
     if expected - set(raised):
         failures.append(

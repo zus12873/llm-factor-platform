@@ -32,6 +32,12 @@ from factor_platform.domain.models import (
     QueryShape,
     ValidationSeverity,
 )
+from factor_platform.execution.real_wind import (
+    RealWindCaseRunner,
+    RealWindExecutionError,
+    apply_confirmed_announcement_requirements,
+    complete_registered_selections,
+)
 from factor_platform.factor.clarification import ClarificationEngine
 from factor_platform.factor.golden import (
     get_golden_case,
@@ -65,7 +71,7 @@ def parse_case(case_id: str) -> None:
     provider = FakeLLMProvider()
     provider.enqueue_content(json.dumps(case.provider_draft, ensure_ascii=False))
     spec = asyncio.run(FactorParser(provider).parse(case.request))
-    questions = ClarificationEngine().questions(spec)
+    questions = ClarificationEngine().questions(spec, case.request.research_idea)
     actual_blocking = sorted(q.question_id for q in questions if q.blocking)
     expected = sorted(case.expected_blocking_question_ids)
     payload = {
@@ -135,7 +141,11 @@ def run_case(
     provider.enqueue_content(json.dumps(case.provider_draft, ensure_ascii=False))
     spec = asyncio.run(FactorParser(provider).parse(case.request))
 
-    blocking = [q for q in ClarificationEngine().questions(spec) if q.blocking]
+    blocking = [
+        q
+        for q in ClarificationEngine().questions(spec, case.request.research_idea)
+        if q.blocking
+    ]
     typer.echo(f"parse    : {spec.canonical_formula}")
     if blocking:
         typer.echo(
@@ -146,6 +156,28 @@ def run_case(
         raise typer.Exit(code=0)
     typer.echo("clarify  : no blocking question")
 
+    registry = MetricRegistry.load()
+    selections: list[FieldSelection] = []
+    for field in case.expected_fields:
+        if field.get("table") and field.get("field"):
+            selections.append(FieldSelection.model_validate(field))
+            continue
+        logical_name = str(field.get("logical_name") or "")
+        definition = registry.get(logical_name)
+        if definition is not None:
+            selections.append(
+                FieldSelection(
+                    logical_name=logical_name,
+                    table=definition.wind_table,
+                    field=definition.wind_field,
+                )
+            )
+    if not selections:
+        typer.echo("plan     : skipped (case pins no confirmed fields)")
+        raise typer.Exit(code=0)
+
+    selections = complete_registered_selections(selections, registry)
+    spec = apply_confirmed_announcement_requirements(spec, selections)
     formula_report = FormulaValidator().validate(spec)
     errors = [f for f in formula_report.findings if f.severity is ValidationSeverity.ERROR]
     for finding in formula_report.findings:
@@ -153,16 +185,6 @@ def run_case(
     if errors:
         raise typer.Exit(code=1)
 
-    selections = [
-        FieldSelection.model_validate(field)
-        for field in case.expected_fields
-        if field.get("table") and field.get("field")
-    ]
-    if not selections:
-        typer.echo("plan     : skipped (case pins no confirmed fields)")
-        raise typer.Exit(code=0)
-
-    registry = MetricRegistry.load()
     planner = WindPlanner(CapabilityCatalog.from_registry(RQ_WIND_CAPABILITIES), registry)
     plan = planner.plan(spec, selections, case.request)
     typer.echo(
@@ -178,12 +200,33 @@ def run_case(
         )
         raise typer.Exit(code=0)
 
+    try:
+        settings = get_settings()
+        result = RealWindCaseRunner(settings, registry=registry).run(
+            case_id=case.case_id,
+            spec=spec,
+            request=case.request,
+            selections=selections,
+            plan=plan,
+        )
+    except (ValidationError, RealWindExecutionError) as exc:
+        typer.echo(f"fetch    : failed — {exc}", err=True)
+        raise typer.Exit(code=2) from None
+    except Exception as exc:  # noqa: BLE001 - redact driver/network details
+        typer.echo(
+            f"fetch    : failed — {type(exc).__name__} (details redacted)", err=True
+        )
+        raise typer.Exit(code=2) from None
+
     typer.echo(
-        "fetch    : live Wind retrieval is not wired into this command yet; "
-        "see docs/acceptance/deferred-credential-steps.md",
-        err=True,
+        "fetch    : real Wind inputs written and pinned\n"
+        f"execute  : worker completed job {result.job_id}\n"
+        f"result   : {result.result_rows} rows × {result.result_columns} securities, "
+        f"non-null {result.result_non_null_rate:.1%}\n"
+        f"validate : {json.dumps(result.validation_counts, ensure_ascii=False)}\n"
+        f"review   : {json.dumps(result.metric_review_status, ensure_ascii=False)}\n"
+        f"artifacts: {result.run_dir}"
     )
-    raise typer.Exit(code=2)
 
 
 @app.command("verify-field")

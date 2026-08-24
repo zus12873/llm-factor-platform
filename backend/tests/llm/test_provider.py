@@ -51,7 +51,31 @@ async def test_openai_provider_parses_chat_completion() -> None:
 @respx.mock
 async def test_openai_provider_raises_on_http_error() -> None:
     base = "https://llm.example.com/v1"
-    respx.post(f"{base}/chat/completions").mock(return_value=httpx.Response(500, text="boom"))
+    sensitive_body = "server detail that must not escape"
+    respx.post(f"{base}/chat/completions").mock(
+        return_value=httpx.Response(500, text=sensitive_body)
+    )
     provider = OpenAICompatibleProvider(name="kimi", base_url=base, api_key="x", model="m")
-    with pytest.raises(LLMResponseError):
+    with pytest.raises(LLMResponseError) as caught:
         await provider.structured_chat([ChatMessage(role="user", content="hi")], Answer)
+    assert sensitive_body not in str(caught.value)
+
+
+def test_openai_provider_appends_schema_to_existing_system_message() -> None:
+    provider = OpenAICompatibleProvider(
+        name="kimi", base_url="https://llm.example.com/v1", api_key="x", model="m"
+    )
+    payload = provider._payload(
+        [
+            ChatMessage(role="system", content="Stage-specific instruction."),
+            ChatMessage(role="user", content="hi"),
+        ],
+        Answer,
+    )
+    system_messages = [
+        message["content"] for message in payload["messages"] if message["role"] == "system"
+    ]
+    assert len(system_messages) == 1
+    assert "Stage-specific instruction." in system_messages[0]
+    assert '"value"' in system_messages[0]
+    assert "Respond with JSON matching this schema" in system_messages[0]

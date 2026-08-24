@@ -48,7 +48,7 @@ async def test_case_blocking_matches_expected(case) -> None:
     provider = FakeLLMProvider()
     provider.enqueue_content(json.dumps(case.provider_draft))
     spec = await FactorParser(provider).parse(case.request)
-    questions = ClarificationEngine().questions(spec)
+    questions = ClarificationEngine().questions(spec, case.request.research_idea)
     actual_blocking = sorted(question.question_id for question in questions if question.blocking)
     expected = sorted(case.expected_blocking_question_ids)
     assert actual_blocking == expected, (

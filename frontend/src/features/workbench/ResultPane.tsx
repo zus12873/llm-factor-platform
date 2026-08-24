@@ -26,7 +26,12 @@ export function ResultPane({ result, artifactUri }: Props) {
     ...(result.formula_validation?.findings ?? []),
     ...(result.result_validation?.findings ?? []),
   ]
-  const unreviewed = findings.some((f) => f.code === "unreviewed_metric")
+  const reviewStatuses = Object.entries(
+    (result.resource_stats?.metric_review_status as Record<string, string> | undefined) ?? {},
+  )
+  const unreviewed =
+    findings.some((f) => f.code === "unreviewed_metric") ||
+    reviewStatuses.some(([, status]) => status === "unreviewed")
 
   return (
     <Card
@@ -66,6 +71,20 @@ export function ResultPane({ result, artifactUri }: Props) {
         )}
         {result.log_summary && (
           <Descriptions.Item label="日志">{result.log_summary}</Descriptions.Item>
+        )}
+        {typeof result.resource_stats?.source === "string" && (
+          <Descriptions.Item label="数据源">
+            <Tag color="green">{result.resource_stats.source}</Tag>
+          </Descriptions.Item>
+        )}
+        {reviewStatuses.length > 0 && (
+          <Descriptions.Item label="口径复核">
+            {reviewStatuses.map(([metric, status]) => (
+              <Tag key={metric} color={status === "reviewed" ? "green" : "orange"}>
+                {metric}: {status}
+              </Tag>
+            ))}
+          </Descriptions.Item>
         )}
       </Descriptions>
 

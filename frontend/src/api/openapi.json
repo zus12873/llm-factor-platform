@@ -193,6 +193,58 @@
         }
       }
     },
+    "/api/sessions/{session_id}/resolve-clarification": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Resolve Clarification",
+        "operationId": "resolve_clarification_api_sessions__session_id__resolve_clarification_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClarificationBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions/{session_id}/field-candidates": {
       "post": {
         "tags": [
@@ -217,6 +269,58 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CandidatesBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/discover-fields": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Discover Fields",
+        "operationId": "discover_fields_api_sessions__session_id__discover_fields_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionBody"
               }
             }
           }
@@ -321,6 +425,58 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BuildBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{session_id}/execute-real-wind": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Execute Real Wind",
+        "operationId": "execute_real_wind_api_sessions__session_id__execute_real_wind_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionBody"
               }
             }
           }
@@ -973,6 +1129,26 @@
         ],
         "title": "CandidatesBody"
       },
+      "ClarificationBody": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "title": "Expected Version"
+          },
+          "answers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Answers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_version"
+        ],
+        "title": "ClarificationBody"
+      },
       "ClarificationQuestion": {
         "properties": {
           "schema_version": {
@@ -1228,6 +1404,26 @@
           "score": {
             "type": "number",
             "title": "Score"
+          },
+          "bbox": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Bbox"
           }
         },
         "type": "object",
@@ -1235,7 +1431,8 @@
           "evidence_id",
           "page_number",
           "text",
-          "score"
+          "score",
+          "bbox"
         ],
         "title": "Excerpt",
         "description": "One scored block, with the identifier the model must cite."
@@ -1467,6 +1664,16 @@
             "type": "string",
             "title": "Hypothesis",
             "default": ""
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FactorDirection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "variables": {
             "items": {
@@ -1715,6 +1922,146 @@
         ],
         "title": "FactorSpec",
         "description": "The confirmed, machine-checkable description of one factor.\n\n``formula_ast`` is the single source of truth. ``canonical_formula`` is\nrendered from it by the backend and is what the user actually confirms;\n``formula_explanation`` is the model's prose and is display-only. The model\nnever authors the confirmed formula, so what is signed off and what is\nexecuted cannot diverge."
+      },
+      "FieldCandidateBinding": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "table": {
+            "type": "string",
+            "title": "Table"
+          },
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "meaning_zh": {
+            "type": "string",
+            "title": "Meaning Zh",
+            "default": ""
+          },
+          "meaning_en": {
+            "type": "string",
+            "title": "Meaning En",
+            "default": ""
+          },
+          "asset_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssetType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Frequency"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "time_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FieldTimeRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "metadata_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata Source"
+          },
+          "source_tier": {
+            "type": "string",
+            "title": "Source Tier",
+            "default": "bm25"
+          },
+          "lexical_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lexical Score"
+          },
+          "recommendation_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendation Score"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
+          "logical_name": {
+            "type": "string",
+            "title": "Logical Name"
+          },
+          "schema_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "table",
+          "field",
+          "logical_name"
+        ],
+        "title": "FieldCandidateBinding",
+        "description": "A candidate tied to the logical variable it may satisfy in this session."
       },
       "FieldSelection": {
         "properties": {
@@ -2508,6 +2855,13 @@
                 "type": "null"
               }
             ]
+          },
+          "field_candidates": {
+            "items": {
+              "$ref": "#/components/schemas/FieldCandidateBinding"
+            },
+            "type": "array",
+            "title": "Field Candidates"
           },
           "field_selections": {
             "items": {

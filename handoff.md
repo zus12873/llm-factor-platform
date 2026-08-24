@@ -1,143 +1,201 @@
-# Factor Platform Handoff
+# LLM Factor Platform Handoff
 
-更新时间：2026-08-11  
-仓库：https://github.com/zus12873/llm-factor-platform（**公开仓库**）  
-当前分支：`main`，30 次提交，本地与远端一致  
-当前阶段：**离线开发完成（36/36 任务）**，等待凭据接入真实数据
+## 项目当前状态
 
----
+项目目标：将自然语言研究想法或卖方研报转换为可执行、可复现、可审计的量化因子。
 
-## 1. 先读这三份
+当前已完成自然语言因子生成、阻塞性歧义确认、Wind 字段候选与人工确认、受控真实取数、签名 manifest、隔离 Worker、因子计算、三层结果校验以及真实浏览器闭环。真实 Kimi Coding Plan、真实 Wind 和前后端端到端流程均已完成验收。
 
-| 文档 | 内容 |
+当前工作目录最初来自 GitHub ZIP，不包含 `.git`，因此它不是可直接提交的 Git 工作树。本次提交前检查确认：
+
+- 原仓库：<https://github.com/zus12873/llm-factor-platform>
+- 远程 `main`：`29597625e482284d85d5719623d3dbd208066851`
+- 本地分支、remote 和 HEAD：不存在
+- 与远程 `main` 的文件级对比：过滤运行时产物后，57 个已修改文件、43 个本地新增文件、0 个远程独有文件
+- 正式接回 GitHub 时，应先重新克隆远程 `main`，再有选择地迁移本地增量；不要在当前 ZIP 目录中直接假定历史或分支关系
+
+## 已完成核心功能
+
+### LLM 接入
+
+- 使用 OpenAI-compatible Provider。
+- 已完善 Provider Router、结构化响应解析、健康检查、错误脱敏和调用用量记录。
+- 当前支持 Kimi Coding Plan。
+- Coding Plan Base URL：<https://api.kimi.com/coding/v1>
+- 已真实验证 `k3` 模型、最小 Chat、结构化 FactorSpec 和工具调用能力。
+- 未配置或不可达时不会静默回退到 Fake Provider。
+- 真实 API Key 只允许通过环境变量或本地未跟踪配置注入，不得写入仓库。
+
+### Wind 真实数据链路
+
+- 已完成真实 Wind MySQL 只读取数。
+- 已完成以下真实执行流程：
+
+  1. 后端按受控查询函数或受控查询形状获取数据；
+  2. 写入 `raw_input.parquet` 和 `aligned_input.parquet`；
+  3. 构建并签名 manifest；
+  4. 无 Wind/LLM 凭据、无数据库连接的 Worker 执行因子；
+  5. 生成因子结果；
+  6. 执行数据、公式和结果三层校验。
+
+- `run-case --real-wind` 已完成接线并真实跑通。
+- 支持历史指数成分、ST/停牌过滤、预热窗口、公告日 point-in-time、T 日信号与 T+1 交易口径。
+- 后端持有 Wind 凭据；Worker 不持有凭据且不连接数据库。
+- 不存在任意 SQL 通道。
+
+### 因子生成流程
+
+当前支持：
+
+```text
+自然语言研究想法
+→ 因子结构生成（FactorSpec / AST）
+→ 阻塞性歧义确认
+→ Wind 字段候选
+→ 人工确认字段
+→ 受控取数计划
+→ manifest
+→ Worker 执行
+→ 结果校验与展示
+```
+
+模型只负责生成结构化 FactorSpec；正式 `canonical_formula` 由后端根据 AST 确定性渲染。修改公式或字段会使下游计划、manifest 和旧结果级联失效。
+
+### 研报解析
+
+当前支持：
+
+- 中文文本型 PDF；
+- 英文文本型 PDF；
+- 本地 PDF 文本提取和 OCR；
+- 公式与因子变量抽取；
+- 页码、坐标和证据 ID 记录；
+- 低置信度或 OCR 公式进入人工确认，不直接执行；
+- 对外模型只接收经过边界控制的必要片段，不发送完整内部研报或 Wind 原始数据。
+
+### 指标口径确认
+
+- 已完成带教老师人工确认。
+- 验收文档中的相关指标审核状态已由 `unreviewed` 更新为 `reviewed`。
+- 详细记录见 [`docs/acceptance/metric-review-evidence.md`](docs/acceptance/metric-review-evidence.md)。
+- 本次确认任务按要求只更新文档，没有修改 `backend/data/metric_definitions.yaml` 或单位元数据。若后续要求运行时界面同步显示 `reviewed`，需另行取得授权并更新运行时注册数据，不能把文档状态误当成代码状态。
+
+## 当前未完成事项
+
+### 1. 研报提取结果进入因子工作流闭环
+
+当前状态：
+
+- PDF 解析已完成；
+- 因子抽取已完成；
+- “进入因子工作流”按钮尚未完成完整接线；
+- 当前按钮没有 `onClick` handler，不调用创建 Factor Session 的 API；
+- 后端存在通用 `POST /api/sessions`，但缺少“研报抽取结果 → FactorSpec / Factor Session”的映射与专用调用链。
+
+### 2. 因子库页面
+
+当前状态：
+
+- 页面和路由存在；
+- 后端 `FactorLibrary` 核心服务部分存在并有单元测试；
+- 前端页面仍显示“待实现”；
+- 缺少完整的因子库 API 路由、前端数据加载和展示接线。
+
+### 3. 字段语义增强
+
+当前字段检索仍需增强金融语义规则，例如：
+
+- 动量、收益率类因子优先使用复权价格；
+- `close` 不应默认等同于 `adj_close`；
+- 复权方式应成为显式、可确认的数据规则；
+- 字段语义增强不能绕过现有人工确认和 Schema 校验。
+
+### 4. 部署与版本化
+
+- 当前机器没有完成 Docker/Compose 真实冒烟。
+- 当前 ZIP 工作副本需要迁回带 Git 历史的全新远程 `main` 克隆。
+- 在人工确认提交范围前，不要执行 `git add`、`git commit` 或 `git push`。
+
+## 测试状态
+
+最近一次完整真实验收结果：
+
+| 测试项 | 结果 |
 |---|---|
-| [`docs/使用说明.md`](docs/使用说明.md) | 功能清单与完整操作流程 |
-| [`docs/工程优化记录.md`](docs/工程优化记录.md) | 实现中的 18 个问题与优化过程 |
-| [`docs/acceptance/2026-08-10/README.md`](docs/acceptance/2026-08-10/README.md) | 验收报告，含**未能验证的部分** |
+| 后端测试 | 647 passed，12 skipped |
+| Ruff | 通过 |
+| mypy | 85 个源文件无问题 |
+| 前端测试 | 29 passed |
+| 前端生产构建 | 通过 |
+| npm audit | 0 vulnerabilities |
+| Golden | 37/37 |
+| 真实 Wind | 通过 |
+| Kimi Coding Plan | 通过 |
+| 真实浏览器五场景 | 通过 |
 
-设计与计划（发现实现与计划冲突时，先以已批准设计为准，再把必要修订写回原计划档）：
+上述为最近一次完整验收记录。本次 Git 整理和文档更新没有修改业务代码，因此没有重复运行完整项目验收。原始隐藏案例集当前不存在，不能重建替代集冒充重跑。
 
-- [`docs/superpowers/specs/2026-08-04-factor-platform-design.md`](docs/superpowers/specs/2026-08-04-factor-platform-design.md) —— 顶部有修订记录，列出 15 条被取代条款
-- [`docs/superpowers/plans/2026-08-04-factor-platform.md`](docs/superpowers/plans/2026-08-04-factor-platform.md) —— 36 个任务，**每个任务下都有实现修订说明**
+主要验收材料：
 
-**不要另写第二套架构或另起一套任务命名。**
+- [`docs/acceptance/2026-08-13/README.md`](docs/acceptance/2026-08-13/README.md)：真实 Wind、Worker、PIT 和校验证据；
+- [`docs/acceptance/2026-08-14-coding-final/README.md`](docs/acceptance/2026-08-14-coding-final/README.md)：真实 Coding Plan、自然语言、研报和浏览器闭环；
+- [`docs/acceptance/metric-review-evidence.md`](docs/acceptance/metric-review-evidence.md)：指标口径人工确认记录。
 
----
+## 环境配置说明
 
-## 2. 用户已确认的约束（不要重复询问）
+所有真实值只通过环境变量或本地未跟踪配置注入。仓库中仅保留空值模板 `.env.example`。
 
-- 范围覆盖 P0、P1、P2；时间约束 1 个月
-- 人力：1 名全职开发者，**无专职研究人员全程参与**；关键指标与最终验收由带教老师抽样确认
-- 优先级：**核心闭环的正确性与安全性第一**
-- 范围：日频 A 股、中小规模研究，**不含实盘交易**
-- 架构：模块化 FastAPI 单体 + React 工作台 + 隔离 Worker
-- **工作方式（2026-08-10）**：先离线完成全部开发，凭据在开发完成后统一索取
-- **隐藏验收集（2026-08-10）**：由开发者本人编写，靠纪律隔离；该隔离是软的，须在报告中标注
+### Kimi Coding Plan
 
----
+- `KIMI_CODING_BASE_URL`
+- `KIMI_CODING_API_KEY`
+- `KIMI_CODING_MODEL`
+- `KIMI_CODING_REASONING_EFFORT`（可选）
+- `LOCAL_ONLY_MODE`
 
-## 3. 当前状态
+### Wind
 
-### 已完成
+- `WIND_ENABLED`
+- `WIND_HOST`
+- `WIND_PORT`
+- `WIND_USER`
+- `WIND_PASSWORD`
+- `WIND_DATABASE`
 
-**36 / 36 任务**，含技术评审新增的 6 个（2.5 / 3.5 / 4.5 / 6.5 / 9.5 / 10.5）。
+### 平台运行
 
-```
-ruff   → All checks passed!
-mypy   → Success: no issues found in 82 source files
-pytest → 612 passed（后端）
-vitest → 28 passed（前端）
-黄金集 → 37/37    阻塞召回 100%  工具选择准确率 100%
-隐藏集 → 10/10    首次运行，与黄金集无差距
-```
+- `APP_ENV`
+- `DATABASE_URL`
+- `ARTIFACT_ROOT`
+- `JOB_ROOT`
+- `SESSION_COOKIE_SECRET`
+- `MANIFEST_SIGNING_KEY`
 
-规模：后端 82 模块 / 13,423 行，测试 48 文件 / 7,800 行，前端 25 个 TS/TSX 文件。
+安全要求：
 
-### 已用真实组件验证（非替身）
+- 不得提交 `.env`、API Key、Wind 账号密码或完整连接串；
+- Worker 环境不得包含 Wind 或 LLM 凭据；
+- 不得把 Wind 原始数据、完整内部研报或其他敏感内容发送给外部模型；
+- 不得关闭 manifest 验签、点时校验或 disputed 闸门；
+- 不得引入任意 SQL、`eval` 或 `exec`。
 
-- 真实浏览器（Playwright + 独立临时 profile 的 Chrome）：导航、路由、健康横幅、表单提交、错误呈现
-- 真实 uvicorn：`/api/health` 200，`POST /api/sessions` 201
-- 真实 OCR 引擎（RapidOCR）：识别 `ROE TTM cross-sectional rank`，置信度 0.99
-- 真实 Worker CLI：任务从 `pending` 走到 `completed` 并产出 Parquet
-- 真实 Wind 数据字典解析：678 份文档 → 7,478 字段，93.6% 有描述
-- P0 端到端：想法 → 公式 → 计划 → manifest → 签名 → Worker → 三层校验（Wind 与模型为替身，**组件间接缝全真**）
+## Git 提交前安全提示
 
-### 未完成 —— 不要凭文档推断这些已可用
+- 项目根目录 `Wind取数尝试.ipynb` 含非空 Wind 连接配置，禁止提交，应移出待提交工作树并加入忽略规则。
+- `data/artifacts/`、`tmp/`、Parquet、数据库、日志、虚拟环境、Node 依赖、缓存和构建产物均禁止提交。
+- 当前 `.gitignore` 已覆盖大部分运行时产物，但建议在正式迁移工作树中补充 `/tmp/`、`*.parquet` 和 `/Wind取数尝试.ipynb`；该建议尚未应用。
+- 验收截图已做人工视觉检查，未发现凭据、连接串或 Wind 原始数据明细。
+- 提交前必须从全新远程 `main` 克隆中执行一次最终 secret scan 和 `git diff --cached` 复核。
 
-| 项目 | 状态 | 前置 |
-|---|---|---|
-| 真实 Wind 数据库连接 | **从未跑通** | 凭据轮换 |
-| 真实大模型接口 | **未实测** | Kimi 凭据 |
-| `run-case --real-wind` 取数接线 | **未实现** | 同上 |
-| Docker 镜像构建与 Compose 冒烟 | **未执行** | 开发机无 Docker |
-| 9 条口径复核 | 全部 `unreviewed` | 带教老师（不需凭据） |
-| Task 20 五场景浏览器验收中的三项 | 未执行 | 取数接线 |
+## 后续开发建议
 
-完整清单：[`docs/acceptance/deferred-credential-steps.md`](docs/acceptance/deferred-credential-steps.md)
+推荐顺序：
 
----
+1. 固化 Git 版本：从远程 `main` 新建干净克隆，选择性迁入源码、测试和脱敏文档，人工复核后再提交；
+2. 完成研报提取结果 → 因子工作流的会话创建和状态接线；
+3. 完成因子库 API、前端页面和端到端测试；
+4. 增强字段语义检索，明确复权价格与原始收盘价的差异；
+5. 在具备 Docker 的环境补做 Compose 冒烟；
+6. 运行完整离线门禁、真实组件定向回归、secret scan 和提交差异复核。
 
-## 4. 安全红线
-
-1. **不得在聊天、日志、测试输出、提交信息或文档中复述实际凭据值。**
-   仓库是**公开的**，这条比之前更严格。
-2. **启用真实 Wind 前，必须由具备数据库管理权限的人轮换已暴露凭据。**
-3. 真实密钥只进入本地 `.env`；仓库只提交全空值的 `.env.example`。
-4. Worker 不得获取 Wind 或 LLM 密钥；生产 Compose 必须保持 `network_mode: none`。
-5. 不得用「为了赶进度」放开任意 SQL、`eval`、`exec`、系统命令或任意网络访问。
-6. **边界 B4**：Wind 原始数据、密钥、研报全文默认不得发送至外部模型服务。
-7. 受商业授权的 Wind 数据字典（`windquery/`）与内部需求文档（`imgs/`）
-   **不入公开仓库**，已在 `.gitignore` 中。
-
-代码层面：`get_secret_value()` 在整个代码库中只出现一处（`wind/connection.py`），便于审计。
-
----
-
-## 5. 关键技术决策
-
-- Python 3.11，**必须**使用 uv 项目环境（`uv run --project backend`）
-- pytest 必须用**绝对路径**调用，从仓库根用相对路径会让 rootdir 解析出错
-- 前端类型由后端 OpenAPI 生成（`backend/scripts/export_openapi.py` → `npm run gen:api`）
-- 状态：后端事件状态机是唯一真相；前端只渲染后端状态
-- **公式**：模型只出 `formula_ast`；`canonical_formula` 由后端渲染，是用户确认的正式公式
-- **预处理**：有序流水线，区分 `target=variables|factor`，不得与 AST 双重表达
-- **时间口径**：默认 T 收盘计算、T+1 交易、次日开盘执行；公告时点不确定时保守顺延
-- **执行**：受信任后端取数写 Parquet；无密钥 Worker 校验并执行签名 manifest
-- **修复**：只修复分类后的参数/公式错误，最多两轮，每轮产出新版本并需重新确认
-
----
-
-## 6. 执行模式
-
-- **直接在 `main` 上开发**（用户明确否决了 worktree 方案）
-- 每个独立任务验证后单独提交；禁止 `git add .` / `git add -A`
-- **提交必须由用户本人运行 `/commit`** —— 该 skill 为 `disable-model-invocation`，
-  Agent 不可调用，也不得用其他方式替代其流程
-- **push 需用户明确授权**
-- 声称完成前必须在当前回合跑过验证命令并贴出证据
-- UI 改动必须通过 `browser-control` 在真实浏览器验证
-
----
-
-## 7. 下一步
-
-按依赖顺序：
-
-1. **Wind 凭据轮换** —— 需数据库管理员执行。整条真实数据线堵在这里
-2. 配置 `.env`（含 `SESSION_COOKIE_SECRET`、`MANIFEST_SIGNING_KEY` 两个随机串）
-3. 三种查询形态的 `verify-field` 实测
-4. 实现 `run-case --real-wind` 的取数接线，跑通真实端到端
-5. 单位口径核对（`s_dq_volume` 是股还是万股，直接影响换手率）
-6. 带教老师抽样确认 9 条口径 —— **可与 1–5 并行，不需凭据**
-7. Docker 环境就绪后构建镜像并跑 Compose 冒烟
-8. 补做 Task 20 依赖执行端的三个浏览器验收场景
-
----
-
-## 8. 已知局限（方法论层面，无法靠代码解决）
-
-- **隐藏验收集由开发者本人编写**，只能检出无意的过拟合，检不出有意的
-- **无专职研究员**，口径由开发者整理并初步核验，正确性依赖带教老师抽样
-- 补偿控制：口径基线登记表、数量级与参考值校验、三值复核状态闸门
-
-这三条必须在任何对外汇报中如实呈现。
+不要在未人工确认迁移范围时使用 `git add .` 或 `git add -A`。不要直接 push。

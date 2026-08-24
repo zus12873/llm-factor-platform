@@ -210,7 +210,9 @@ def test_a_valuation_field_does_not_get_routed_to_the_price_function(
     assert "pe_ttm" not in price_outputs
     assert all(step.tool != "wind.get_price" for step in plan.steps)
     generic = next(s for s in plan.steps if s.tool == "wind.execute_generic_query_plan")
-    assert generic.arguments["field"] == "s_val_pe_ttm"
+    assert generic.arguments["selected_fields"] == ["s_val_pe_ttm"]
+    assert generic.arguments["query_shape"] == "point_range"
+    assert generic.arguments["observation_date"] == "trade_dt"
 
 
 def test_close_is_routed_to_the_price_function_because_the_catalog_says_so(
@@ -230,9 +232,13 @@ def test_a_field_without_a_registered_function_uses_a_controlled_query_shape(
     """Only the six vetted shapes; never free-form SQL."""
     plan = planner.plan(roe_spec(), confirmed_roe(), request())
     step = next(s for s in plan.steps if s.tool == "wind.execute_generic_query_plan")
-    assert step.arguments["shape"] == "report_period"
-    assert step.arguments["table"] == "asharettmhis"
-    assert step.arguments["field"] == "s_fa_roe_ttm"
+    assert step.arguments["query_shape"] == "report_period"
+    assert step.arguments["table_name"] == "asharettmhis"
+    assert step.arguments["selected_fields"] == ["s_fa_roe_ttm"]
+    assert step.arguments["report_period"] == "report_period"
+    assert step.arguments["announcement_date"] == "ann_dt"
+    assert step.arguments["start_date"] == "2022-01-01"
+    assert step.arguments["as_of_date"] == "2024-06-30"
 
 
 # --------------------------------------------------------------------------- refusals

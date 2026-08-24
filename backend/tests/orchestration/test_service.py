@@ -112,6 +112,27 @@ async def test_a_clear_idea_runs_through_to_a_plan(workflow: WorkflowService) ->
     assert snapshot.factor_spec.canonical_formula
 
 
+async def test_registered_aliases_are_discovered_and_persisted(
+    workflow: WorkflowService,
+) -> None:
+    snapshot = await workflow.create_session("s-discovery")
+    snapshot = await workflow.submit_message("s-discovery", request(), snapshot.version)
+    assert snapshot.factor_spec is not None
+    snapshot = await workflow.confirm_formula("s-discovery", snapshot.factor_spec, snapshot.version)
+    snapshot = await workflow.discover_fields("s-discovery", snapshot.version)
+
+    assert snapshot.state == "waiting_field_confirmation"
+    close = next(
+        candidate
+        for candidate in snapshot.field_candidates
+        if candidate.logical_name == "close"
+        and candidate.table == "ashareeodprices"
+        and candidate.field == "s_dq_adjclose"
+    )
+    assert close.source_tier == "alias"
+    assert close.schema_status == "not_verified"
+
+
 async def test_the_plan_resolves_index_membership_before_prices(
     workflow: WorkflowService,
 ) -> None:
@@ -119,6 +140,35 @@ async def test_the_plan_resolves_index_membership_before_prices(
     assert snapshot.plan is not None
     tools = [step.tool for step in snapshot.plan.steps]
     assert tools.index("wind.index_components") < tools.index("wind.get_price")
+
+
+async def test_price_alias_logical_name_still_reuses_registered_get_price(
+    workflow: WorkflowService,
+) -> None:
+    snapshot = await workflow.create_session("s-price-alias")
+    snapshot = await workflow.submit_message("s-price-alias", request(), snapshot.version)
+    assert snapshot.factor_spec is not None
+    spec = snapshot.factor_spec.model_copy(deep=True)
+    spec.variables[0].logical_name = "adj_close"
+    spec.formula_ast.args[0].args[0].name = "adj_close"
+    snapshot = await workflow.confirm_formula("s-price-alias", spec, snapshot.version)
+    snapshot = await workflow.search_fields("s-price-alias", [], snapshot.version)
+    snapshot = await workflow.confirm_fields(
+        "s-price-alias",
+        [
+            FieldSelection(
+                logical_name="adj_close",
+                table="ashareeodprices",
+                field="s_dq_adjclose",
+            )
+        ],
+        snapshot.version,
+    )
+    snapshot = await workflow.build_manifest("s-price-alias", request(), snapshot.version)
+
+    price_step = next(step for step in snapshot.plan.steps if step.tool == "wind.get_price")
+    assert price_step.inputs == ["adj_close"]
+    assert price_step.arguments["fields"] == ["close"]
 
 
 async def test_the_plan_carries_the_time_convention(workflow: WorkflowService) -> None:
@@ -153,6 +203,18 @@ async def test_an_ambiguous_idea_stops_for_clarification(engine) -> None:
 
     assert snapshot.state == "needs_clarification"
     assert any(q.blocking for q in snapshot.clarifications)
+    assert snapshot.factor_spec is not None
+
+    resolved = await workflow.resolve_clarification(
+        "s-vague",
+        {"profitability_definition": "ROE_TTM"},
+        snapshot.version,
+    )
+    assert resolved.state == "waiting_formula_confirmation"
+    assert resolved.clarifications == []
+    assert resolved.factor_spec is not None
+    assert resolved.factor_spec.variables[0].logical_name == "roe_ttm"
+    assert "roe_ttm" in resolved.factor_spec.canonical_formula
 
 
 # --------------------------------------------------------------------------- refusals
@@ -213,6 +275,22 @@ async def test_revising_the_formula_clears_fields_and_plan(
     assert after.state == "waiting_formula_confirmation"
     assert after.field_selections == []
     assert after.plan is None
+
+
+async def test_revising_an_ast_re_renders_the_canonical_formula(
+    workflow: WorkflowService,
+) -> None:
+    snapshot = await drive_to_manifest(workflow)
+    assert snapshot.factor_spec is not None
+    revised = snapshot.factor_spec.model_copy(deep=True)
+    rolling = revised.formula_ast.args[0]
+    rolling.params["window"] = 21
+    revised.canonical_formula = "stale display text"
+
+    after = await workflow.revise_formula("s1", revised, snapshot.version)
+
+    assert "window=21" in after.factor_spec.canonical_formula
+    assert "stale" not in after.factor_spec.canonical_formula
 
 
 async def test_revising_the_date_range_keeps_the_formula(

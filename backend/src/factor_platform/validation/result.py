@@ -56,10 +56,12 @@ class ResultValidator:
         *,
         metric_keys: Sequence[str] = (),
         reference: pd.DataFrame | None = None,
+        apply_metric_bounds: bool = True,
     ) -> ValidationReport:
         findings: list[ValidationFinding] = []
         findings.extend(self._distribution(factor))
-        findings.extend(self._magnitude(factor, metric_keys))
+        if apply_metric_bounds:
+            findings.extend(self._magnitude(factor, metric_keys))
         findings.extend(self._review_status(metric_keys))
         findings.extend(self._reference(factor, reference))
         return ValidationReport(findings=findings)

@@ -55,12 +55,8 @@ async def client(engine: AsyncEngine) -> AsyncIterator[AsyncClient]:
     provider = FakeLLMProvider()
     for _ in range(6):
         provider.enqueue_content(json.dumps(DRAFT, ensure_ascii=False))
-    app = create_app(
-        settings=Settings(app_env="test"), engine=engine, provider=provider
-    )
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as http:
+    app = create_app(settings=Settings(app_env="test"), engine=engine, provider=provider)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
         yield http
 
 
@@ -92,6 +88,25 @@ async def test_health_never_exposes_connection_details(client: AsyncClient) -> N
         assert forbidden not in body
 
 
+async def test_health_does_not_call_a_configured_but_unreachable_model_ready(
+    engine: AsyncEngine,
+) -> None:
+    provider = FakeLLMProvider(healthy=False)
+    settings = Settings(
+        app_env="test",
+        kimi_metered_api_key="unit-test-only",  # pragma: allowlist secret
+        kimi_model="test-model",
+    )
+    app = create_app(settings=settings, engine=engine, provider=provider)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
+        response = await http.get("/api/health")
+    llm = next(
+        component for component in response.json()["components"] if component["name"] == "llm"
+    )
+    assert llm["status"] == "unreachable"
+    assert "unit-test-only" not in response.text
+
+
 # --------------------------------------------------------------------------- sessions
 
 
@@ -99,6 +114,29 @@ async def test_a_session_advances_through_parse(client: AsyncClient) -> None:
     snapshot = await start_session(client)
     assert snapshot["state"] == "waiting_formula_confirmation"
     assert snapshot["factor_spec"]["canonical_formula"]
+
+
+async def test_browser_field_discovery_uses_the_backend_registry(
+    client: AsyncClient,
+) -> None:
+    snapshot = await start_session(client, "s-browser-fields")
+    confirmed = await client.post(
+        "/api/sessions/s-browser-fields/confirm-formula",
+        json={
+            "expected_version": snapshot["version"],
+            "factor_spec": snapshot["factor_spec"],
+        },
+    )
+    response = await client.post(
+        "/api/sessions/s-browser-fields/discover-fields",
+        json={"expected_version": confirmed.json()["version"]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["state"] == "waiting_field_confirmation"
+    assert any(
+        candidate["field"] == "s_dq_adjclose" for candidate in response.json()["field_candidates"]
+    )
 
 
 async def test_a_stale_version_returns_409_with_a_stable_code(
@@ -121,11 +159,15 @@ async def test_an_illegal_transition_returns_409(client: AsyncClient) -> None:
     created = await client.post("/api/sessions", json={"session_id": "s-fresh"})
     response = await client.post(
         "/api/sessions/s-fresh/confirm-formula",
-        json={"expected_version": created.json()["version"], "factor_spec": DRAFT | {
-            "asset_type": "stock",
-            "universe": "000300.SH",
-            "frequency": "daily",
-        }},
+        json={
+            "expected_version": created.json()["version"],
+            "factor_spec": DRAFT
+            | {
+                "asset_type": "stock",
+                "universe": "000300.SH",
+                "frequency": "daily",
+            },
+        },
     )
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "illegal_transition"

@@ -18,10 +18,11 @@
 
 ---
 
-## ⚠️ 当前状态：离线开发完成，未接真实数据
+## ⚠️ 当前状态：老师 K3 请求在本机仍存在环境差异
 
-全部 36 个任务已实现并通过离线验证。**但它还没有连过一次真实的 Wind 数据库，
-也没有调用过一次真实的大模型。**
+全部 36 个原计划任务已实现。真实 Wind 字段与两条完整因子执行已有通过证据。
+老师最新 K3 工作请求已用 httpx、curl、OpenAI SDK 严格复刻，但本机均返回 HTTP 401，
+分类为 `EXACT_TEACHER_CONFIG_ENVIRONMENT_MISMATCH`；不能通过猜模型或修改业务代码解决。
 
 | | 状态 |
 |---|---|
@@ -32,24 +33,28 @@
 | FastAPI 服务、React 工作台、SSE 可恢复事件流 | ✅ 已实现并测试 |
 | 研报 PDF 解析、受限 OCR、因子抽取 | ✅ 已实现并测试 |
 | 因子检验（IC / 分位 / 换手）、因子库、多因子指数、本地认证 | ✅ 已实现并测试 |
-| **真实 Wind 数据库连接** | ❌ **从未跑通**（凭据待轮换） |
-| **真实大模型接口** | ❌ **未实测**（测试走 FakeLLMProvider） |
+| **真实 Wind 数据库连接** | ✅ TCP、认证、受控查询与完整因子执行通过 |
+| **`run-case --real-wind`** | ✅ 动量与高 ROE/低 PE 两条案例通过 |
+| **真实大模型接口** | ❌ Metered 网络可达，但两个官方区域均 HTTP 401 |
 | **Docker 镜像构建与 Compose 冒烟** | ❌ **未执行**（开发机无 Docker） |
 
-「已实现并测试」指的是离线测试：Wind 与大模型是替身，但组件之间的每一道接缝
-都是真实的。真实浏览器、真实 uvicorn、真实 OCR 引擎、真实 Worker 进程均已跑通。
+除明确标为真实 Wind/OCR/Worker 的项目外，「已实现并测试」仍只表示离线覆盖，
+不得推断真实 Kimi 已可用。
 
 | 门禁 | 结果 |
 |---|---|
-| `pytest`（后端） | 612 passed |
+| `pytest`（后端） | 634 passed，12 skipped |
 | `vitest`（前端） | 28 passed |
-| `ruff` / `mypy` | 全过 / 82 个源文件无问题 |
+| `ruff` / `mypy` | 全过 / 85 个源文件无问题 |
 | 黄金验收集 | 37 / 37 |
-| 隐藏验收集 | 10 / 10（首次运行，与黄金集无差距） |
+| 隐藏验收集 | 原始案例当前不存在；仅保留历史报告，不伪造重跑 |
 
 - 功能与操作：[`docs/使用说明.md`](docs/使用说明.md)
 - 工程问题与优化：[`docs/工程优化记录.md`](docs/工程优化记录.md)
 - 验收证据与延后项：[`docs/acceptance/2026-08-10/README.md`](docs/acceptance/2026-08-10/README.md)
+- 最新真实组件验收：[`docs/acceptance/2026-08-13/README.md`](docs/acceptance/2026-08-13/README.md)
+- 按量 Kimi 专项：[`docs/acceptance/2026-08-14/README.md`](docs/acceptance/2026-08-14/README.md)
+- 老师 K3 精确复刻：[`docs/acceptance/2026-08-14-k3-final/README.md`](docs/acceptance/2026-08-14-k3-final/README.md)
 
 ---
 
@@ -91,7 +96,7 @@ uv sync --project backend
 npm --prefix frontend install
 
 # 全部离线运行，不需要任何凭据
-uv run --project backend pytest backend/tests -q          # 612 passed
+uv run --project backend pytest backend/tests -q          # 634 passed, 12 skipped
 uv run --project backend factor-platform list-cases       # 37 个黄金案例
 uv run --project backend factor-platform run-case momentum_20d
 uv run --project backend factor-platform run-case-suite --set golden
@@ -103,7 +108,8 @@ npm --prefix frontend run dev                             # http://localhost:517
 ```
 
 配置：复制 `.env.example` 为 `.env` 并填入真实值。`.env` 已被 gitignore。
-不填也能跑——平台设计上就能离线工作，界面会明确显示「离线模式：wind、llm」。
+不填凭据仍可运行离线测试与黄金案例；应用不会把 Fake Provider 当成真实模型，
+需要模型的请求会稳定返回 `llm_provider_unavailable` 或 `local_only_mode`。
 
 完整的功能说明与操作流程见 [`docs/使用说明.md`](docs/使用说明.md)。
 
@@ -136,7 +142,8 @@ uv run --project backend factor-platform build-wind-catalog \
 ## 安全约定
 
 - 真实凭据只进入本地 `.env`；仓库只提交全空值的 `.env.example`。
-- `get_secret_value()` 在整个代码库中只出现一处（`wind/connection.py`），便于审计。
+- `get_secret_value()` 在整个代码库中只出现一处（`secrets.py`）；Wind 与 LLM
+  适配器只在实际连接/发请求的边界调用统一解包函数，便于审计。
 - Worker 不持有 Wind 或 LLM 密钥；生产部署下 Worker 容器保持 `network_mode: none`。
 - **边界 B4**：Wind 原始数据、密钥、研报全文默认不得发送至外部模型服务。
 - 不使用任意 SQL、`eval`、`exec` 或任意网络访问；Wind 取数走六种受控查询形状。
@@ -150,6 +157,9 @@ uv run --project backend factor-platform build-wind-catalog \
 | [`docs/使用说明.md`](docs/使用说明.md) | **功能清单与操作流程** —— 从这里开始 |
 | [`docs/工程优化记录.md`](docs/工程优化记录.md) | **实现中遇到的问题与优化过程** |
 | [`docs/acceptance/2026-08-10/README.md`](docs/acceptance/2026-08-10/README.md) | 离线开发完成验收报告 |
+| [`docs/acceptance/2026-08-13/README.md`](docs/acceptance/2026-08-13/README.md) | 真实 Wind/Kimi/OCR 最终补验报告 |
+| [`docs/acceptance/2026-08-14/README.md`](docs/acceptance/2026-08-14/README.md) | 按量 Kimi 鉴权专项与最新状态 |
+| [`docs/acceptance/2026-08-14-k3-final/README.md`](docs/acceptance/2026-08-14-k3-final/README.md) | 老师真实 K3 配置精确复刻验收 |
 | [`docs/acceptance/deferred-credential-steps.md`](docs/acceptance/deferred-credential-steps.md) | 需要凭据才能完成的步骤清单 |
 | [`docs/技术设计方案.md`](docs/技术设计方案.md) | 设计思路与框架 |
 | [`docs/技术设计方案问题与调整建议.md`](docs/技术设计方案问题与调整建议.md) | 技术评审意见（13 条，驱动了 6 个修订任务） |

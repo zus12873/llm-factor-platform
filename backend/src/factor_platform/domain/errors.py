@@ -46,3 +46,7 @@ class LLMResponseError(DomainError):
         if request_id:
             detail = f"{detail} (request_id={request_id})"
         super().__init__(detail)
+
+
+class RealExecutionUnavailableError(DomainError):
+    """Raised when a session requests live execution without a live runner."""
