@@ -199,3 +199,8 @@
 6. 运行完整离线门禁、真实组件定向回归、secret scan 和提交差异复核。
 
 不要在未人工确认迁移范围时使用 `git add .` 或 `git add -A`。不要直接 push。
+
+## 当前稳定版本
+
+- 当前稳定版本 commit：`32ce5b3f63479befa7bc01194c1187a33d513e5b`
+- GitHub `main` 已同步。
