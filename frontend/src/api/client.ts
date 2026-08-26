@@ -71,6 +71,15 @@ export const apiClient = {
   createSession: (sessionId: string) =>
     post<SessionSnapshot>("/api/sessions", { session_id: sessionId }),
 
+  enterReportWorkflow: (
+    artifactId: string,
+    body: {
+      session_id: string
+      request: ResearchRequest
+      manual_formula?: string
+    },
+  ) => post<SessionSnapshot>(`/api/reports/${artifactId}/sessions`, body),
+
   getSession: (sessionId: string) =>
     request<SessionSnapshot>(`/api/sessions/${sessionId}`),
 

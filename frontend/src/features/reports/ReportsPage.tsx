@@ -2,12 +2,15 @@
  * Report upload and extraction.
  *
  * The gate is the point: "进入因子工作流" stays disabled until a formula has
- * either been extracted with confidence or typed in by hand. A low-confidence
- * extraction reads exactly like a good one, so the only safe default is to
- * require the human step rather than to offer it.
+ * either been extracted with confidence or typed in by hand, and until both
+ * envelope dates are present. A low-confidence extraction reads exactly like a
+ * good one, so the only safe default is to require the human step rather than
+ * to offer it.
  */
 import { useState } from "react"
-import { Alert, Button, Card, Input, Space, Tag, Typography, Upload } from "antd"
+import { useNavigate } from "react-router-dom"
+import { Alert, Button, Card, DatePicker, Form, Input, Select, Space, Tag, Typography, Upload } from "antd"
+import { apiClient, ApiError, type ResearchRequest } from "../../api/client"
 import { EvidenceViewer, type Evidence } from "./EvidenceViewer"
 
 interface Extraction {
@@ -33,9 +36,16 @@ interface UploadResult {
 }
 
 export function ReportsPage() {
+  const navigate = useNavigate()
   const [result, setResult] = useState<UploadResult | null>(null)
   const [manualFormula, setManualFormula] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [assetType, setAssetType] = useState("stock")
+  const [universe, setUniverse] = useState("000300.SH")
+  const [frequency, setFrequency] = useState("daily")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
   const upload = async (file: File) => {
     setError(null)
@@ -52,10 +62,42 @@ export function ReportsPage() {
 
   const extraction = result?.extraction.formula_extraction
   const needsManual = extraction?.status === "needs_manual_confirmation"
-  // Confident extraction, or a formula the user typed. Nothing else proceeds.
+  const datesPresent = Boolean(startDate && endDate)
+  // Confident extraction, or a formula the user typed — and both envelope dates.
   const canProceed = Boolean(
-    extraction && (!needsManual || manualFormula.trim().length > 0),
+    extraction && (!needsManual || manualFormula.trim().length > 0) && datesPresent,
   )
+
+  const enterWorkflow = async () => {
+    if (!result || !startDate || !endDate) return
+    setError(null)
+    setSubmitting(true)
+    // Extracted path: backend seeds the spec from the stored AST. ResearchRequest
+    // still requires research_idea, so send a short placeholder rather than a
+    // free-text idea the user never typed.
+    const researchIdea = needsManual
+      ? manualFormula.trim()
+      : extraction?.extracted_text.trim() || result.extraction.factor_name
+    try {
+      const snapshot = await apiClient.enterReportWorkflow(result.artifact_id, {
+        session_id: `s-${Date.now().toString(36)}`,
+        request: {
+          asset_type: assetType,
+          universe,
+          frequency,
+          start_date: startDate,
+          end_date: endDate,
+          research_idea: researchIdea,
+        } as ResearchRequest,
+        ...(needsManual ? { manual_formula: manualFormula.trim() } : {}),
+      })
+      navigate(`/workbench/${snapshot.session_id}`)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "进入工作流失败")
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
@@ -127,7 +169,57 @@ export function ReportsPage() {
                 />
               )}
 
-              <Button type="primary" disabled={!canProceed}>
+              <Form layout="vertical">
+                <Space wrap>
+                  <Form.Item label="资产类型">
+                    <Select
+                      aria-label="资产类型"
+                      style={{ width: 120 }}
+                      value={assetType}
+                      onChange={setAssetType}
+                      options={[{ value: "stock", label: "股票" }]}
+                    />
+                  </Form.Item>
+                  <Form.Item label="股票池">
+                    <Select
+                      aria-label="股票池"
+                      style={{ width: 160 }}
+                      value={universe}
+                      onChange={setUniverse}
+                      options={[
+                        { value: "000300.SH", label: "沪深300" },
+                        { value: "000905.SH", label: "中证500" },
+                        { value: "000016.SH", label: "上证50" },
+                      ]}
+                    />
+                  </Form.Item>
+                  <Form.Item label="频率">
+                    <Select
+                      aria-label="频率"
+                      style={{ width: 100 }}
+                      value={frequency}
+                      onChange={setFrequency}
+                      options={[{ value: "daily", label: "日频" }]}
+                    />
+                  </Form.Item>
+                  <Form.Item label="区间" required>
+                    <DatePicker.RangePicker
+                      placeholder={["开始日期", "结束日期"]}
+                      onChange={(dates) => {
+                        setStartDate(dates?.[0]?.format("YYYY-MM-DD") ?? "")
+                        setEndDate(dates?.[1]?.format("YYYY-MM-DD") ?? "")
+                      }}
+                    />
+                  </Form.Item>
+                </Space>
+              </Form>
+
+              <Button
+                type="primary"
+                disabled={!canProceed}
+                loading={submitting}
+                onClick={() => void enterWorkflow()}
+              >
                 进入因子工作流
               </Button>
             </Space>

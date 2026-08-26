@@ -874,6 +874,59 @@
         }
       }
     },
+    "/api/reports/{artifact_id}/sessions": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Enter Workflow",
+        "description": "Seed a normal workbench session from the server-side extraction record.",
+        "operationId": "enter_workflow_api_reports__artifact_id__sessions_post",
+        "parameters": [
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnterWorkflowBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/analysis": {
       "post": {
         "tags": [
@@ -1373,6 +1426,34 @@
         "type": "object",
         "title": "DataRules",
         "description": "Universe and data-selection rules.\n\nThese were never transforms and are unaffected by ordering, so they stay as\nplain switches. The transform switches that used to live alongside them now\nbelong to :class:`PreprocessingPipeline`."
+      },
+      "EnterWorkflowBody": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "request": {
+            "$ref": "#/components/schemas/ResearchRequest"
+          },
+          "manual_formula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Formula"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "request"
+        ],
+        "title": "EnterWorkflowBody"
       },
       "ErrorCategory": {
         "type": "string",

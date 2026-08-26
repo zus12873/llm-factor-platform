@@ -303,6 +303,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reports/{artifact_id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enter Workflow
+         * @description Seed a normal workbench session from the server-side extraction record.
+         */
+        post: operations["enter_workflow_api_reports__artifact_id__sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analysis": {
         parameters: {
             query?: never;
@@ -581,6 +601,14 @@ export interface components {
              * @default 0
              */
             min_listed_days: number;
+        };
+        /** EnterWorkflowBody */
+        EnterWorkflowBody: {
+            /** Session Id */
+            session_id: string;
+            request: components["schemas"]["ResearchRequest"];
+            /** Manual Formula */
+            manual_formula?: string | null;
         };
         /**
          * ErrorCategory
@@ -1973,6 +2001,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UploadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enter_workflow_api_reports__artifact_id__sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnterWorkflowBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSnapshot"];
                 };
             };
             /** @description Validation Error */
