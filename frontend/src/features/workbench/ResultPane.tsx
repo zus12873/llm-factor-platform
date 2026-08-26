@@ -84,7 +84,7 @@ export function ResultPane({ result, artifactUri, sessionId, sessionState }: Pro
       title="计算结果"
       size="small"
       extra={
-        unreviewed ? <Tag color="orange">含未复核口径，不得作为正式发布</Tag> : null
+        unreviewed ? <Tag color="orange">含未复核口径，入库将标注「未复核」</Tag> : null
       }
     >
       <Row gutter={16}>

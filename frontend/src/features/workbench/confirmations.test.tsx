@@ -208,7 +208,8 @@ describe("ResultPane", () => {
     )
     expect(screen.getByText("real_wind")).toBeInTheDocument()
     expect(screen.getByText("ADJ_CLOSE: unreviewed")).toBeInTheDocument()
-    expect(screen.getByText(/含未复核口径/)).toBeInTheDocument()
+    expect(screen.getByText(/未复核/)).toBeInTheDocument()
+    expect(screen.queryByText(/不得作为正式发布/)).toBeNull()
   })
 })
 
@@ -232,6 +233,16 @@ describe("publish from a completed result", () => {
   it("shows a publish button on a completed snapshot", () => {
     renderCompleted()
     expect(screen.getByRole("button", { name: "发布到因子库" })).toBeEnabled()
+  })
+
+  it("keeps publish enabled for unreviewed and labels the stored status", () => {
+    renderCompleted({
+      status: "completed",
+      resource_stats: { metric_review_status: { ADJ_CLOSE: "unreviewed" } },
+    })
+    expect(screen.getByRole("button", { name: "发布到因子库" })).toBeEnabled()
+    expect(screen.getByText(/入库将标注「未复核」/)).toBeInTheDocument()
+    expect(screen.queryByText(/不得作为正式发布/)).toBeNull()
   })
 
   it("POSTs /api/library when publish is clicked and then links to the library", async () => {
