@@ -23,6 +23,7 @@ unconfirmed field stops the workflow while it is still free to stop.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import re
 from collections.abc import Sequence
@@ -31,6 +32,7 @@ from typing import Any
 
 from factor_platform.db.repository import SessionRepository
 from factor_platform.domain.errors import (
+    InvalidFactorIdError,
     RealExecutionUnavailableError,
     ReportArtifactNotFoundError,
     ReportFormulaUnconfirmedError,
@@ -429,6 +431,7 @@ class WorkflowService:
                     "columns": run.result_columns,
                     "non_null_rate": run.result_non_null_rate,
                     "metric_review_status": review_status,
+                    "manifest_sha256": run.manifest_sha256,
                     "source": "real_wind",
                 },
             )
@@ -570,7 +573,6 @@ class WorkflowService:
             or result is None
             or result.status != ExecutionStatus.COMPLETED
             or snapshot.factor_spec is None
-            or not snapshot.code_sha256
             or artifact is None
             or not artifact.is_file()
         ):
@@ -578,14 +580,21 @@ class WorkflowService:
                 f"session {session_id} cannot be published until execution has completed"
             )
 
+        manifest_sha256 = _resolve_manifest_sha256(snapshot, artifact)
+        if not manifest_sha256:
+            raise SessionNotCompletedError(
+                f"session {session_id} cannot be published until execution has completed"
+            )
+
         review_status = result.resource_stats.get("metric_review_status") or {}
         metric_keys = [str(key) for key in review_status] if isinstance(review_status, dict) else []
         resolved_id = factor_id or _factor_id_slug(snapshot.factor_spec.factor_name)
+        require_factor_id(resolved_id)
         return self._library.publish(
             factor_id=resolved_id,
             session_id=session_id,
             spec=snapshot.factor_spec,
-            manifest_sha256=snapshot.code_sha256,
+            manifest_sha256=manifest_sha256,
             result_artifact=artifact,
             program_source=snapshot.generated_code or "",
             metric_keys=metric_keys,
@@ -620,9 +629,41 @@ def _canonical_spec(spec: FactorSpec) -> FactorSpec:
     return spec.model_copy(update={"canonical_formula": render_canonical_formula(spec.formula_ast)})
 
 
+_FACTOR_ID_RE = re.compile(r"^[a-z0-9_]+$")
+
+
+def require_factor_id(factor_id: str) -> str:
+    """Refuse ids that are not a single library directory name."""
+    if not _FACTOR_ID_RE.fullmatch(factor_id):
+        raise InvalidFactorIdError(
+            "factor_id must be lowercase letters, digits, and underscores"
+        )
+    return factor_id
+
+
 def _factor_id_slug(factor_name: str) -> str:
     slug = re.sub(r"[^a-z0-9_]+", "_", factor_name.lower()).strip("_")
     return slug or "factor"
+
+
+def _resolve_manifest_sha256(snapshot: SessionSnapshot, artifact: Path) -> str | None:
+    """Prefer a stored hash; else hash a nearby manifest.json. Never invent one."""
+    if snapshot.code_sha256:
+        return snapshot.code_sha256
+    result = snapshot.execution_result
+    if result is not None:
+        stored = result.resource_stats.get("manifest_sha256")
+        if isinstance(stored, str) and stored:
+            return stored
+    current = artifact.parent
+    for _ in range(3):
+        candidate = current / "manifest.json"
+        if candidate.is_file():
+            return hashlib.sha256(candidate.read_bytes()).hexdigest()
+        if current.parent == current:
+            break
+        current = current.parent
+    return None
 
 
 def _load_extraction(extraction_path: Path, artifact_id: str) -> ExtractedFactor:
@@ -660,4 +701,4 @@ def _spec_from_extraction(extraction: ExtractedFactor, request: ResearchRequest)
     )
 
 
-__all__ = ["WorkflowService"]
+__all__ = ["WorkflowService", "require_factor_id"]

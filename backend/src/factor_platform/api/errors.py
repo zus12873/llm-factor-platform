@@ -20,6 +20,7 @@ from factor_platform.domain.errors import (
     ConcurrentUpdateError,
     DisputedMetricError,
     IllegalTransitionError,
+    InvalidFactorIdError,
     LibraryEntryNotFoundError,
     LLMResponseError,
     RealExecutionUnavailableError,
@@ -59,6 +60,7 @@ ERROR_MAP: dict[type[Exception], tuple[int, str]] = {
     ImmutableArtifactError: (409, "immutable_artifact"),
     SessionNotCompletedError: (409, "session_not_completed"),
     LibraryEntryNotFoundError: (404, "library_entry_not_found"),
+    InvalidFactorIdError: (422, "invalid_factor_id"),
 }
 
 

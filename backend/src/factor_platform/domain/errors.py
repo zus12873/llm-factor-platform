@@ -66,3 +66,7 @@ class SessionNotCompletedError(DomainError):
 
 class LibraryEntryNotFoundError(DomainError):
     """Raised when a published factor version does not exist."""
+
+
+class InvalidFactorIdError(DomainError):
+    """Raised when a factor_id is not a safe library path segment."""

@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from factor_platform.api.sessions import get_workflow
 from factor_platform.domain.errors import LibraryEntryNotFoundError
 from factor_platform.library.service import FactorLibrary, LibraryEntry
-from factor_platform.orchestration.service import WorkflowService
+from factor_platform.orchestration.service import WorkflowService, require_factor_id
 
 router = APIRouter(prefix="/api/library", tags=["library"])
 
@@ -40,6 +40,7 @@ async def list_factors(library: Library) -> list[LibraryEntry]:
 
 @router.get("/{factor_id}/v/{version}")
 async def get_version(factor_id: str, version: int, library: Library) -> LibraryEntry:
+    require_factor_id(factor_id)
     try:
         return library.get_version(factor_id, version)
     except KeyError as exc:

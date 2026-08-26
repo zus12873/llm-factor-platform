@@ -7,6 +7,8 @@ disputed-metric gate, and an unknown version is a mapped 404 rather than a 500.
 
 from __future__ import annotations
 
+import hashlib
+import shutil
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -63,16 +65,20 @@ async def seed_completed(
     metric_review_status: dict[str, str] | None = None,
     code_sha256: str | None = CODE_SHA,
     generated_code: str | None = PROGRAM,
+    extra_resource_stats: dict | None = None,
 ) -> None:
     """Drive the legal event path to COMPLETED with a real result file."""
     repo = SessionRepository(engine)
     await repo.create_session(session_id)
     review = metric_review_status if metric_review_status is not None else {"ROE_TTM": "unreviewed"}
     artifact_uri = str(parquet)
+    resource_stats: dict = {"metric_review_status": review}
+    if extra_resource_stats:
+        resource_stats.update(extra_resource_stats)
     execution_result = {
         "status": "completed",
         "artifact_uri": artifact_uri,
-        "resource_stats": {"metric_review_status": review},
+        "resource_stats": resource_stats,
     }
     code_payload: dict = {"plan": {"steps": []}}
     if generated_code is not None:
@@ -187,3 +193,74 @@ async def test_publish_refuses_when_the_manifest_hash_is_missing(
     response = await client.post("/api/library", json={"session_id": "s-no-hash"})
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "session_not_completed"
+
+
+async def test_unsafe_factor_id_is_rejected_and_writes_nothing_outside_the_library(
+    client: AsyncClient, completed_session: str, tmp_path: Path
+) -> None:
+    """`factor_id` is a filesystem path segment; `..` and absolute paths must not join."""
+    parent_v1 = tmp_path / "v1"
+    absolute = Path("/tmp/x")
+    absolute_version = absolute / "v1"
+
+    escaped = await client.post(
+        "/api/library", json={"session_id": completed_session, "factor_id": ".."}
+    )
+    assert escaped.status_code == 422
+    assert escaped.json()["error"]["code"] == "invalid_factor_id"
+    assert not parent_v1.exists()
+
+    try:
+        rooted = await client.post(
+            "/api/library", json={"session_id": completed_session, "factor_id": "/tmp/x"}
+        )
+        assert rooted.status_code == 422
+        assert rooted.json()["error"]["code"] == "invalid_factor_id"
+        assert not absolute_version.exists()
+    finally:
+        entry = absolute_version / "entry.json"
+        if entry.exists():
+            shutil.rmtree(absolute_version, ignore_errors=True)
+
+    dotted = await client.get("/api/library/%2e%2e/v/1")
+    assert dotted.status_code == 422
+    assert dotted.json()["error"]["code"] == "invalid_factor_id"
+
+
+async def test_publish_uses_resource_stats_manifest_hash_when_snapshot_hash_is_missing(
+    client: AsyncClient, engine: AsyncEngine, tmp_path: Path
+) -> None:
+    """A live COMPLETED session has no code_sha256; the signed sha lives on the result."""
+    stored = "b" * 64
+    await seed_completed(
+        engine,
+        "s-stats-hash",
+        _parquet(tmp_path),
+        code_sha256=None,
+        extra_resource_stats={"manifest_sha256": stored},
+    )
+    response = await client.post(
+        "/api/library", json={"session_id": "s-stats-hash", "factor_id": "quality"}
+    )
+    assert response.status_code == 201
+    assert response.json()["manifest_sha256"] == stored
+
+
+async def test_publish_hashes_a_nearby_manifest_when_no_stored_hash_exists(
+    client: AsyncClient, engine: AsyncEngine, tmp_path: Path
+) -> None:
+    """Production layout: parquet under artifacts/{job}/, manifest.json at the run root."""
+    parquet = tmp_path / "run" / "artifacts" / "job1" / "result.parquet"
+    parquet.parent.mkdir(parents=True)
+    parquet.write_bytes(b"PAR1-result-bytes")
+    manifest = tmp_path / "run" / "manifest.json"
+    payload = '{"schema_version":1,"steps":[]}'
+    manifest.write_text(payload, encoding="utf-8")
+    expected = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    await seed_completed(engine, "s-file-hash", parquet.resolve(), code_sha256=None)
+    response = await client.post(
+        "/api/library", json={"session_id": "s-file-hash", "factor_id": "quality"}
+    )
+    assert response.status_code == 201
+    assert response.json()["manifest_sha256"] == expected
