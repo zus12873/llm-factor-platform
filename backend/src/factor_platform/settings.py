@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     database_url: str = "sqlite+aiosqlite:///./data/runtime/factor_platform.db"
     artifact_root: str = "./data/artifacts"
+    library_root: str = "./data/artifacts/library"
     job_root: str = "./data/runtime/jobs"
     wind_enabled: bool = False
     wind_host: str | None = None

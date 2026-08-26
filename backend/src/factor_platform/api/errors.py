@@ -20,15 +20,18 @@ from factor_platform.domain.errors import (
     ConcurrentUpdateError,
     DisputedMetricError,
     IllegalTransitionError,
+    LibraryEntryNotFoundError,
     LLMResponseError,
     RealExecutionUnavailableError,
     ReportArtifactNotFoundError,
     ReportFormulaUnconfirmedError,
+    SessionNotCompletedError,
 )
 from factor_platform.execution.manifest import (
     ManifestSchemaError,
     ManifestVerificationError,
 )
+from factor_platform.library.service import ImmutableArtifactError, PublishRefusedError
 from factor_platform.llm.data_boundary import LocalOnlyModeError, OutboundBlockedError
 from factor_platform.llm.router import NoHealthyProviderError
 from factor_platform.reports.pdf import ReportLimitError
@@ -52,6 +55,10 @@ ERROR_MAP: dict[type[Exception], tuple[int, str]] = {
     ReportFormulaUnconfirmedError: (422, "report_formula_unconfirmed"),
     ReportArtifactNotFoundError: (404, "report_artifact_not_found"),
     AnalysisError: (422, "factor_not_analyzable"),
+    PublishRefusedError: (422, "publish_refused"),
+    ImmutableArtifactError: (409, "immutable_artifact"),
+    SessionNotCompletedError: (409, "session_not_completed"),
+    LibraryEntryNotFoundError: (404, "library_entry_not_found"),
 }
 
 

@@ -18,11 +18,12 @@ from pathlib import Path
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-from factor_platform.api import analysis, events, health, reports, sessions
+from factor_platform.api import analysis, events, health, library, reports, sessions
 from factor_platform.api.errors import ERROR_MAP, domain_exception_handler
 from factor_platform.db.repository import SessionRepository
 from factor_platform.execution.real_wind import RealWindCaseRunner
 from factor_platform.factor.metric_registry import MetricRegistry
+from factor_platform.library.service import FactorLibrary
 from factor_platform.llm.base import LLMProvider
 from factor_platform.llm.factory import build_llm_provider
 from factor_platform.orchestration.service import WorkflowService
@@ -62,6 +63,7 @@ def create_app(
         if resolved_settings.wind_enabled
         else None
     )
+    factor_library = FactorLibrary(Path(resolved_settings.library_root), registry=registry)
     workflow = WorkflowService(
         SessionRepository(resolved_engine),
         resolved_provider,
@@ -69,6 +71,7 @@ def create_app(
         registry=registry,
         schema_verifier=schema_verifier,
         real_wind_runner=real_wind_runner,
+        library=factor_library,
     )
 
     app = FastAPI(
@@ -85,6 +88,7 @@ def create_app(
     upload_root = Path(resolved_settings.artifact_root) / "uploads"
 
     app.dependency_overrides[sessions.get_workflow] = lambda: workflow
+    app.dependency_overrides[library.get_library] = lambda: factor_library
     app.dependency_overrides[reports.get_extractor] = lambda: extractor
     app.dependency_overrides[reports.get_upload_root] = lambda: upload_root
     app.dependency_overrides[events.get_engine] = lambda: resolved_engine
@@ -98,6 +102,7 @@ def create_app(
     app.include_router(sessions.router)
     app.include_router(events.router)
     app.include_router(reports.router)
+    app.include_router(library.router)
     app.include_router(analysis.router)
     app.include_router(health.router)
     return app

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,7 @@ from factor_platform.domain.errors import (
     RealExecutionUnavailableError,
     ReportArtifactNotFoundError,
     ReportFormulaUnconfirmedError,
+    SessionNotCompletedError,
 )
 from factor_platform.domain.models import (
     DataRequirement,
@@ -59,8 +61,9 @@ from factor_platform.factor.clarification import ClarificationEngine
 from factor_platform.factor.metric_registry import MetricRegistry
 from factor_platform.factor.parser import FactorParser
 from factor_platform.factor.renderer import render_canonical_formula
+from factor_platform.library.service import FactorLibrary, LibraryEntry
 from factor_platform.llm.base import LLMProvider
-from factor_platform.orchestration.states import EventType
+from factor_platform.orchestration.states import EventType, SessionState
 from factor_platform.reports.extractor import ExtractedFactor, FormulaExtractionStatus
 from factor_platform.wind.field_search import FieldSearch
 from factor_platform.wind.planner import WindPlanner
@@ -81,6 +84,7 @@ class WorkflowService:
         field_search: FieldSearch | None = None,
         schema_verifier: SchemaVerifier | None = None,
         real_wind_runner: RealWindCaseRunner | None = None,
+        library: FactorLibrary | None = None,
     ) -> None:
         self._repository = repository
         self._parser = FactorParser(provider)
@@ -91,6 +95,7 @@ class WorkflowService:
         self._field_search = field_search or FieldSearch.from_aliases_path(aliases_path)
         self._schema_verifier = schema_verifier
         self._real_wind_runner = real_wind_runner
+        self._library = library
 
     # ------------------------------------------------------------------ session
 
@@ -543,6 +548,49 @@ class WorkflowService:
         )
         return await self._snapshot(new_session_id)
 
+    # ------------------------------------------------------------------ library
+
+    async def publish_to_library(
+        self, session_id: str, factor_id: str | None = None
+    ) -> LibraryEntry:
+        """Copy a completed session's result into the immutable library.
+
+        Refuses rather than inventing a manifest hash, and does not catch the
+        library's disputed-metric gate.
+        """
+        if self._library is None:
+            raise RuntimeError("factor library is not configured")
+
+        snapshot = await self._snapshot(session_id)
+        result = snapshot.execution_result
+        artifact_uri = snapshot.artifact_uri or (result.artifact_uri if result else None)
+        artifact = Path(artifact_uri) if artifact_uri else None
+        if (
+            snapshot.state != SessionState.COMPLETED
+            or result is None
+            or result.status != ExecutionStatus.COMPLETED
+            or snapshot.factor_spec is None
+            or not snapshot.code_sha256
+            or artifact is None
+            or not artifact.is_file()
+        ):
+            raise SessionNotCompletedError(
+                f"session {session_id} cannot be published until execution has completed"
+            )
+
+        review_status = result.resource_stats.get("metric_review_status") or {}
+        metric_keys = [str(key) for key in review_status] if isinstance(review_status, dict) else []
+        resolved_id = factor_id or _factor_id_slug(snapshot.factor_spec.factor_name)
+        return self._library.publish(
+            factor_id=resolved_id,
+            session_id=session_id,
+            spec=snapshot.factor_spec,
+            manifest_sha256=snapshot.code_sha256,
+            result_artifact=artifact,
+            program_source=snapshot.generated_code or "",
+            metric_keys=metric_keys,
+        )
+
     # ------------------------------------------------------------------ internals
 
     async def _revise(
@@ -570,6 +618,11 @@ def _json(model: Any) -> Any:
 
 def _canonical_spec(spec: FactorSpec) -> FactorSpec:
     return spec.model_copy(update={"canonical_formula": render_canonical_formula(spec.formula_ast)})
+
+
+def _factor_id_slug(factor_name: str) -> str:
+    slug = re.sub(r"[^a-z0-9_]+", "_", factor_name.lower()).strip("_")
+    return slug or "factor"
 
 
 def _load_extraction(extraction_path: Path, artifact_id: str) -> ExtractedFactor:

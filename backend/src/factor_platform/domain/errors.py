@@ -58,3 +58,11 @@ class ReportFormulaUnconfirmedError(DomainError):
 
 class ReportArtifactNotFoundError(DomainError):
     """Upload id is unknown or its extraction record is missing."""
+
+
+class SessionNotCompletedError(DomainError):
+    """Raised when a session is not ready to publish into the library."""
+
+
+class LibraryEntryNotFoundError(DomainError):
+    """Raised when a published factor version does not exist."""
