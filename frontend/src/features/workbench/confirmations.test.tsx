@@ -12,7 +12,7 @@ import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { ClarificationCard } from "./ClarificationCard"
-import { FieldCandidateTable } from "./FieldCandidateTable"
+import { FieldCandidateTable, type FieldCandidateRow } from "./FieldCandidateTable"
 import { FormulaConfirmation } from "./FormulaConfirmation"
 import { CodePane } from "./CodePane"
 import { ValidationFindings } from "./ValidationFindings"
@@ -20,10 +20,12 @@ import { ResultPane } from "./ResultPane"
 
 const CANDIDATES = [
   {
+    schema_version: 1,
     logical_name: "close",
     table: "ashareeodprices",
     field: "s_dq_adjclose",
     meaning_zh: "后复权收盘价",
+    meaning_en: "",
     unit: "cny",
     time_role: "observation",
     source_tier: "alias",
@@ -32,10 +34,12 @@ const CANDIDATES = [
     semantic_note: "动量/收益类默认推荐后复权收盘价，close ≠ adj_close",
   },
   {
+    schema_version: 1,
     logical_name: "close",
     table: "ashareeodprices",
     field: "s_dq_close",
     meaning_zh: "收盘价",
+    meaning_en: "",
     unit: "cny",
     time_role: "observation",
     source_tier: "alias",
@@ -44,16 +48,18 @@ const CANDIDATES = [
     semantic_note: "未复权收盘价，不等于复权收盘价",
   },
   {
+    schema_version: 1,
     logical_name: "close",
     table: "obscuretable",
     field: "rare_field",
-    meaning_zh: null,
+    meaning_zh: "",
+    meaning_en: "",
     unit: null,
     time_role: "observation",
     source_tier: "bm25",
     metadata_source: null,
   },
-]
+] satisfies FieldCandidateRow[]
 
 describe("FieldCandidateTable", () => {
   it("submits the selected binding with the version the user saw", async () => {

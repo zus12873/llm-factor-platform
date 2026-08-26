@@ -2286,6 +2286,33 @@
             ],
             "title": "Evidence"
           },
+          "price_adjustment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "forward",
+                  "backward"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Adjustment"
+          },
+          "semantic_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semantic Note"
+          },
           "logical_name": {
             "type": "string",
             "title": "Logical Name"

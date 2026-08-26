@@ -1004,6 +1004,10 @@ export interface components {
             recommendation_score?: number | null;
             /** Evidence */
             evidence?: string | null;
+            /** Price Adjustment */
+            price_adjustment?: ("none" | "forward" | "backward") | null;
+            /** Semantic Note */
+            semantic_note?: string | null;
             /** Logical Name */
             logical_name: string;
             /** Schema Status */

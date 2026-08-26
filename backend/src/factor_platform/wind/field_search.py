@@ -47,10 +47,7 @@ from factor_platform.domain.models import (
 )
 from factor_platform.wind.catalog import FieldCatalog, FieldRecord
 from factor_platform.wind.metadata_catalog import MetadataCatalog
-from factor_platform.wind.price_semantics import (
-    PRICE_ADJUSTMENT_BY_FIELD,
-    apply_price_semantics,
-)
+from factor_platform.wind.price_semantics import apply_price_semantics
 
 _CAMEL_BOUNDARY_RE = re.compile(r"_+|(?<=[a-z0-9])(?=[A-Z])|(?<=\D)(?=\d)|\s+")
 
@@ -284,13 +281,6 @@ class FieldSearch:
                 metadata_source=meta.metadata_source if meta else None,
                 source_tier="semantic",
                 evidence=f"semantic:{record.table}.{record.field}",
-            )
-        if wanted in PRICE_ADJUSTMENT_BY_FIELD:
-            return FieldCandidate(
-                table="ashareeodprices",
-                field=wanted,
-                source_tier="semantic",
-                evidence=f"semantic:ashareeodprices.{wanted}",
             )
         return None
 

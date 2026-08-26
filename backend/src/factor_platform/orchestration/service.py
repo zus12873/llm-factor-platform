@@ -266,8 +266,10 @@ class WorkflowService:
         if snapshot.factor_spec is None:
             raise ValueError("cannot discover fields before a formula is confirmed")
 
+        spec = snapshot.factor_spec
+        use_adjusted_price = spec.data_rules.use_adjusted_price
         candidates: list[FieldCandidateBinding] = []
-        for requirement in snapshot.factor_spec.variables:
+        for requirement in spec.variables:
             definition = self._registry.get(requirement.logical_name)
             if definition is not None:
                 candidates.append(
@@ -285,7 +287,11 @@ class WorkflowService:
                         evidence=f"registry:{definition.key}",
                     )
                 )
-            for candidate in self._field_search.search(requirement, limit=5):
+            for candidate in self._field_search.search(
+                requirement,
+                limit=5,
+                use_adjusted_price=use_adjusted_price,
+            ):
                 candidates.append(
                     FieldCandidateBinding(
                         logical_name=requirement.logical_name,

@@ -13,12 +13,14 @@ Two properties are load-bearing here and neither is visible from a single method
 from __future__ import annotations
 
 import json
+from unittest.mock import Mock
 
 import pytest
 
 from factor_platform.db.repository import SessionRepository
 from factor_platform.domain.errors import DisputedMetricError
 from factor_platform.domain.models import (
+    DataRules,
     FactorSpec,
     FieldSelection,
     FieldTimeRole,
@@ -131,6 +133,33 @@ async def test_registered_aliases_are_discovered_and_persisted(
     )
     assert close.source_tier == "alias"
     assert close.schema_status == "not_verified"
+
+
+async def test_discover_fields_passes_use_adjusted_price_prior(
+    engine, provider: FakeLLMProvider
+) -> None:
+    field_search = Mock()
+    field_search.search.return_value = []
+    registry = MetricRegistry.load()
+    workflow = WorkflowService(
+        SessionRepository(engine),
+        provider,
+        WindPlanner(CapabilityCatalog.from_registry(RQ_WIND_CAPABILITIES), registry),
+        registry=registry,
+        field_search=field_search,
+    )
+    snapshot = await workflow.create_session("s-prior")
+    snapshot = await workflow.submit_message(
+        "s-prior",
+        request().model_copy(update={"data_rules": DataRules(use_adjusted_price=False)}),
+        snapshot.version,
+    )
+    assert snapshot.factor_spec is not None
+    snapshot = await workflow.confirm_formula("s-prior", snapshot.factor_spec, snapshot.version)
+    await workflow.discover_fields("s-prior", snapshot.version)
+
+    field_search.search.assert_called()
+    assert field_search.search.call_args.kwargs["use_adjusted_price"] is False
 
 
 async def test_the_plan_resolves_index_membership_before_prices(

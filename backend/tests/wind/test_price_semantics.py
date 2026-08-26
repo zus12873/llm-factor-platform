@@ -11,9 +11,10 @@ from pathlib import Path
 
 import pytest
 
-from factor_platform.domain.models import DataRequirement, FieldCandidate
+from factor_platform.domain.models import AssetType, DataRequirement, FieldCandidate, Frequency
 from factor_platform.wind.catalog import FieldCatalog, FieldRecord
 from factor_platform.wind.field_search import AliasEntry, FieldSearch
+from factor_platform.wind.metadata_catalog import FieldMetadata, MetadataCatalog
 from factor_platform.wind.price_semantics import (
     annotate_candidate,
     apply_price_semantics,
@@ -200,6 +201,94 @@ def catalog_search() -> FieldSearch:
             "--output backend/data/generated/wind_fields.jsonl` first"
         )
     return FieldSearch.from_paths(CATALOG_PATH, ALIASES_PATH)
+
+
+def _daily_stock_price_search() -> FieldSearch:
+    """Daily A-share aliases and catalog rows, with metadata so filters bite."""
+    catalog = FieldCatalog(
+        [
+            FieldRecord(table="ashareeodprices", field="s_dq_close"),
+            FieldRecord(table="ashareeodprices", field="s_dq_adjclose"),
+            FieldRecord(table="ashareeodprices", field="s_dq_adjclose_backward"),
+        ]
+    )
+    aliases = {
+        "收盘价": AliasEntry(
+            table="ashareeodprices",
+            field="s_dq_close",
+            asset_type=AssetType.STOCK,
+            frequency=Frequency.DAILY,
+            meaning_zh="收盘价",
+        ),
+        "后复权收盘价": AliasEntry(
+            table="ashareeodprices",
+            field="s_dq_adjclose",
+            asset_type=AssetType.STOCK,
+            frequency=Frequency.DAILY,
+            meaning_zh="后复权收盘价",
+        ),
+        "前复权收盘价": AliasEntry(
+            table="ashareeodprices",
+            field="s_dq_adjclose_backward",
+            asset_type=AssetType.STOCK,
+            frequency=Frequency.DAILY,
+            meaning_zh="前复权收盘价",
+        ),
+    }
+    metadata = MetadataCatalog(
+        [
+            FieldMetadata(
+                table="ashareeodprices",
+                field="s_dq_close",
+                name_zh="收盘价",
+                asset_type=AssetType.STOCK,
+                frequency=Frequency.DAILY,
+                metadata_source="WDS",
+            ),
+            FieldMetadata(
+                table="ashareeodprices",
+                field="s_dq_adjclose",
+                name_zh="后复权收盘价",
+                asset_type=AssetType.STOCK,
+                frequency=Frequency.DAILY,
+                metadata_source="WDS",
+            ),
+            FieldMetadata(
+                table="ashareeodprices",
+                field="s_dq_adjclose_backward",
+                name_zh="前复权收盘价",
+                asset_type=AssetType.STOCK,
+                frequency=Frequency.DAILY,
+                metadata_source="WDS",
+            ),
+        ]
+    )
+    return FieldSearch(catalog=catalog, aliases=aliases, metadata=metadata)
+
+
+def test_weekly_requirement_does_not_inject_daily_ashare_close() -> None:
+    """Alias and catalog both fail the frequency filter; do not invent a row."""
+    hits = _daily_stock_price_search().search(
+        DataRequirement(
+            logical_name="close",
+            meaning="收盘价",
+            frequency=Frequency.WEEKLY,
+        ),
+        limit=5,
+    )
+    assert not any(hit.table == "ashareeodprices" for hit in hits)
+
+
+def test_bond_requirement_does_not_inject_stock_ashare_close() -> None:
+    hits = _daily_stock_price_search().search(
+        DataRequirement(
+            logical_name="close",
+            meaning="收盘价",
+            asset_type=AssetType.BOND,
+        ),
+        limit=5,
+    )
+    assert not any(hit.table == "ashareeodprices" for hit in hits)
 
 
 def test_catalog_search_for_close_lists_both(catalog_search: FieldSearch) -> None:

@@ -14,21 +14,9 @@
 import { Button, Space, Table, Tag, Tooltip } from "antd"
 import type { CheckboxProps } from "antd"
 import { useState } from "react"
-import type { FieldSelection } from "../../api/client"
+import type { FieldCandidateBinding, FieldSelection } from "../../api/client"
 
-export interface FieldCandidateRow {
-  logical_name: string
-  table: string
-  field: string
-  meaning_zh?: string | null
-  unit?: string | null
-  time_role?: string | null
-  source_tier?: string
-  metadata_source?: string | null
-  schema_status?: string | null
-  price_adjustment?: "none" | "forward" | "backward" | null
-  semantic_note?: string | null
-}
+export type FieldCandidateRow = FieldCandidateBinding
 
 const PRICE_ADJUSTMENT_LABEL: Record<string, string> = {
   none: "未复权",
