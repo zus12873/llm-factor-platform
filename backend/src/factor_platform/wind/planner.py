@@ -57,11 +57,13 @@ ADJUST_BY_FIELD: Final[dict[str, str]] = {
     "s_dq_adjopen": "post",
     "s_dq_adjhigh": "post",
     "s_dq_adjlow": "post",
+    "s_dq_adjpreclose": "post",
     "s_dq_adjclose_backward": "pre",
     "s_dq_close": "none",
     "s_dq_open": "none",
     "s_dq_high": "none",
     "s_dq_low": "none",
+    "s_dq_preclose": "none",
 }
 
 # Calendar days per trading day, rounded up. Used only to size the warm-up

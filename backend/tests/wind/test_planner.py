@@ -126,6 +126,24 @@ def confirmed_close() -> list[FieldSelection]:
     ]
 
 
+def prev_close_spec() -> FactorSpec:
+    spec = momentum_spec()
+    spec.variables[0].logical_name = "prev_close"
+    spec.formula_ast.args[0].args[0].name = "prev_close"
+    return spec
+
+
+def confirmed_prev_close(field: str = "s_dq_adjpreclose") -> list[FieldSelection]:
+    return [
+        FieldSelection(
+            logical_name="prev_close",
+            table="ashareeodprices",
+            field=field,
+            time_role=FieldTimeRole.OBSERVATION,
+        )
+    ]
+
+
 def confirmed_roe(*, announcement: str | None = "ann_dt") -> list[FieldSelection]:
     return [
         FieldSelection(
@@ -362,6 +380,35 @@ def test_confirmed_adjclose_is_not_inverted_by_unadjusted_data_rule(
     spec = momentum_spec()
     spec.data_rules = DataRules(use_adjusted_price=False)
     plan = planner.plan(spec, confirmed_close(), request())
+    price_step = next(s for s in plan.steps if s.tool == "wind.get_price")
+    assert price_step.arguments["adjust_type"] == "post"
+
+
+def test_confirmed_raw_preclose_does_not_request_post_adjustment(
+    planner: WindPlanner,
+) -> None:
+    """Confirmed s_dq_preclose is unadjusted even when use_adjusted_price defaults True."""
+    spec = prev_close_spec()
+    spec.data_rules = DataRules(use_adjusted_price=True)
+    plan = planner.plan(spec, confirmed_prev_close("s_dq_preclose"), request())
+    price_step = next(s for s in plan.steps if s.tool == "wind.get_price")
+    assert price_step.arguments["adjust_type"] == "none"
+    assert price_step.arguments["fields"] == ["prev_close"]
+
+
+def test_confirmed_adjpreclose_requests_post_adjustment(planner: WindPlanner) -> None:
+    plan = planner.plan(prev_close_spec(), confirmed_prev_close(), request())
+    price_step = next(s for s in plan.steps if s.tool == "wind.get_price")
+    assert price_step.arguments["adjust_type"] == "post"
+    assert price_step.arguments["fields"] == ["prev_close"]
+
+
+def test_confirmed_adjpreclose_is_not_inverted_by_unadjusted_data_rule(
+    planner: WindPlanner,
+) -> None:
+    spec = prev_close_spec()
+    spec.data_rules = DataRules(use_adjusted_price=False)
+    plan = planner.plan(spec, confirmed_prev_close(), request())
     price_step = next(s for s in plan.steps if s.tool == "wind.get_price")
     assert price_step.arguments["adjust_type"] == "post"
 
