@@ -29,8 +29,13 @@ from pathlib import Path
 from typing import Any
 
 from factor_platform.db.repository import SessionRepository
-from factor_platform.domain.errors import RealExecutionUnavailableError
+from factor_platform.domain.errors import (
+    RealExecutionUnavailableError,
+    ReportArtifactNotFoundError,
+    ReportFormulaUnconfirmedError,
+)
 from factor_platform.domain.models import (
+    DataRequirement,
     ErrorCategory,
     ExecutionResult,
     ExecutionStatus,
@@ -38,6 +43,7 @@ from factor_platform.domain.models import (
     FieldCandidateBinding,
     FieldSelection,
     FieldTimeRole,
+    ReportEvidence,
     ResearchRequest,
     SessionSnapshot,
     StructuredError,
@@ -55,6 +61,7 @@ from factor_platform.factor.parser import FactorParser
 from factor_platform.factor.renderer import render_canonical_formula
 from factor_platform.llm.base import LLMProvider
 from factor_platform.orchestration.states import EventType
+from factor_platform.reports.extractor import ExtractedFactor, FormulaExtractionStatus
 from factor_platform.wind.field_search import FieldSearch
 from factor_platform.wind.planner import WindPlanner
 from factor_platform.wind.schema_verify import SchemaVerifier
@@ -94,7 +101,12 @@ class WorkflowService:
         return snapshot
 
     async def submit_message(
-        self, session_id: str, request: ResearchRequest, expected_version: int
+        self,
+        session_id: str,
+        request: ResearchRequest,
+        expected_version: int,
+        *,
+        source_evidence: Sequence[ReportEvidence] | None = None,
     ) -> SessionSnapshot:
         """Parse a research idea into a spec, then audit it for ambiguity.
 
@@ -107,6 +119,8 @@ class WorkflowService:
 
         # --- unlocked window: the only external call in this method ---
         spec = await self._parser.parse(request)
+        if source_evidence:
+            spec = spec.model_copy(update={"source_evidence": list(source_evidence)})
 
         questions = self._clarifier.questions(spec, request.research_idea)
         blocking = [q for q in questions if q.blocking]
@@ -128,6 +142,66 @@ class WorkflowService:
                 version,
             )
         return await self._snapshot(session_id)
+
+    async def enter_from_report(
+        self,
+        session_id: str,
+        artifact_id: str,
+        request: ResearchRequest,
+        manual_formula: str | None,
+        expected_version: int,
+        *,
+        extraction_path: Path,
+    ) -> SessionSnapshot:
+        """Seed a session from a persisted extraction; never from a client blob."""
+        extraction = _load_extraction(extraction_path, artifact_id)
+        formula = extraction.formula_extraction
+        extracted = (
+            formula.status == FormulaExtractionStatus.EXTRACTED and formula.formula_ast is not None
+        )
+        typed = (manual_formula or "").strip()
+        if not extracted and not typed:
+            raise ReportFormulaUnconfirmedError(
+                "low-confidence extraction cannot enter the workflow without a typed formula"
+            )
+
+        await self.create_session(session_id)
+        request = request.model_copy(update={"report_artifact_id": artifact_id})
+        evidence = _evidence_from_extraction(extraction)
+
+        if extracted:
+            spec = _spec_from_extraction(extraction, request)
+            version = await self._repository.append_event(
+                session_id,
+                EventType.PARSE_STARTED,
+                {"request": _json(request)},
+                expected_version,
+            )
+            questions = self._clarifier.questions(spec, request.research_idea)
+            blocking = [q for q in questions if q.blocking]
+            if blocking:
+                await self._repository.append_event(
+                    session_id,
+                    EventType.CLARIFICATION_REQUESTED,
+                    {
+                        "factor_spec": _json(spec),
+                        "clarifications": [_json(q) for q in questions],
+                    },
+                    version,
+                )
+            else:
+                await self._repository.append_event(
+                    session_id,
+                    EventType.FORMULA_PROPOSED,
+                    {"factor_spec": _json(spec)},
+                    version,
+                )
+            return await self._snapshot(session_id)
+
+        request = request.model_copy(update={"research_idea": typed})
+        return await self.submit_message(
+            session_id, request, expected_version, source_evidence=evidence
+        )
 
     async def resolve_clarification(
         self,
@@ -496,6 +570,41 @@ def _json(model: Any) -> Any:
 
 def _canonical_spec(spec: FactorSpec) -> FactorSpec:
     return spec.model_copy(update={"canonical_formula": render_canonical_formula(spec.formula_ast)})
+
+
+def _load_extraction(extraction_path: Path, artifact_id: str) -> ExtractedFactor:
+    if not extraction_path.is_file():
+        raise ReportArtifactNotFoundError(
+            f"upload id is unknown or its extraction record is missing: {artifact_id}"
+        )
+    return ExtractedFactor.model_validate_json(extraction_path.read_text(encoding="utf-8"))
+
+
+def _evidence_from_extraction(extraction: ExtractedFactor) -> list[ReportEvidence]:
+    return [
+        ReportEvidence(page_number=excerpt.page_number, quote=excerpt.text)
+        for excerpt in extraction.evidence
+    ]
+
+
+def _spec_from_extraction(extraction: ExtractedFactor, request: ResearchRequest) -> FactorSpec:
+    ast = extraction.formula_extraction.formula_ast
+    assert ast is not None
+    return FactorSpec(
+        factor_name=extraction.factor_name or "extracted_factor",
+        hypothesis=extraction.hypothesis,
+        asset_type=request.asset_type,
+        universe=request.universe,
+        frequency=request.frequency,
+        direction=extraction.direction,
+        formula_ast=ast,
+        canonical_formula=render_canonical_formula(ast),
+        variables=[DataRequirement.model_validate(item) for item in extraction.variables],
+        data_rules=request.data_rules,
+        preprocessing=request.preprocessing,
+        time_convention=request.time_convention,
+        source_evidence=_evidence_from_extraction(extraction),
+    )
 
 
 __all__ = ["WorkflowService"]

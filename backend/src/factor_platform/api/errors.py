@@ -22,6 +22,8 @@ from factor_platform.domain.errors import (
     IllegalTransitionError,
     LLMResponseError,
     RealExecutionUnavailableError,
+    ReportArtifactNotFoundError,
+    ReportFormulaUnconfirmedError,
 )
 from factor_platform.execution.manifest import (
     ManifestSchemaError,
@@ -47,6 +49,8 @@ ERROR_MAP: dict[type[Exception], tuple[int, str]] = {
     RealExecutionUnavailableError: (503, "real_execution_unavailable"),
     # 413 rather than 400: the request is well-formed, it is simply too large.
     ReportLimitError: (413, "report_limit_exceeded"),
+    ReportFormulaUnconfirmedError: (422, "report_formula_unconfirmed"),
+    ReportArtifactNotFoundError: (404, "report_artifact_not_found"),
     AnalysisError: (422, "factor_not_analyzable"),
 }
 

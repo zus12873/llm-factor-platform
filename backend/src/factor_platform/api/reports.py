@@ -19,6 +19,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, UploadFile
 from pydantic import BaseModel
 
+from factor_platform.api.sessions import get_workflow
+from factor_platform.domain.models import ResearchRequest, SessionSnapshot
+from factor_platform.orchestration.service import WorkflowService
 from factor_platform.reports.extractor import ExtractedFactor, ReportExtractor
 from factor_platform.reports.pdf import (
     MAX_FILE_BYTES,
@@ -31,6 +34,12 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 #: Read in chunks so an oversized upload is refused before it is all in memory.
 _CHUNK = 1024 * 1024
+
+
+class EnterWorkflowBody(BaseModel):
+    session_id: str
+    request: ResearchRequest
+    manual_formula: str | None = None
 
 
 class UploadResponse(BaseModel):
@@ -82,6 +91,9 @@ async def upload_report(
 
     parsed: ParsedReport = PdfParser().extract(target)
     extraction = await extractor.extract(parsed)
+    target.with_suffix(".extraction.json").write_text(
+        extraction.model_dump_json(), encoding="utf-8"
+    )
 
     return UploadResponse(
         artifact_id=artifact_id,
@@ -92,4 +104,22 @@ async def upload_report(
     )
 
 
-__all__ = ["UploadResponse", "get_extractor", "get_upload_root", "router"]
+@router.post("/{artifact_id}/sessions", status_code=201)
+async def enter_workflow(
+    artifact_id: str,
+    body: EnterWorkflowBody,
+    workflow: Annotated[WorkflowService, Depends(get_workflow)],
+    upload_root: Annotated[Path, Depends(get_upload_root)],
+) -> SessionSnapshot:
+    """Seed a normal workbench session from the server-side extraction record."""
+    return await workflow.enter_from_report(
+        body.session_id,
+        artifact_id,
+        body.request,
+        body.manual_formula,
+        expected_version=0,
+        extraction_path=upload_root / f"{artifact_id}.extraction.json",
+    )
+
+
+__all__ = ["EnterWorkflowBody", "UploadResponse", "get_extractor", "get_upload_root", "router"]

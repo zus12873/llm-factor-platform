@@ -50,3 +50,11 @@ class LLMResponseError(DomainError):
 
 class RealExecutionUnavailableError(DomainError):
     """Raised when a session requests live execution without a live runner."""
+
+
+class ReportFormulaUnconfirmedError(DomainError):
+    """Low-confidence extraction cannot enter the workflow without a typed formula."""
+
+
+class ReportArtifactNotFoundError(DomainError):
+    """Upload id is unknown or its extraction record is missing."""
