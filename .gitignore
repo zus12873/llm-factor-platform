@@ -23,6 +23,8 @@ coverage/
 credentials.json
 *.pem
 *.key
+# Compose smoke copies the example here. `.env` / `.env.*` do not match this name.
+deploy/compose.env
 
 # Runtime data and logs
 *.log
