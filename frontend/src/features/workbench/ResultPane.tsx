@@ -7,31 +7,77 @@
  *
  * Review status travels with the result: a factor built on an unreviewed metric
  * says so here, because the label is only useful if it is attached to the number
- * rather than remembered.
+ * rather than remembered. Publish is offered only on a completed session;
+ * `disputed` findings (and a non-completed result) disable it. Unreviewed may
+ * still publish — the library stores that label.
  */
-import { Card, Col, Descriptions, Row, Statistic, Tag } from "antd"
+import { useState } from "react"
+import { Link } from "react-router-dom"
+import { Alert, Button, Card, Col, Descriptions, Row, Space, Statistic, Tag } from "antd"
+import { apiClient, ApiError } from "../../api/client"
 import type { components } from "../../api/schema"
 import { ValidationFindings } from "./ValidationFindings"
 
 type ExecutionResult = components["schemas"]["ExecutionResult"]
+type Finding = components["schemas"]["ValidationFinding"]
 
 interface Props {
   result: ExecutionResult
   artifactUri?: string | null
+  sessionId?: string
+  sessionState?: string
 }
 
-export function ResultPane({ result, artifactUri }: Props) {
-  const findings = [
+function collectFindings(result: ExecutionResult): Finding[] {
+  return [
     ...(result.data_validation?.findings ?? []),
     ...(result.formula_validation?.findings ?? []),
     ...(result.result_validation?.findings ?? []),
   ]
+}
+
+function hasDisputed(result: ExecutionResult, findings: Finding[]): boolean {
+  if (findings.some((finding) => finding.code.includes("disputed"))) {
+    return true
+  }
+  const statuses = result.resource_stats?.metric_review_status
+  if (statuses && typeof statuses === "object") {
+    return Object.values(statuses as Record<string, string>).includes("disputed")
+  }
+  return false
+}
+
+export function ResultPane({ result, artifactUri, sessionId, sessionState }: Props) {
+  const findings = collectFindings(result)
   const reviewStatuses = Object.entries(
     (result.resource_stats?.metric_review_status as Record<string, string> | undefined) ?? {},
   )
   const unreviewed =
     findings.some((f) => f.code === "unreviewed_metric") ||
     reviewStatuses.some(([, status]) => status === "unreviewed")
+  const canOfferPublish = sessionState === "completed" && Boolean(sessionId)
+  const publishBlocked = result.status !== "completed" || hasDisputed(result, findings)
+  const [publishing, setPublishing] = useState(false)
+  const [published, setPublished] = useState(false)
+  const [publishError, setPublishError] = useState<ApiError | null>(null)
+
+  const publish = async () => {
+    if (!sessionId || publishBlocked) return
+    setPublishing(true)
+    setPublishError(null)
+    try {
+      await apiClient.publishSession(sessionId)
+      setPublished(true)
+    } catch (error) {
+      setPublishError(
+        error instanceof ApiError
+          ? error
+          : new ApiError(0, "client_error", "发布失败"),
+      )
+    } finally {
+      setPublishing(false)
+    }
+  }
 
   return (
     <Card
@@ -91,6 +137,30 @@ export function ResultPane({ result, artifactUri }: Props) {
       <div style={{ marginTop: 16 }}>
         <ValidationFindings findings={findings} />
       </div>
+
+      {canOfferPublish && (
+        <div style={{ marginTop: 16 }}>
+          <Space>
+            <Button
+              type="primary"
+              loading={publishing}
+              disabled={publishBlocked}
+              onClick={() => void publish()}
+            >
+              发布到因子库
+            </Button>
+            {published && <Link to="/library">前往因子库</Link>}
+          </Space>
+          {publishError && (
+            <Alert
+              type="error"
+              showIcon
+              message={publishError.message}
+              style={{ marginTop: 8 }}
+            />
+          )}
+        </div>
+      )}
     </Card>
   )
 }

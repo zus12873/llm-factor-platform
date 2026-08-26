@@ -323,6 +323,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Factors */
+        get: operations["list_factors_api_library_get"];
+        put?: never;
+        /** Publish */
+        post: operations["publish_api_library_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/{factor_id}/v/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Version */
+        get: operations["get_version_api_library__factor_id__v__version__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analysis": {
         parameters: {
             query?: never;
@@ -527,6 +562,61 @@ export interface components {
              * @default
              */
             detail: string;
+        };
+        /**
+         * ComponentVersions
+         * @description Every version that can change the answer.
+         *
+         *     Long on purpose. Each of these has silently altered a factor's value in
+         *     systems like this, and a version nobody recorded is one nobody can rule out
+         *     when a rerun disagrees.
+         */
+        ComponentVersions: {
+            /**
+             * Factor Spec Version
+             * @default 1
+             */
+            factor_spec_version: number;
+            /**
+             * Execution Plan Version
+             * @default 1
+             */
+            execution_plan_version: number;
+            /**
+             * Preprocessing Version
+             * @default 1
+             */
+            preprocessing_version: number;
+            /**
+             * Time Convention Version
+             * @default 1
+             */
+            time_convention_version: number;
+            /**
+             * Field Metadata Version
+             * @default 1
+             */
+            field_metadata_version: number;
+            /**
+             * Metric Definition Version
+             * @default 1
+             */
+            metric_definition_version: number;
+            /**
+             * Wind Adapter Version
+             * @default 0.1.0
+             */
+            wind_adapter_version: string;
+            /**
+             * Code Commit
+             * @default
+             */
+            code_commit: string;
+            /**
+             * Runtime Version
+             * @default
+             */
+            runtime_version: string;
         };
         /** CreateSessionBody */
         CreateSessionBody: {
@@ -1082,6 +1172,101 @@ export interface components {
          * @enum {string}
          */
         InformationAvailableTime: "T_INTRADAY" | "T_AFTER_CLOSE" | "ANNOUNCEMENT_BEFORE_OPEN" | "ANNOUNCEMENT_AFTER_CLOSE";
+        /**
+         * InputProvenance
+         * @description What was read, from where, and what it looked like at the time.
+         */
+        InputProvenance: {
+            /** Input Artifact Sha256 */
+            input_artifact_sha256: string;
+            /** Query Timestamp */
+            query_timestamp: string;
+            /** Source Database */
+            source_database: string;
+            /** Source Table */
+            source_table: string;
+            /** Source Fields */
+            source_fields?: string[];
+            /** Query Parameters */
+            query_parameters?: {
+                [key: string]: unknown;
+            };
+            /** Data Date Range */
+            data_date_range?: [
+                string,
+                string
+            ] | null;
+            /**
+             * Row Count
+             * @default 0
+             */
+            row_count: number;
+            /** Input Schema */
+            input_schema?: {
+                [key: string]: string;
+            };
+            /**
+             * Input Non Null Ratio
+             * @default 0
+             */
+            input_non_null_ratio: number;
+            /**
+             * Query Plan Sha256
+             * @default
+             */
+            query_plan_sha256: string;
+        };
+        /**
+         * LibraryEntry
+         * @description One immutable published factor version.
+         */
+        LibraryEntry: {
+            /**
+             * Schema Version
+             * @default 1
+             */
+            schema_version: number;
+            /** Factor Id */
+            factor_id: string;
+            /** Version */
+            version: number;
+            /** Session Id */
+            session_id: string;
+            /** Factor Name */
+            factor_name: string;
+            spec: components["schemas"]["FactorSpec-Output"];
+            /** Manifest Sha256 */
+            manifest_sha256: string;
+            /** Program Sha256 */
+            program_sha256: string;
+            /** Result Sha256 */
+            result_sha256: string;
+            /** Artifact Path */
+            artifact_path: string;
+            /**
+             * Created By
+             * @default
+             */
+            created_by: string;
+            /**
+             * Created At
+             * @default
+             */
+            created_at: string;
+            /**
+             * Review Status
+             * @default unreviewed
+             */
+            review_status: string;
+            /**
+             * Review Note
+             * @default
+             */
+            review_note: string;
+            provenance?: components["schemas"]["ProvenanceRecord"] | null;
+            /** Metric Keys */
+            metric_keys?: string[];
+        };
         /** MessageBody */
         MessageBody: {
             /** Expected Version */
@@ -1145,6 +1330,31 @@ export interface components {
          * @enum {string}
          */
         PreprocessingTarget: "variables" | "factor";
+        /**
+         * ProvenanceRecord
+         * @description The complete reproduction record for one published factor version.
+         */
+        ProvenanceRecord: {
+            /**
+             * Schema Version
+             * @default 1
+             */
+            schema_version: number;
+            /** Manifest Sha256 */
+            manifest_sha256: string;
+            /** Result Sha256 */
+            result_sha256: string;
+            /** Inputs */
+            inputs?: components["schemas"]["InputProvenance"][];
+            versions?: components["schemas"]["ComponentVersions"];
+        };
+        /** PublishBody */
+        PublishBody: {
+            /** Session Id */
+            session_id: string;
+            /** Factor Id */
+            factor_id?: string | null;
+        };
         /**
          * QuantileReturns
          * @description Mean forward return per quantile, lowest factor value first.
@@ -2036,6 +2246,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionSnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_factors_api_library_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryEntry"][];
+                };
+            };
+        };
+    };
+    publish_api_library_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryEntry"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_version_api_library__factor_id__v__version__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                factor_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryEntry"];
                 };
             };
             /** @description Validation Error */

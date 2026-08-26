@@ -25,6 +25,7 @@ export type FieldSelection = components["schemas"]["FieldSelection"]
 export type FieldCandidateBinding = components["schemas"]["FieldCandidateBinding"]
 export type ResearchRequest = components["schemas"]["ResearchRequest"]
 export type HealthReport = components["schemas"]["HealthReport"]
+export type LibraryEntry = components["schemas"]["LibraryEntry"]
 
 /** A domain error the backend gave a stable code to. */
 export class ApiError extends Error {
@@ -151,6 +152,23 @@ export const apiClient = {
     post<SessionSnapshot>(`/api/sessions/${sessionId}/cancel`, {
       expected_version: expectedVersion,
     }),
+
+  listLibrary: () => request<LibraryEntry[]>("/api/library"),
+
+  getLibraryVersion: (factorId: string, version: number) =>
+    request<LibraryEntry>(`/api/library/${factorId}/v/${version}`),
+
+  /**
+   * Publish a completed session. `factorId` is optional: the backend slugs it
+   * from `factor_name` when omitted. Do not invent one in the browser.
+   */
+  publishSession: (sessionId: string, factorId?: string) =>
+    post<LibraryEntry>(
+      "/api/library",
+      factorId
+        ? { session_id: sessionId, factor_id: factorId }
+        : { session_id: sessionId },
+    ),
 
   /**
    * Subscribe to the session log, resuming after `lastEventId`.

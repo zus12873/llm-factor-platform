@@ -927,6 +927,121 @@
         }
       }
     },
+    "/api/library": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "List Factors",
+        "operationId": "list_factors_api_library_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryEntry"
+                  },
+                  "type": "array",
+                  "title": "Response List Factors Api Library Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Publish",
+        "operationId": "publish_api_library_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryEntry"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/library/{factor_id}/v/{version}": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Get Version",
+        "operationId": "get_version_api_library__factor_id__v__version__get",
+        "parameters": [
+          {
+            "name": "factor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Factor Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryEntry"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/analysis": {
       "post": {
         "tags": [
@@ -1305,6 +1420,58 @@
           "status"
         ],
         "title": "ComponentHealth"
+      },
+      "ComponentVersions": {
+        "properties": {
+          "factor_spec_version": {
+            "type": "integer",
+            "title": "Factor Spec Version",
+            "default": 1
+          },
+          "execution_plan_version": {
+            "type": "integer",
+            "title": "Execution Plan Version",
+            "default": 1
+          },
+          "preprocessing_version": {
+            "type": "integer",
+            "title": "Preprocessing Version",
+            "default": 1
+          },
+          "time_convention_version": {
+            "type": "integer",
+            "title": "Time Convention Version",
+            "default": 1
+          },
+          "field_metadata_version": {
+            "type": "integer",
+            "title": "Field Metadata Version",
+            "default": 1
+          },
+          "metric_definition_version": {
+            "type": "integer",
+            "title": "Metric Definition Version",
+            "default": 1
+          },
+          "wind_adapter_version": {
+            "type": "string",
+            "title": "Wind Adapter Version",
+            "default": "0.1.0"
+          },
+          "code_commit": {
+            "type": "string",
+            "title": "Code Commit",
+            "default": ""
+          },
+          "runtime_version": {
+            "type": "string",
+            "title": "Runtime Version",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "ComponentVersions",
+        "description": "Every version that can change the answer.\n\nLong on purpose. Each of these has silently altered a factor's value in\nsystems like this, and a version nobody recorded is one nobody can rule out\nwhen a rerun disagrees."
       },
       "CreateSessionBody": {
         "properties": {
@@ -2578,6 +2745,185 @@
         "title": "InformationAvailableTime",
         "description": "When a researcher could actually have known the value."
       },
+      "InputProvenance": {
+        "properties": {
+          "input_artifact_sha256": {
+            "type": "string",
+            "title": "Input Artifact Sha256"
+          },
+          "query_timestamp": {
+            "type": "string",
+            "title": "Query Timestamp"
+          },
+          "source_database": {
+            "type": "string",
+            "title": "Source Database"
+          },
+          "source_table": {
+            "type": "string",
+            "title": "Source Table"
+          },
+          "source_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Source Fields"
+          },
+          "query_parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Query Parameters"
+          },
+          "data_date_range": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Date Range"
+          },
+          "row_count": {
+            "type": "integer",
+            "title": "Row Count",
+            "default": 0
+          },
+          "input_schema": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Input Schema"
+          },
+          "input_non_null_ratio": {
+            "type": "number",
+            "title": "Input Non Null Ratio",
+            "default": 0.0
+          },
+          "query_plan_sha256": {
+            "type": "string",
+            "title": "Query Plan Sha256",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "input_artifact_sha256",
+          "query_timestamp",
+          "source_database",
+          "source_table"
+        ],
+        "title": "InputProvenance",
+        "description": "What was read, from where, and what it looked like at the time."
+      },
+      "LibraryEntry": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "factor_id": {
+            "type": "string",
+            "title": "Factor Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "factor_name": {
+            "type": "string",
+            "title": "Factor Name"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/FactorSpec-Output"
+          },
+          "manifest_sha256": {
+            "type": "string",
+            "title": "Manifest Sha256"
+          },
+          "program_sha256": {
+            "type": "string",
+            "title": "Program Sha256"
+          },
+          "result_sha256": {
+            "type": "string",
+            "title": "Result Sha256"
+          },
+          "artifact_path": {
+            "type": "string",
+            "title": "Artifact Path"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By",
+            "default": ""
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "default": ""
+          },
+          "review_status": {
+            "type": "string",
+            "title": "Review Status",
+            "default": "unreviewed"
+          },
+          "review_note": {
+            "type": "string",
+            "title": "Review Note",
+            "default": ""
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProvenanceRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metric_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Metric Keys"
+          }
+        },
+        "type": "object",
+        "required": [
+          "factor_id",
+          "version",
+          "session_id",
+          "factor_name",
+          "spec",
+          "manifest_sha256",
+          "program_sha256",
+          "result_sha256",
+          "artifact_path"
+        ],
+        "title": "LibraryEntry",
+        "description": "One immutable published factor version."
+      },
       "MessageBody": {
         "properties": {
           "expected_version": {
@@ -2701,6 +3047,64 @@
         ],
         "title": "PreprocessingTarget",
         "description": "What a step operates on.\n\n``variables`` runs before the formula, once per raw input; ``factor`` runs\nafter the formula, on its single output. This distinction is precisely what\na boolean switch could not express."
+      },
+      "ProvenanceRecord": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "default": 1
+          },
+          "manifest_sha256": {
+            "type": "string",
+            "title": "Manifest Sha256"
+          },
+          "result_sha256": {
+            "type": "string",
+            "title": "Result Sha256"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/InputProvenance"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "versions": {
+            "$ref": "#/components/schemas/ComponentVersions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "manifest_sha256",
+          "result_sha256"
+        ],
+        "title": "ProvenanceRecord",
+        "description": "The complete reproduction record for one published factor version."
+      },
+      "PublishBody": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "factor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Factor Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id"
+        ],
+        "title": "PublishBody"
       },
       "QuantileReturns": {
         "properties": {

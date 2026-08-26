@@ -328,6 +328,8 @@ export function WorkbenchPage() {
               <ResultPane
                 result={snapshot.execution_result}
                 artifactUri={snapshot.artifact_uri}
+                sessionId={snapshot.session_id}
+                sessionState={snapshot.state}
               />
             )}
           </Space>

@@ -9,7 +9,8 @@
  */
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, expect, it, vi } from "vitest"
+import { MemoryRouter } from "react-router-dom"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { ClarificationCard } from "./ClarificationCard"
 import { FieldCandidateTable } from "./FieldCandidateTable"
 import { FormulaConfirmation } from "./FormulaConfirmation"
@@ -208,5 +209,76 @@ describe("ResultPane", () => {
     expect(screen.getByText("real_wind")).toBeInTheDocument()
     expect(screen.getByText("ADJ_CLOSE: unreviewed")).toBeInTheDocument()
     expect(screen.getByText(/含未复核口径/)).toBeInTheDocument()
+  })
+})
+
+describe("publish from a completed result", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function renderCompleted(result: Record<string, unknown> = { status: "completed" }) {
+    return render(
+      <MemoryRouter>
+        <ResultPane
+          result={result as never}
+          sessionId="s1"
+          sessionState="completed"
+        />
+      </MemoryRouter>,
+    )
+  }
+
+  it("shows a publish button on a completed snapshot", () => {
+    renderCompleted()
+    expect(screen.getByRole("button", { name: "发布到因子库" })).toBeEnabled()
+  })
+
+  it("POSTs /api/library when publish is clicked and then links to the library", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ factor_id: "quality", version: 1 }),
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    renderCompleted()
+    await user.click(screen.getByRole("button", { name: "发布到因子库" }))
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/library",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ session_id: "s1" }),
+      }),
+    )
+    expect(await screen.findByRole("link", { name: /因子库/ })).toHaveAttribute(
+      "href",
+      "/library",
+    )
+  })
+
+  it("disables publish when result findings include disputed", () => {
+    renderCompleted({
+      status: "completed",
+      result_validation: {
+        findings: [{ severity: "error", code: "disputed", message: "有争议口径" }],
+      },
+    })
+    expect(screen.getByRole("button", { name: "发布到因子库" })).toBeDisabled()
+  })
+
+  it("disables publish when the result status is not completed", () => {
+    renderCompleted({ status: "failed" })
+    expect(screen.getByRole("button", { name: "发布到因子库" })).toBeDisabled()
+  })
+
+  it("does not offer publish unless the session is completed", () => {
+    render(
+      <ResultPane
+        result={{ status: "completed" } as never}
+        sessionId="s1"
+        sessionState="code_ready"
+      />,
+    )
+    expect(screen.queryByRole("button", { name: "发布到因子库" })).toBeNull()
   })
 })
