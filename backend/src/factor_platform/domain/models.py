@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -215,6 +215,10 @@ class FieldCandidate(BaseModel):
     lexical_score: float | None = None
     recommendation_score: float | None = None
     evidence: str | None = None
+    # Ranking/labelling only: confirmation still picks the row. ``none`` is
+    # unadjusted close; ``backward`` is 后复权; ``forward`` is 前复权.
+    price_adjustment: Literal["none", "forward", "backward"] | None = None
+    semantic_note: str | None = None
 
 
 class FieldCandidateBinding(FieldCandidate):

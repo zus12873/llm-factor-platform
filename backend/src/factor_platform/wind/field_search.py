@@ -20,6 +20,11 @@ A field the dictionary could not describe is **kept and flagged**
 would quietly shrink the searchable universe, and the user would have no way to
 tell a field excluded by a parsing artifact from one the database does not have.
 
+4. **Price-semantic tier** — close/return/volatility queries may *boost*
+   ``s_dq_adjclose`` and label unadjusted close. This is ranking, not an alias
+   rewrite: ``收盘价`` still aliases to ``s_dq_close``, both rows stay visible,
+   and the user still confirms a binding.
+
 Results from the tiers are merged and de-duplicated by ``(table, field)``.
 """
 
@@ -42,6 +47,10 @@ from factor_platform.domain.models import (
 )
 from factor_platform.wind.catalog import FieldCatalog, FieldRecord
 from factor_platform.wind.metadata_catalog import MetadataCatalog
+from factor_platform.wind.price_semantics import (
+    PRICE_ADJUSTMENT_BY_FIELD,
+    apply_price_semantics,
+)
 
 _CAMEL_BOUNDARY_RE = re.compile(r"_+|(?<=[a-z0-9])(?=[A-Z])|(?<=\D)(?=\d)|\s+")
 
@@ -194,13 +203,23 @@ class FieldSearch:
 
     # ------------------------------------------------------------------ search
 
-    def search(self, requirement: DataRequirement, limit: int = 10) -> list[FieldCandidate]:
+    def search(
+        self,
+        requirement: DataRequirement,
+        limit: int = 10,
+        *,
+        use_adjusted_price: bool = True,
+    ) -> list[FieldCandidate]:
         query = requirement.meaning.strip()
         req_asset = requirement.asset_type
         req_freq = requirement.frequency
 
         alias_hits = self._alias_candidates(query, req_asset, req_freq)
-        bm25_hits = self._bm25_candidates(query, req_asset, req_freq, limit=limit)
+        # Pull a wider BM25 window so semantic rerank can still see adj/raw
+        # close when they were not the alias hit. Truncation happens after
+        # labelling, not by dropping unadjusted rows as a policy.
+        pool_limit = max(limit * 4, limit)
+        bm25_hits = self._bm25_candidates(query, req_asset, req_freq, limit=pool_limit)
 
         merged: list[FieldCandidate] = []
         seen: set[tuple[str, str]] = set()
@@ -210,9 +229,70 @@ class FieldSearch:
                 continue
             seen.add(key)
             merged.append(cand)
-            if len(merged) >= limit:
-                break
-        return merged
+        return apply_price_semantics(
+            merged,
+            requirement,
+            use_adjusted_price,
+            inject=lambda field: self._semantic_candidate(field, req_asset, req_freq),
+            limit=limit,
+        )
+
+    def _semantic_candidate(
+        self,
+        field: str,
+        req_asset: AssetType | None,
+        req_freq: Frequency | None,
+    ) -> FieldCandidate | None:
+        """Build a labelled extra row for a preferred/also-listed price field.
+
+        ``source_tier`` is ``semantic`` so an injected adj-close is not pretended
+        to be the ``收盘价`` alias. Existing hits keep whatever tier produced them.
+        """
+        wanted = field.lower()
+        for entry in self.aliases.values():
+            if entry.field != wanted:
+                continue
+            if not _passes_filter(entry.asset_type, entry.frequency, req_asset, req_freq):
+                continue
+            candidate = self._candidate_from_alias(entry, lexical_score=0.0)
+            return candidate.model_copy(
+                update={
+                    "source_tier": "semantic",
+                    "evidence": f"semantic:{entry.table}.{entry.field}",
+                }
+            )
+        for record in self.catalog.records:
+            if record.field != wanted:
+                continue
+            meta = (
+                self.metadata.get(record.table, record.field) if self.metadata is not None else None
+            )
+            if not _passes_filter(
+                meta.asset_type if meta else None,
+                meta.frequency if meta else None,
+                req_asset,
+                req_freq,
+            ):
+                continue
+            return FieldCandidate(
+                table=record.table,
+                field=record.field,
+                meaning_zh=meta.name_zh if meta else "",
+                asset_type=meta.asset_type if meta else None,
+                frequency=meta.frequency if meta else None,
+                unit=meta.unit if meta else None,
+                metadata_source=meta.metadata_source if meta else None,
+                source_tier="semantic",
+                evidence=f"semantic:{record.table}.{record.field}",
+            )
+        if wanted in PRICE_ADJUSTMENT_BY_FIELD:
+            return FieldCandidate(
+                table="ashareeodprices",
+                field=wanted,
+                source_tier="semantic",
+                evidence=f"semantic:ashareeodprices.{wanted}",
+            )
+        return None
 
     # ------------------------------------------------------------------ alias tier
 

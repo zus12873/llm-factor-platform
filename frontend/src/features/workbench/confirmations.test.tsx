@@ -28,6 +28,20 @@ const CANDIDATES = [
     time_role: "observation",
     source_tier: "alias",
     metadata_source: "WDS",
+    price_adjustment: "backward",
+    semantic_note: "动量/收益类默认推荐后复权收盘价，close ≠ adj_close",
+  },
+  {
+    logical_name: "close",
+    table: "ashareeodprices",
+    field: "s_dq_close",
+    meaning_zh: "收盘价",
+    unit: "cny",
+    time_role: "observation",
+    source_tier: "alias",
+    metadata_source: "WDS",
+    price_adjustment: "none",
+    semantic_note: "未复权收盘价，不等于复权收盘价",
   },
   {
     logical_name: "close",
@@ -88,6 +102,21 @@ describe("FieldCandidateTable", () => {
       <FieldCandidateTable candidates={CANDIDATES} sessionVersion={1} onConfirm={vi.fn()} />,
     )
     expect(screen.getByText("单位未知")).toBeInTheDocument()
+  })
+
+  it("renders a 复权 column and the semantic note", () => {
+    render(
+      <FieldCandidateTable candidates={CANDIDATES} sessionVersion={1} onConfirm={vi.fn()} />,
+    )
+    expect(screen.getByText("复权")).toBeInTheDocument()
+    expect(screen.getByText("后复权")).toBeInTheDocument()
+    expect(screen.getByText("未复权")).toBeInTheDocument()
+    expect(
+      screen.getByText("未复权收盘价，不等于复权收盘价"),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("动量/收益类默认推荐后复权收盘价，close ≠ adj_close"),
+    ).toBeInTheDocument()
   })
 })
 

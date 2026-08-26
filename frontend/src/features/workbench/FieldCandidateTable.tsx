@@ -2,10 +2,10 @@
  * The field confirmation table.
  *
  * Each row carries what the user needs to judge a binding: which tier proposed
- * it, its Chinese name, its unit, its time role, and whether the dictionary could
- * describe it at all. That last column matters — roughly 6% of fields have no
- * metadata, and a blank description means "we could not read the docs", not "this
- * field is meaningless".
+ * it, its Chinese name, its unit, its time role, its price-adjustment family, and
+ * whether the dictionary could describe it at all. That last column matters —
+ * roughly 6% of fields have no metadata, and a blank description means "we could
+ * not read the docs", not "this field is meaningless".
  *
  * The unit column is not decoration either. Reading market cap in yuan rather
  * than ten-thousand yuan is a 10,000x error that no downstream check catches, so
@@ -26,6 +26,14 @@ export interface FieldCandidateRow {
   source_tier?: string
   metadata_source?: string | null
   schema_status?: string | null
+  price_adjustment?: "none" | "forward" | "backward" | null
+  semantic_note?: string | null
+}
+
+const PRICE_ADJUSTMENT_LABEL: Record<string, string> = {
+  none: "未复权",
+  forward: "前复权",
+  backward: "后复权",
 }
 
 interface Props {
@@ -70,6 +78,12 @@ export function FieldCandidateTable({
           { title: "表", dataIndex: "table" },
           { title: "字段", dataIndex: "field" },
           {
+            title: "复权",
+            dataIndex: "price_adjustment",
+            render: (value: string | null) =>
+              value ? <Tag>{PRICE_ADJUSTMENT_LABEL[value] ?? value}</Tag> : null,
+          },
+          {
             title: "含义",
             dataIndex: "meaning_zh",
             render: (value: string | null) =>
@@ -80,6 +94,11 @@ export function FieldCandidateTable({
                   <Tag>无元数据</Tag>
                 </Tooltip>
               ),
+          },
+          {
+            title: "口径说明",
+            dataIndex: "semantic_note",
+            render: (value: string | null) => value ?? null,
           },
           {
             title: "单位",

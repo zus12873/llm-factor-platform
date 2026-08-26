@@ -97,6 +97,29 @@ def test_results_are_deduplicated(search: FieldSearch) -> None:
     assert len(keys) == len(set(keys))
 
 
+def test_search_for_close_lists_unadjusted_and_prefers_adjusted(
+    search: FieldSearch,
+) -> None:
+    hits = search.search(
+        DataRequirement(logical_name="close", meaning="收盘价"), limit=5
+    )
+    fields = [hit.field for hit in hits]
+    assert "s_dq_adjclose" in fields
+    assert "s_dq_close" in fields
+    assert hits[0].field == "s_dq_adjclose"
+    close = next(hit for hit in hits if hit.field == "s_dq_close")
+    assert close.price_adjustment == "none"
+    assert "不等于" in (close.semantic_note or "")
+    assert close.source_tier == "alias"
+
+
+def test_explicit_unadjusted_keeps_s_dq_close_first(search: FieldSearch) -> None:
+    hits = search.search(
+        DataRequirement(logical_name="close", meaning="不复权收盘价"), limit=5
+    )
+    assert hits[0].field == "s_dq_close"
+
+
 def test_unknown_term_returns_bm25_only(search: FieldSearch) -> None:
     """No alias for a nonsense term — all results are BM25 tier."""
     candidates = search.search(make_requirement("zzznotaterm"), limit=3)
