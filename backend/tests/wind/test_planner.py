@@ -326,6 +326,71 @@ def test_no_filters_are_added_when_the_rules_do_not_ask(planner: WindPlanner) ->
     assert "wind.is_st_stock" not in tools
 
 
+# --------------------------------------------------------------------------- price adjustment
+
+
+def test_confirmed_raw_close_does_not_request_post_adjustment(
+    planner: WindPlanner,
+) -> None:
+    """Confirmed s_dq_close is unadjusted even when use_adjusted_price defaults True."""
+    spec = momentum_spec()
+    spec.data_rules = DataRules(use_adjusted_price=True)
+    selection = [
+        FieldSelection(
+            logical_name="close",
+            table="ashareeodprices",
+            field="s_dq_close",
+            time_role=FieldTimeRole.OBSERVATION,
+        )
+    ]
+    plan = planner.plan(spec, selection, request())
+    price_step = next(s for s in plan.steps if s.tool == "wind.get_price")
+    assert price_step.arguments["adjust_type"] == "none"
+    assert price_step.arguments["fields"] == ["close"]
+
+
+def test_confirmed_adjclose_requests_post_adjustment(planner: WindPlanner) -> None:
+    plan = planner.plan(momentum_spec(), confirmed_close(), request())
+    price_step = next(s for s in plan.steps if s.tool == "wind.get_price")
+    assert price_step.arguments["adjust_type"] == "post"
+    assert price_step.arguments["fields"] == ["close"]
+
+
+def test_confirmed_adjclose_is_not_inverted_by_unadjusted_data_rule(
+    planner: WindPlanner,
+) -> None:
+    spec = momentum_spec()
+    spec.data_rules = DataRules(use_adjusted_price=False)
+    plan = planner.plan(spec, confirmed_close(), request())
+    price_step = next(s for s in plan.steps if s.tool == "wind.get_price")
+    assert price_step.arguments["adjust_type"] == "post"
+
+
+@pytest.mark.parametrize(
+    ("use_adjusted_price", "expected_adjust_type"),
+    [(True, "post"), (False, "none")],
+)
+def test_unmapped_price_field_falls_back_to_data_rules(
+    planner: WindPlanner, use_adjusted_price: bool, expected_adjust_type: str
+) -> None:
+    spec = momentum_spec()
+    spec.variables[0].logical_name = "volume"
+    spec.formula_ast.args[0].args[0].name = "volume"
+    spec.data_rules = DataRules(use_adjusted_price=use_adjusted_price)
+    selection = [
+        FieldSelection(
+            logical_name="volume",
+            table="ashareeodprices",
+            field="s_dq_volume",
+            time_role=FieldTimeRole.OBSERVATION,
+        )
+    ]
+    plan = planner.plan(spec, selection, request())
+    price_step = next(s for s in plan.steps if s.tool == "wind.get_price")
+    assert price_step.arguments["adjust_type"] == expected_adjust_type
+    assert price_step.arguments["fields"] == ["volume"]
+
+
 # --------------------------------------------------------------------------- provenance
 
 

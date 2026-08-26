@@ -50,6 +50,20 @@ _TOOL_PREFIX: Final = "wind."
 #: The registered retrieval function, consulted for what it can actually serve.
 _PRICE_TOOL: Final = "get_price"
 
+#: ``get_price`` adjust_type keyed by the confirmed Wind source column.
+#: A confirmed unadjusted field must not be inverted by DataRules.use_adjusted_price.
+ADJUST_BY_FIELD: Final[dict[str, str]] = {
+    "s_dq_adjclose": "post",
+    "s_dq_adjopen": "post",
+    "s_dq_adjhigh": "post",
+    "s_dq_adjlow": "post",
+    "s_dq_adjclose_backward": "pre",
+    "s_dq_close": "none",
+    "s_dq_open": "none",
+    "s_dq_high": "none",
+    "s_dq_low": "none",
+}
+
 # Calendar days per trading day, rounded up. Used only to size the warm-up
 # window, which is then widened by the real calendar at execution time.
 _CALENDAR_DAYS_PER_TRADING_DAY: Final = 1.6
@@ -223,7 +237,7 @@ class WindPlanner:
                     "start_date": warmup_start,
                     "end_date": request.end_date,
                     "fields": [price_output],
-                    "adjust_type": "post" if spec.data_rules.use_adjusted_price else "none",
+                    "adjust_type": _adjust_type_for(selection, spec),
                 },
                 inputs=[selection.logical_name],
             )
@@ -311,6 +325,14 @@ def _largest_window(node: FormulaNode) -> int:
 
 def _is_index_universe(universe: str) -> bool:
     return any(universe.upper().endswith(suffix) for suffix in _INDEX_SUFFIXES)
+
+
+def _adjust_type_for(selection: FieldSelection, spec: FactorSpec) -> str:
+    """Derive get_price adjust_type from the confirmed field, not the data-rule default."""
+    mapped = ADJUST_BY_FIELD.get(selection.field.lower())
+    if mapped is not None:
+        return mapped
+    return "post" if spec.data_rules.use_adjusted_price else "none"
 
 
 def _shape_for(selection: FieldSelection) -> QueryShape:
