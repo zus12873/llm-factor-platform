@@ -18,9 +18,9 @@
 
 ---
 
-## ⚠️ 当前状态（2026-08-27）
+## ⚠️ 当前状态（2026-08-28）
 
-原计划 36 个任务已实现。研报进入共用工作台、因子库 HTTP/页面、价格复权语义已合入 `main`。
+原计划 36 个任务已实现。研报进入共用工作台、因子库 HTTP/页面、价格复权语义、离线 remaining-todos 已合入 `main`（`8d771b9`）。
 
 | | 状态 |
 |---|---|
@@ -39,10 +39,13 @@
 
 | 门禁 | 结果 |
 |---|---|
-| 最新离线门禁（本机，`feat/offline-remaining-todos`） | 见 [`docs/acceptance/2026-08-27-offline-gates.md`](docs/acceptance/2026-08-27-offline-gates.md)：ruff / mypy / pytest **701 passed** / vitest **41 passed** / lint / build 全过（SHA `b6397f3`）；**不**宣称 Compose / 真实 Wind / Kimi / GitHub Actions |
+| 本机离线门禁 | 见 [`docs/acceptance/2026-08-27-offline-gates.md`](docs/acceptance/2026-08-27-offline-gates.md)：ruff / mypy / pytest **701 passed** / vitest **41 passed** / lint / build（SHA `b6397f3`；`main` `8d771b9` 复跑 pytest 701 / vitest 41） |
+| GitHub Actions `offline-gates` | **success** on `8d771b9`（[run 33098063707](https://github.com/zus12873/llm-factor-platform/actions/runs/33098063707)）：pytest **697 passed, 4 skipped**（无 `windquery/`）、vitest **41 passed** |
 | 完整真实验收当时 | 后端 647 passed / 12 skipped，前端 29 passed（`2026-08-14-coding-final`） |
 | 黄金验收集 | 37 / 37 |
 | 隐藏验收集 | 10 个历史案例已入库（`backend/data/hidden_cases/`）；不再是盲测，不得冒充 2026-08-10 原隐藏验收 |
+
+**不**宣称 Compose 冒烟、本轮重跑真实 Wind / Kimi、或浏览器五场景。不要把本机 701 写成 Actions 数字。
 
 - 功能与操作：[`docs/使用说明.md`](docs/使用说明.md)
 - 工程问题与优化：[`docs/工程优化记录.md`](docs/工程优化记录.md)

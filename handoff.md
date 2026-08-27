@@ -11,7 +11,8 @@ Git：
 - 仓库：<https://github.com/zus12873/llm-factor-platform>
 - 默认分支 `main`，带完整 Git 历史。不要再按「无 `.git` 的 ZIP 工作副本」操作。
 - 研报工作流 / 因子库 / 复权语义已合入 `main`（原功能分支 `feat/remaining-p1-p2-gaps`）。
-- 文档同步日期：2026-08-27。以 GitHub `main` HEAD 为准，不要引用已过期的 ZIP 对比哈希。
+- 离线 remaining-todos（字典测试上界、字段语义残留、离线 CI）已合入 `main`：`8d771b9`。
+- 文档同步日期：2026-08-28。以 GitHub `main` HEAD 为准，不要引用已过期的 ZIP 对比哈希。
 
 ## 已完成核心功能
 
@@ -153,7 +154,12 @@ Git：
 | Kimi Coding Plan | 通过 |
 | 真实浏览器五场景 | 通过 |
 
-**B. 最新离线门禁**（remaining-todo 修复后本机六命令，没有重跑真实 Wind / Kimi / 浏览器 / Compose / GitHub Actions）见 [`docs/acceptance/2026-08-27-offline-gates.md`](docs/acceptance/2026-08-27-offline-gates.md)：SHA `b6397f3e5855fde381adf1c9d30f7683cafd1366`，ruff / mypy / pytest **701 passed** / vitest **41 passed** / lint / build 全过。层 A 的 Coding Plan + Wind + 浏览器数字仍以 `2026-08-14-coding-final` 为准，不要用本文件覆盖。
+**B. 最新离线门禁**见 [`docs/acceptance/2026-08-27-offline-gates.md`](docs/acceptance/2026-08-27-offline-gates.md)：
+
+- 本机六命令：SHA `b6397f3`，ruff / mypy / pytest **701 passed** / vitest **41 passed** / lint / build；`main` `8d771b9` 复跑 pytest 701 / vitest 41。
+- GitHub Actions `offline-gates`：`8d771b9` **success**（[run 33098063707](https://github.com/zus12873/llm-factor-platform/actions/runs/33098063707)），pytest **697 passed, 4 skipped**（无许可字典）、vitest **41 passed**。
+
+没有重跑真实 Wind / Kimi / 浏览器 / Compose。层 A 的 Coding Plan + Wind + 浏览器数字仍以 `2026-08-14-coding-final` 为准，不要用本文件覆盖，也不要把 701 写成 Actions 数字。
 
 本仓库**没有** `docs/acceptance/2026-08-13/`。不要引用该路径。
 
@@ -219,11 +225,11 @@ Git：
 
 1. 在有 Docker 的机器按 [`docs/acceptance/compose-smoke.md`](docs/acceptance/compose-smoke.md) 补真实 Compose 冒烟，用实测输出覆盖「未执行」；不要把契约 13 passed 写成冒烟通过；
 2. 若产品要求运行时显示口径已复核，另行授权后改 `metric_definitions.yaml`，不要把文档里的 `reviewed` 当成代码状态；
-3. 需要时再跑 secret scan、`git diff` 复核，以及（若要远端证据）触发 GitHub Actions 离线门禁工作流。本机六命令离线门禁已在 Task 7 记过（见 [`docs/acceptance/2026-08-27-offline-gates.md`](docs/acceptance/2026-08-27-offline-gates.md)）；未要求不要重跑真实 Wind / Kimi，也不要重做已关闭的字段语义 Tasks 3–5。
+3. 需要时再跑 secret scan 与 `git diff` 复核。GitHub Actions 离线门禁已在 `8d771b9` 跑绿（见 [`docs/acceptance/2026-08-27-offline-gates.md`](docs/acceptance/2026-08-27-offline-gates.md)），不要当作未完成项重做；未要求不要重跑真实 Wind / Kimi，也不要重做已关闭的字段语义 Tasks 3–5。
 
 不要使用 `git add .` 或 `git add -A`。不要 force-push。push 须用户明确要求。
 
 ## 当前稳定版本
 
 - 真实 Wind + Coding Plan 闭环的产品基线：`32ce5b3`（当时 GitHub `main` 为 `c37fa4a`）。
-- 研报工作流 / 因子库 / 复权语义已合入 GitHub `main`。以远程 `main` HEAD 为准。
+- 研报工作流 / 因子库 / 复权语义 / 离线 remaining-todos 已合入 GitHub `main`：`8d771b9`。以远程 `main` HEAD 为准。
