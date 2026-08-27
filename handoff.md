@@ -222,7 +222,7 @@ Git：
 
 ## Git 提交前安全提示
 
-- 项目根目录 `Wind取数尝试.ipynb` 含非空 Wind 连接配置，禁止提交，应移出待提交工作树并加入忽略规则。
+- 仓库跟踪的 `Wind取数尝试.ipynb` **已脱敏**：连接参数来自 `os.environ.get("WIND_*")`，非空 host/password/user 字面量为 0。禁止再写入明文。该路径仍在 `.gitignore` 中，避免把填了凭据的本地副本重新纳入提交。
 - `data/artifacts/`、`tmp/`、Parquet、数据库、日志、虚拟环境、Node 依赖、缓存和构建产物均禁止提交。
 - `.gitignore` 已覆盖 `/tmp/`、`*.parquet`、`Wind取数尝试.ipynb`，以及 `deploy/compose.env`（Compose 冒烟配方会把填好的密钥复制到该路径；`.env` / `.env.*` 匹配不到这个文件名）。
 - 验收截图已做人工视觉检查，未发现凭据、连接串或 Wind 原始数据明细。
