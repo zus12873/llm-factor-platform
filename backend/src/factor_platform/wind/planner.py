@@ -337,11 +337,23 @@ def _is_index_universe(universe: str) -> bool:
     return any(universe.upper().endswith(suffix) for suffix in _INDEX_SUFFIXES)
 
 
+_NON_PRICE_GET_PRICE_FIELDS = frozenset(
+    {
+        PRICE_FIELD_MAP["volume"],
+        PRICE_FIELD_MAP["total_turnover"],
+        PRICE_FIELD_MAP["limit_up"],
+        PRICE_FIELD_MAP["limit_down"],
+    }
+)
+
+
 def _adjust_type_for(selection: FieldSelection, spec: FactorSpec) -> str:
     """Derive get_price adjust_type from the confirmed field, not the data-rule default."""
     mapped = ADJUST_BY_FIELD.get(selection.field.lower())
     if mapped is not None:
         return mapped
+    if selection.field.lower() in _NON_PRICE_GET_PRICE_FIELDS:
+        return "none"
     return "post" if spec.data_rules.use_adjusted_price else "none"
 
 

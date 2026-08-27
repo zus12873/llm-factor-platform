@@ -429,12 +429,9 @@ def test_confirmed_adjpreclose_is_not_inverted_by_unadjusted_data_rule(
     assert price_step.arguments["adjust_type"] == "post"
 
 
-@pytest.mark.parametrize(
-    ("use_adjusted_price", "expected_adjust_type"),
-    [(True, "post"), (False, "none")],
-)
-def test_unmapped_price_field_falls_back_to_data_rules(
-    planner: WindPlanner, use_adjusted_price: bool, expected_adjust_type: str
+@pytest.mark.parametrize("use_adjusted_price", [True, False])
+def test_confirmed_volume_does_not_inherit_price_adjustment(
+    planner: WindPlanner, use_adjusted_price: bool
 ) -> None:
     spec = momentum_spec()
     spec.variables[0].logical_name = "volume"
@@ -450,7 +447,7 @@ def test_unmapped_price_field_falls_back_to_data_rules(
     ]
     plan = planner.plan(spec, selection, request())
     price_step = next(s for s in plan.steps if s.tool == "wind.get_price")
-    assert price_step.arguments["adjust_type"] == expected_adjust_type
+    assert price_step.arguments["adjust_type"] == "none"
     assert price_step.arguments["fields"] == ["volume"]
 
 
