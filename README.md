@@ -39,10 +39,8 @@
 
 | 门禁 | 结果 |
 |---|---|
-| `pytest`（后端，P1/P2 合入后本机） | 698 passed，1 failed（字典条数旧上界，相对合入前 `main` 该测试零 diff） |
-| `vitest`（前端，同上） | 41 passed |
+| 最新离线门禁（本机，`feat/offline-remaining-todos`） | 见 [`docs/acceptance/2026-08-27-offline-gates.md`](docs/acceptance/2026-08-27-offline-gates.md)：ruff / mypy / pytest **701 passed** / vitest **41 passed** / lint / build 全过（SHA `b6397f3`）；**不**宣称 Compose / 真实 Wind / Kimi / GitHub Actions |
 | 完整真实验收当时 | 后端 647 passed / 12 skipped，前端 29 passed（`2026-08-14-coding-final`） |
-| `ruff` / `mypy` | 终验记录：全过 / 85 个源文件无问题 |
 | 黄金验收集 | 37 / 37 |
 | 隐藏验收集 | 10 个历史案例已入库（`backend/data/hidden_cases/`）；不再是盲测，不得冒充 2026-08-10 原隐藏验收 |
 
@@ -50,6 +48,7 @@
 - 工程问题与优化：[`docs/工程优化记录.md`](docs/工程优化记录.md)
 - 交接与未完成项：[`handoff.md`](handoff.md)
 - 离线开发完成验收：[`docs/acceptance/2026-08-10/README.md`](docs/acceptance/2026-08-10/README.md)
+- **最新离线门禁**：[`docs/acceptance/2026-08-27-offline-gates.md`](docs/acceptance/2026-08-27-offline-gates.md)
 - 真实 Coding Plan / Wind / 浏览器：[`docs/acceptance/2026-08-14-coding-final/README.md`](docs/acceptance/2026-08-14-coding-final/README.md)
 - Compose 冒烟（SKIPPED）：[`docs/acceptance/compose-smoke.md`](docs/acceptance/compose-smoke.md)
 

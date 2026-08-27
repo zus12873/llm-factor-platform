@@ -159,17 +159,7 @@ Git：
 | Kimi Coding Plan | 通过 |
 | 真实浏览器五场景 | 通过 |
 
-**B. P1/P2 合入 `main` 后、2026-08-26 在本机跑过的离线套件**（没有重跑真实 Wind / Kimi / 浏览器）：
-
-| 测试项 | 结果 |
-|---|---|
-| 后端 `pytest backend/tests` | **698 passed**，1 failed |
-| 前端 Vitest | **41 passed** |
-| `tsc --noEmit` | 干净 |
-| Compose 契约 | 13 passed |
-| Compose 真实冒烟 | **SKIPPED**（`docker` 不存在，exit 127） |
-
-那 1 条失败是 `test_real_dictionary_yields_metadata_for_thousands_of_fields`（`12126 <= 9000`）。相对合入前的 `main` 该测试文件 **零 diff**，是本地字典变大后的旧上界，不是 P1/P2 引入的。不要靠缩小字典去「修」它。
+**B. 最新离线门禁**（remaining-todo 修复后本机六命令，没有重跑真实 Wind / Kimi / 浏览器 / Compose / GitHub Actions）见 [`docs/acceptance/2026-08-27-offline-gates.md`](docs/acceptance/2026-08-27-offline-gates.md)：SHA `b6397f3e5855fde381adf1c9d30f7683cafd1366`，ruff / mypy / pytest **701 passed** / vitest **41 passed** / lint / build 全过。层 A 的 Coding Plan + Wind + 浏览器数字仍以 `2026-08-14-coding-final` 为准，不要用本文件覆盖。
 
 本仓库**没有** `docs/acceptance/2026-08-13/`。不要引用该路径。
 
@@ -178,6 +168,7 @@ Git：
 主要验收材料（均在仓库内）：
 
 - [`docs/acceptance/2026-08-10/README.md`](docs/acceptance/2026-08-10/README.md)：离线开发完成验收；
+- [`docs/acceptance/2026-08-27-offline-gates.md`](docs/acceptance/2026-08-27-offline-gates.md)：最新离线门禁（仅 ruff/mypy/pytest/vitest/lint/build）；
 - [`docs/acceptance/2026-08-14-coding-final/README.md`](docs/acceptance/2026-08-14-coding-final/README.md)：真实 Coding Plan、自然语言、研报、Wind 和浏览器闭环；
 - [`docs/acceptance/metric-review-evidence.md`](docs/acceptance/metric-review-evidence.md)：指标口径人工确认（**只改了文档**）；
 - [`docs/acceptance/compose-smoke.md`](docs/acceptance/compose-smoke.md)：Compose 冒烟 **SKIPPED**，契约 13 passed。
