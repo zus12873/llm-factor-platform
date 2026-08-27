@@ -51,11 +51,12 @@ Wind取数尝试.ipynb
 # redistributable; supply it locally to build the field catalog. See README.
 windquery/
 imgs/
-backend/data/generated/
 
-# Wind catalog JSONL is built from the licensed local dictionary; do not publish.
-# Historical hidden cases in backend/data/hidden_cases/ are now tracked (archived,
-# no longer a blind set). Do not add new unpublished blind files there.
+# Licensed Wind dictionary Markdown stays local. Identifier-only catalog
+# (table + field, no Chinese descriptions) is published; WDS metadata is not.
+backend/data/generated/*
+!backend/data/generated/README.md
+!backend/data/generated/wind_fields.jsonl
 
 # IDE / OS
 .idea/

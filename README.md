@@ -130,9 +130,10 @@ uv run --project backend factor-platform build-wind-catalog \
   --output backend/data/generated/wind_fields.jsonl
 ```
 
-没有这个文件时，依赖它的测试会自动 skip，其余测试正常运行。
+仓库已包含标识符目录 `backend/data/generated/wind_fields.jsonl`（仅表名与字段名）。
+含中文释义的 `wind_metadata.jsonl` 仍由本地字典生成，不入库。完整字典 Markdown 仍不随仓库分发。
 
-同样地，`imgs/` 下的内部需求文档也不随仓库分发。
+`imgs/` 下的内部需求文档也不随仓库分发。数据资产边界见 [`docs/data-inventory.md`](docs/data-inventory.md)。
 
 ---
 
@@ -158,6 +159,7 @@ uv run --project backend factor-platform build-wind-catalog \
 | [`docs/acceptance/compose-smoke.md`](docs/acceptance/compose-smoke.md) | Compose 冒烟 SKIPPED 与契约测试 |
 | [`docs/acceptance/metric-review-evidence.md`](docs/acceptance/metric-review-evidence.md) | 口径老师确认（文档层，YAML 未改） |
 | [`docs/acceptance/deferred-credential-steps.md`](docs/acceptance/deferred-credential-steps.md) | 凭据相关步骤：已完成 / 仍未完成 |
+| [`docs/data-inventory.md`](docs/data-inventory.md) | 哪些数据在仓库、哪些只留本机 |
 | [`docs/技术设计方案.md`](docs/技术设计方案.md) | 设计思路与框架 |
 | [`docs/技术设计方案问题与调整建议.md`](docs/技术设计方案问题与调整建议.md) | 技术评审意见（13 条，驱动了 6 个修订任务） |
 | [`docs/阶段汇报-2026-08-07.md`](docs/阶段汇报-2026-08-07.md) | 中期阶段汇报（历史存档） |
