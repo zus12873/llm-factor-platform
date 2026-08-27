@@ -4,15 +4,14 @@
 
 项目目标：将自然语言研究想法或卖方研报转换为可执行、可复现、可审计的量化因子。
 
-当前已完成自然语言因子生成、阻塞性歧义确认、Wind 字段候选与人工确认、受控真实取数、签名 manifest、隔离 Worker、因子计算、三层结果校验以及真实浏览器闭环。真实 Kimi Coding Plan、真实 Wind 和前后端端到端流程均已完成验收。
+当前已完成自然语言因子生成、阻塞性歧义确认、Wind 字段候选与人工确认、受控真实取数、签名 manifest、隔离 Worker、因子计算、三层结果校验，以及研报入口进入共用工作台、因子库发布/浏览、价格复权语义（排序 + 标签 + 规划器跟确认字段）。
 
-当前工作目录最初来自 GitHub ZIP，不包含 `.git`，因此它不是可直接提交的 Git 工作树。本次提交前检查确认：
+Git：
 
-- 原仓库：<https://github.com/zus12873/llm-factor-platform>
-- 远程 `main`：`29597625e482284d85d5719623d3dbd208066851`
-- 本地分支、remote 和 HEAD：不存在
-- 与远程 `main` 的文件级对比：过滤运行时产物后，57 个已修改文件、43 个本地新增文件、0 个远程独有文件
-- 正式接回 GitHub 时，应先重新克隆远程 `main`，再有选择地迁移本地增量；不要在当前 ZIP 目录中直接假定历史或分支关系
+- 仓库：<https://github.com/zus12873/llm-factor-platform>
+- 默认分支 `main`，带完整 Git 历史。不要再按「无 `.git` 的 ZIP 工作副本」操作。
+- 研报工作流 / 因子库 / 复权语义已合入 `main`（原功能分支 `feat/remaining-p1-p2-gaps`）。
+- 文档同步日期：2026-08-27。以 GitHub `main` HEAD 为准，不要引用已过期的 ZIP 对比哈希。
 
 ## 已完成核心功能
 
@@ -20,9 +19,8 @@
 
 - 使用 OpenAI-compatible Provider。
 - 已完善 Provider Router、结构化响应解析、健康检查、错误脱敏和调用用量记录。
-- 当前支持 Kimi Coding Plan。
-- Coding Plan Base URL：<https://api.kimi.com/coding/v1>
-- 已真实验证 `k3` 模型、最小 Chat、结构化 FactorSpec 和工具调用能力。
+- 仓库里现存的**真实验收**是 Kimi Coding Plan（`k3`，`https://api.kimi.com/coding/v1`）：鉴权、最小 Chat、结构化 FactorSpec、工具调用、自然语言 / 研报 / 浏览器闭环。证据：[`docs/acceptance/2026-08-14-coding-final/README.md`](docs/acceptance/2026-08-14-coding-final/README.md)。
+- 按量 / Open Platform 专项目录（`docs/acceptance/2026-08-14/`、`2026-08-14-k3-final/`）**不在本仓库**。不得把断裂链接当成「按量已通过」或「按量已 401」的 live 证据。
 - 未配置或不可达时不会静默回退到 Fake Provider。
 - 真实 API Key 只允许通过环境变量或本地未跟踪配置注入，不得写入仓库。
 
@@ -73,7 +71,7 @@
 - 低置信度或 OCR 公式进入人工确认，不直接执行；
 - 对外模型只接收经过边界控制的必要片段，不发送完整内部研报或 Wind 原始数据。
 
-研报 → 共用工作流（`feat/remaining-p1-p2-gaps`，Tasks 1–2）已接线，不是待实现：
+研报 → 共用工作流已接线（已合入 `main`），不是待实现：
 
 - 上传时把抽取结果写成 `{artifact_id}.extraction.json`，与 PDF 同目录；
 - `POST /api/reports/{artifact_id}/sessions` 从**服务端**抽取文件建会话，客户端不能投递一份自造 extraction blob；
@@ -83,7 +81,7 @@
 
 ### 因子库
 
-`FactorLibrary` 文件系统不可变版本 + HTTP + 页面（Tasks 3–4）已接线：
+`FactorLibrary` 文件系统不可变版本 + HTTP + 页面已接线（已合入 `main`）：
 
 - `GET /api/library`、`GET /api/library/{factor_id}/v/{version}`、`POST /api/library`；
 - 只接受 `completed` 会话；复制结果 parquet，不引用运行路径；
@@ -93,10 +91,10 @@
 
 ### 字段语义（复权 vs close）
 
-检索是排序 + 标签层，不是静默改写（Tasks 5–6）：
+检索是排序 + 标签层，不是静默改写（已合入 `main`）：
 
 - `收盘价` 别名仍是 `s_dq_close`；`close ≠ adj_close`；
-- 动量 / 收益 / 波动类查询会抬高后复权并贴标签，未复权行仍列出；
+- 动量 / 收益 / 波动类查询会抬高后复权并贴标签；`收盘价` 别名命中时未复权行仍列出。生产 `discover_fields` 默认 `limit=5` 下，**未命中该别名**的拥挤检索仍可能把未复权行挤出列表（残留，见下）；
 - 确认闸门仍在：不自动确认字段；
 - 规划器 `adjust_type` 跟已确认字段：`s_dq_close` → `none`（即使 `use_adjusted_price` 为 True）；`s_dq_adjclose` → `post`；`s_dq_preclose` 同样不因数据规则被反转。
 
@@ -109,7 +107,7 @@
 
 ## 当前未完成事项
 
-研报工作流、因子库页面 + API、字段复权语义（排序 / 标签 / 规划器跟确认字段）已在 `feat/remaining-p1-p2-gaps` 接线。下面不再把它们列为缺口。
+研报工作流、因子库页面 + API、字段复权语义（排序 / 标签 / 规划器跟确认字段）已合入 `main`。下面不再把它们列为缺口。
 
 ### 1. Docker / Compose 真实冒烟（未执行，不是通过）
 
@@ -144,9 +142,11 @@
 
 ## 测试状态
 
-最近一次**完整**真实验收（本 remaining P1/P2 分支之前，稳定版 `32ce5b3` / `main` `c37fa4a` 一带）记录：
+两层数字不要混用。
 
-| 测试项 | 结果 |
+**A. 仓库里现存的完整真实验收**（Coding Plan + 真实 Wind + 浏览器五场景）见 [`docs/acceptance/2026-08-14-coding-final/README.md`](docs/acceptance/2026-08-14-coding-final/README.md)：
+
+| 测试项 | 当时记录 |
 |---|---|
 | 后端测试 | 647 passed，12 skipped |
 | Ruff | 通过 |
@@ -159,16 +159,26 @@
 | Kimi Coding Plan | 通过 |
 | 真实浏览器五场景 | 通过 |
 
-`feat/remaining-p1-p2-gaps` 在此之上加了研报工作流、因子库、价格语义与 Compose 契约测试。各任务自己的定向测试见 `.superpowers/sdd/2026-08-24-remaining-p1-p2-gaps/task-*-report.md`。
+**B. P1/P2 合入 `main` 后、2026-08-26 在本机跑过的离线套件**（没有重跑真实 Wind / Kimi / 浏览器）：
 
-**本次文档同步（Task 8）没有重跑完整项目验收**，没有重跑 `pytest backend/tests` 全量，没有重跑真实 Wind，没有重跑 Kimi，没有跑浏览器闭环。Compose 真实冒烟见上：SKIPPED，不是通过。原始隐藏案例集当前不存在，不能重建替代集冒充重跑。
+| 测试项 | 结果 |
+|---|---|
+| 后端 `pytest backend/tests` | **698 passed**，1 failed |
+| 前端 Vitest | **41 passed** |
+| `tsc --noEmit` | 干净 |
+| Compose 契约 | 13 passed |
+| Compose 真实冒烟 | **SKIPPED**（`docker` 不存在，exit 127） |
 
-主要验收材料：
+那 1 条失败是 `test_real_dictionary_yields_metadata_for_thousands_of_fields`（`12126 <= 9000`）。相对合入前的 `main` 该测试文件 **零 diff**，是本地字典变大后的旧上界，不是 P1/P2 引入的。不要靠缩小字典去「修」它。
 
-- [`docs/acceptance/2026-08-13/README.md`](docs/acceptance/2026-08-13/README.md)：真实 Wind、Worker、PIT 和校验证据；
-- [`docs/acceptance/2026-08-14-coding-final/README.md`](docs/acceptance/2026-08-14-coding-final/README.md)：真实 Coding Plan、自然语言、研报和浏览器闭环；
-- [`docs/acceptance/metric-review-evidence.md`](docs/acceptance/metric-review-evidence.md)：指标口径人工确认记录；
-- [`docs/acceptance/compose-smoke.md`](docs/acceptance/compose-smoke.md)：Compose 冒烟 **SKIPPED**（本机无 Docker CLI），契约 13 passed。
+本仓库**没有** `docs/acceptance/2026-08-13/`。不要引用该路径。原始隐藏案例集当前不存在，不能重建替代集冒充重跑。
+
+主要验收材料（均在仓库内）：
+
+- [`docs/acceptance/2026-08-10/README.md`](docs/acceptance/2026-08-10/README.md)：离线开发完成验收；
+- [`docs/acceptance/2026-08-14-coding-final/README.md`](docs/acceptance/2026-08-14-coding-final/README.md)：真实 Coding Plan、自然语言、研报、Wind 和浏览器闭环；
+- [`docs/acceptance/metric-review-evidence.md`](docs/acceptance/metric-review-evidence.md)：指标口径人工确认（**只改了文档**）；
+- [`docs/acceptance/compose-smoke.md`](docs/acceptance/compose-smoke.md)：Compose 冒烟 **SKIPPED**，契约 13 passed。
 
 ## 环境配置说明
 
@@ -223,11 +233,11 @@
 1. 在有 Docker 的机器按 [`docs/acceptance/compose-smoke.md`](docs/acceptance/compose-smoke.md) 补真实 Compose 冒烟，用实测输出覆盖「未执行」；不要把契约 13 passed 写成冒烟通过；
 2. 若产品要求运行时显示口径已复核，另行授权后改 `metric_definitions.yaml`，不要把文档里的 `reviewed` 当成代码状态；
 3. 需要时再处理字段语义残留（`limit` 挤掉未复权行、前复权 close 未走 `get_price`）；
-4. 合并本分支前跑完整离线门禁、secret scan 和 `git diff` 复核。未要求不要重跑真实 Wind / Kimi。
+4. 需要时再跑完整离线门禁、secret scan 和 `git diff` 复核。未要求不要重跑真实 Wind / Kimi。
 
-不要使用 `git add .` 或 `git add -A`。不要直接 push。不要 force-push。
+不要使用 `git add .` 或 `git add -A`。不要 force-push。push 须用户明确要求。
 
 ## 当前稳定版本
 
-- 当前稳定版本 commit：`32ce5b3f63479befa7bc01194c1187a33d513e5b`
-- GitHub `main` 已同步。
+- 真实 Wind + Coding Plan 闭环的产品基线：`32ce5b3`（当时 GitHub `main` 为 `c37fa4a`）。
+- 研报工作流 / 因子库 / 复权语义已合入 GitHub `main`。以远程 `main` HEAD 为准。

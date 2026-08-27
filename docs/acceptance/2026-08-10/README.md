@@ -49,7 +49,7 @@
 
 ## 五、需要凭据才能完成的部分
 
-完整清单见 [`../deferred-credential-steps.md`](../deferred-credential-steps.md)。摘要：
+完整清单见 [`../deferred-credential-steps.md`](../deferred-credential-steps.md)（2026-08-27 已拆成已完成 / 仍未完成）。**下文是 2026-08-10 当时的摘要，不要当成今天的 live 状态**（例如 `--real-wind` 后来已经接线并真实跑通）：
 
 | 项目 | 前置 |
 |---|---|

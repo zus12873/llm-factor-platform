@@ -48,15 +48,13 @@
 定义使用。当前验收文档状态为 `reviewed`。本更新不改变本轮真实组件测试结果和
 `READY_WITH_HUMAN_REVIEW_PENDING` 这一历史验收结论。
 
-确认记录：
+确认记录（文档层；运行时 YAML 仍为 `unreviewed`）：
 
 - [metric-review-evidence.md](../metric-review-evidence.md)
-- [metric-review-evidence.md](../2026-08-13/metric-review-evidence.md)
-- [teacher-metric-review.md](../2026-08-13/teacher-metric-review.md)
 
 ## DEPLOYMENT ENVIRONMENT PENDING
 
-当前机器未安装 Docker CLI，`docker --version` exit 1。因此 Compose 部署冒烟是 `DEPLOYMENT_ENVIRONMENT_PENDING`，不是因子研究核心技术阻塞。
+当前机器未安装 Docker CLI。Compose 真实冒烟是 `SKIPPED`（2026-08-26：`command not found`，exit 127），不是因子研究核心技术阻塞。证据：[compose-smoke.md](../compose-smoke.md)。
 
 ## OPTIONAL / NOT REQUIRED
 
