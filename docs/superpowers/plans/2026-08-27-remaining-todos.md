@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Close the remaining items this team can finish without company network, Wind/Kimi credentials, Docker, or business-signoff: dictionary-test bound, handoff notebook copy, three price-semantic residuals, offline GitHub Actions, a full offline gate rerun, and a reports/library browser regression.
+**Goal:** Finish every remaining item this team can close without company network, Wind/Kimi credentials, Docker, or 口径 sign-off.
 
-**Architecture:** Keep the existing field-search → confirmation → planner → `get_price` path. Ranking still must not rewrite aliases or skip confirmation. CI runs only offline gates on GitHub-hosted runners; it must never receive Wind/Kimi secrets or talk to the company MySQL.
+**Architecture:** Keep field-search → human confirmation → planner → `wind.get_price`. Ranking may reorder and label; it must not rewrite `wind_aliases.yaml` or skip confirmation. `get_price` `adjust_type` follows the confirmed Wind column. GitHub Actions run only offline gates on `ubuntu-latest` with no repository secrets.
 
-**Tech Stack:** pytest, Vitest, ruff, mypy, GitHub Actions (`uv` + Node 22), Playwright/browser-control for the UI regression.
+**Tech Stack:** pytest, Vitest, ruff, mypy, GitHub Actions (`astral-sh/setup-uv@v4`, Node 22), existing FastAPI + React test fixtures.
 
-**Baseline:** GitHub `main` at `69f7b84` (hidden cases archived). Local = remote.
+**Baseline:** GitHub `main` `ce2f1c5`. Identifier catalog `backend/data/generated/wind_fields.jsonl` is tracked; `wind_metadata.jsonl` is not.
 
 ## Global Constraints
 
@@ -16,63 +16,50 @@
 - B4: never send a full report body or Wind raw data to an external model.
 - Worker remains `network_mode: none` and holds only `MANIFEST_SIGNING_KEY` (verify, not sign).
 - Formula confirmation and field confirmation cannot be skipped.
-- `disputed` metrics cannot be published; do **not** change `metric_definitions.yaml` `review_status` in this plan.
-- Do not commit `.env`, Wind credentials, API keys, parquet, `backend/data/generated/`, or `windquery/`.
-- Do not claim Compose smoke, real Wind, or real Kimi passed unless those commands ran.
-- Python via `uv run --project backend`. Frontend: `npm --prefix frontend`.
-- Public GitHub Actions: no Wind host, no Kimi keys, no self-hosted runner in this plan.
+- Do **not** change `backend/data/metric_definitions.yaml` `review_status`.
+- Do not commit `.env`, Wind credentials, API keys, parquet, `windquery/`, `imgs/`, or `backend/data/generated/wind_metadata.jsonl`.
+- Do not claim Compose smoke, real Wind, or real Kimi passed unless those commands ran in this work.
+- Python: `uv run --project backend …`. Frontend: `npm --prefix frontend …`.
+- Public GitHub Actions: no `WIND_*`, no `KIMI_*`, no self-hosted runner.
 
-## Out of this plan (external / not developer-decidable)
+## Scope
 
-Recorded so implementers do not “helpfully” do them:
+One sequenced plan (the audit listed these as one remaining-offline bundle). Three clusters that could split later: (A) dictionary test + handoff copy, (B) price semantics / planner / adapter, (C) CI + offline gate evidence + UI regression.
 
-- YAML 口径改为 `reviewed`（须带教老师书面授权 + `PROFIT_GROWTH_YOY` 最终字段）。
-- Docker/Compose 实机冒烟（须有 Docker daemon 的机器）。
-- P1/P2 后真实 Wind / 真实 Kimi / 老师现场验收。
-- Self-hosted runner 跑真实组件。
-- 新建独立盲测集冒充 2026-08-10 原隐藏验收。
-- 轮换 Wind 密码、开通 VPN、增加 Kimi 额度。
+**Not in this plan:** YAML → `reviewed`; Docker compose up; real Wind/Kimi rerun; self-hosted runner; new independent blind set; VPN / DBA / Kimi quota.
 
 ---
 
 ## File Map
 
-**Create**
-
-- `.github/workflows/offline-gates.yml`
-- `docs/acceptance/2026-08-27-offline-gates.md` (filled only after Task 7 actually runs)
-- `docs/acceptance/2026-08-27-ui-regression.md` (filled only after Task 8 actually runs)
-
-**Modify**
-
-- `backend/tests/wind/test_metadata_catalog.py` — drop `<= 9000`
-- `handoff.md` — Notebook 已脱敏
-- `backend/src/factor_platform/wind/price_semantics.py` — reserve preferred + also_list before `limit`
-- `backend/tests/wind/test_price_semantics.py`
-- `backend/src/factor_platform/wind/adapter.py` — map 前复权 close
-- `backend/src/factor_platform/wind/planner.py` — volume/limit not inherit price adjust
-- `backend/tests/wind/test_planner.py`
-- `README.md` / `docs/使用说明.md` — after Task 7, one test-bar paragraph
-
-**Do not touch**
-
-- `backend/data/metric_definitions.yaml` review statuses
-- `deploy/compose.yaml` worker `network_mode`
-- `backend/data/generated/`, `windquery/`
+| File | Responsibility |
+|---|---|
+| `backend/tests/wind/test_metadata_catalog.py` | Dictionary size/quality assertions |
+| `handoff.md` | Notebook credential copy |
+| `backend/src/factor_platform/wind/price_semantics.py` | Reserve adj+raw before `limit` |
+| `backend/tests/wind/test_price_semantics.py` | Crowded-pool limit test |
+| `backend/src/factor_platform/wind/adapter.py` | `pre` reads `s_dq_adjclose_backward` |
+| `backend/src/factor_platform/wind/planner.py` | Source map + non-price `adjust_type` |
+| `backend/tests/wind/test_planner.py` | Forward-adj close + volume tests |
+| `.github/workflows/offline-gates.yml` | Offline CI |
+| `docs/acceptance/2026-08-27-offline-gates.md` | Written **after** commands run |
+| `docs/acceptance/2026-08-27-ui-regression.md` | Written **after** UI is exercised |
 
 ---
 
-### Task 1: Dictionary size test — floor and quality, no historic ceiling
+### Task 1: Drop the dictionary field-count ceiling
 
 **Files:**
-- Modify: `backend/tests/wind/test_metadata_catalog.py` (`test_real_dictionary_yields_metadata_for_thousands_of_fields`)
-- Test: same file
+- Modify: `backend/tests/wind/test_metadata_catalog.py:465-470`
+- Test: same function
 
 **Interfaces:**
-- Consumes: `DictionaryBuilder(REAL_DICTIONARY).build() -> list[FieldMetadata]`
-- Produces: assertion with a **minimum** count, required fields present, parseable name/unit/frequency; **no maximum**.
+- Consumes: `DictionaryBuilder(REAL_DICTIONARY).build() -> list[FieldMetadata]` (`REAL_DICTIONARY` = repo `windquery/windquery/references/wind字典`)
+- Produces: same test name; **no maximum** on `len(records)`
 
-- [ ] **Step 1: Write the failing replacement assertions** (keep `@requires_real_dictionary`)
+- [ ] **Step 1: Replace the assertions**
+
+Current failure on this machine: `AssertionError: got 12126 records` / `assert 12126 <= 9000`.
 
 ```python
 @requires_real_dictionary
@@ -80,23 +67,25 @@ def test_real_dictionary_yields_metadata_for_thousands_of_fields() -> None:
     """A real WDS dump is large; never cap how many fields it may contain."""
     records = DictionaryBuilder(REAL_DICTIONARY).build()
     assert len(records) >= 6000, f"got {len(records)} records"
-    by_key = {(r.table.lower(), r.field.lower()): r for r in records}
-    assert ("ashareeodprices", "s_dq_close") in by_key
-    assert ("ashareeodprices", "s_dq_adjclose") in by_key
-    close = by_key[("ashareeodprices", "s_dq_close")]
-    assert close.metadata_source == "WDS"
+    assert all(record.metadata_source == "WDS" for record in records)
+    by_key = {(record.table.lower(), record.field.lower()): record for record in records}
+    close = by_key.get(("ashareeodprices", "s_dq_close"))
+    adj = by_key.get(("ashareeodprices", "s_dq_adjclose"))
+    assert close is not None, "s_dq_close missing from dictionary"
+    assert adj is not None, "s_dq_adjclose missing from dictionary"
     assert close.name_zh
+    assert close.frequency is Frequency.DAILY or close.frequency is None
 ```
 
-Delete `<= 9000`. Keep the existing `assert all(record.metadata_source == "WDS")` or fold it in.
+Keep the `@requires_real_dictionary` skip when `windquery/.../wind字典` is absent (CI will skip; this laptop will run).
 
-- [ ] **Step 2: Run it**
+- [ ] **Step 2: Run**
 
 ```bash
 uv run --project backend pytest backend/tests/wind/test_metadata_catalog.py::test_real_dictionary_yields_metadata_for_thousands_of_fields -v
 ```
 
-Expected: PASS on a machine with `windquery/.../wind字典` (12126 >= 6000). If the dictionary is absent: SKIP, same as today. Do not skip when the dictionary is present.
+Expected: PASS (`12126 >= 6000`) on a machine with the licensed dictionary; SKIP without it.
 
 - [ ] **Step 3: Commit**
 
@@ -107,43 +96,57 @@ git commit -m "test: drop historic ceiling on Wind dictionary field count"
 
 ---
 
-### Task 2: Handoff Notebook copy
+### Task 2: Correct the Notebook credential sentence in handoff
 
 **Files:**
-- Modify: `handoff.md` Git 提交前安全提示
+- Modify: `handoff.md:225`
 
-**Interfaces:** none.
+**Interfaces:** none. Verification is a literal string check.
 
-- [ ] **Step 1: Replace the stale sentence**
+- [ ] **Step 1: Confirm the stale sentence is present**
 
-Old: `Wind取数尝试.ipynb 含非空 Wind 连接配置`
+```bash
+rg -n "含非空 Wind 连接配置" handoff.md
+```
 
-New (exact):
+Expected: a match on the Git 提交前安全提示 list.
+
+- [ ] **Step 2: Replace that bullet with**
 
 ```markdown
 - 仓库跟踪的 `Wind取数尝试.ipynb` **已脱敏**：连接参数来自 `os.environ.get("WIND_*")`，非空 host/password/user 字面量为 0。禁止再写入明文。该路径仍在 `.gitignore` 中，避免把填了凭据的本地副本重新纳入提交。
 ```
 
-- [ ] **Step 2: Commit**
+Leave the `.gitignore` coverage bullet that follows; it already lists `Wind取数尝试.ipynb`.
+
+- [ ] **Step 3: Confirm the stale sentence is gone**
+
+```bash
+rg -n "含非空 Wind 连接配置" handoff.md
+```
+
+Expected: no matches.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add handoff.md
-git commit -m "docs: note Wind notebook is env-based and contains no literal credentials"
+git commit -m "docs: note Wind notebook is env-based and has no literal credentials"
 ```
 
 ---
 
-### Task 3: Reserve adj + raw close before applying `limit`
+### Task 3: Keep adj and raw close before applying `limit`
 
 **Files:**
-- Modify: `backend/src/factor_platform/wind/price_semantics.py` (`apply_price_semantics`)
-- Modify: `backend/tests/wind/test_price_semantics.py`
+- Modify: `backend/src/factor_platform/wind/price_semantics.py:160-193` (`apply_price_semantics`)
+- Test: `backend/tests/wind/test_price_semantics.py`
 
 **Interfaces:**
-- Consumes: `PriceIntent.preferred_field`, `PriceIntent.also_list`, `limit: int | None`
-- Produces: same function signature; when `intent.preferred_field` is set, the returned list of length `limit` **must still contain** `preferred_field` and every `also_list` field that was injected or already present, unless `limit` is smaller than that reserved set (then keep the reserved set and do not pad).
+- Consumes: `apply_price_semantics(candidates, requirement, use_adjusted_price=True, *, inject=None, limit=None) -> list[FieldCandidate]`
+- Produces: same signature. When `classify_price_intent` sets `preferred_field`, every name in `(preferred_field, *also_list)` that is already in `candidates` or returned by `inject` **survives** `limit`. Extra BM25 rows fill remaining slots. If `limit` is smaller than the reserved set, return the reserved set anyway (do not drop raw close to hit `limit=5`).
 
-- [ ] **Step 1: Failing test** (tiny in-memory search / fake candidates, no licensed catalog)
+- [ ] **Step 1: Write the failing test** at the bottom of `backend/tests/wind/test_price_semantics.py`
 
 ```python
 def test_limit_does_not_drop_unadjusted_close_from_a_crowded_pool() -> None:
@@ -159,8 +162,9 @@ def test_limit_does_not_drop_unadjusted_close_from_a_crowded_pool() -> None:
     fields = [row.field for row in out]
     assert "s_dq_adjclose" in fields
     assert "s_dq_close" in fields
-    assert len(out) <= 5 or set(fields) >= {"s_dq_adjclose", "s_dq_close"}
 ```
+
+`classify_price_intent(..., "动量")` already sets `preferred_field="s_dq_adjclose"` and `also_list=("s_dq_close",)` in this file’s `test_momentum_infers_adjusted_close`.
 
 - [ ] **Step 2: Run red**
 
@@ -168,31 +172,53 @@ def test_limit_does_not_drop_unadjusted_close_from_a_crowded_pool() -> None:
 uv run --project backend pytest backend/tests/wind/test_price_semantics.py::test_limit_does_not_drop_unadjusted_close_from_a_crowded_pool -v
 ```
 
-Expected: FAIL — `s_dq_close` missing after `[:5]` because it sits at the tail of `rest`.
+Expected: FAIL — `s_dq_close` not in `fields`. Cause: `apply_price_semantics` boosts only `preferred_field` then `labelled[:limit]`, so eight `s_dq_other*` plus adj-close fill five slots and raw close (at the tail of `rest`) is dropped.
 
-- [ ] **Step 3: Implementation**
+- [ ] **Step 3: Replace the slice at the end of `apply_price_semantics`**
 
-After labelling and boosting `preferred`, partition:
+Current (end of function):
 
 ```python
-reserved_names = tuple(
-    n for n in (intent.preferred_field, *intent.also_list) if n is not None
-)
-reserved = [row for row in labelled if row.field in reserved_names]
-others = [row for row in labelled if row.field not in reserved_names]
-if limit is None:
-    return reserved + others
-room = max(limit - len(reserved), 0)
-return reserved + others[:room]
+    labelled = [annotate_candidate(row, intent) for row in merged]
+    if intent.preferred_field is not None:
+        preferred = [row for row in labelled if row.field == intent.preferred_field]
+        rest = [row for row in labelled if row.field != intent.preferred_field]
+        labelled = preferred + rest
+    if limit is not None:
+        labelled = labelled[:limit]
+    return labelled
 ```
 
-Do not drop a reserved field to satisfy `len == limit`. If `limit=1` and two reserved names exist, return both reserved rows (the floor is the reserved set).
+Replace with:
 
-- [ ] **Step 4: Run green** including existing price-semantics tests.
+```python
+    labelled = [annotate_candidate(row, intent) for row in merged]
+    reserved_names = tuple(
+        name
+        for name in (intent.preferred_field, *intent.also_list)
+        if name is not None
+    )
+    reserved = [row for row in labelled if row.field in reserved_names]
+    others = [row for row in labelled if row.field not in reserved_names]
+    if intent.preferred_field is not None:
+        preferred = [row for row in reserved if row.field == intent.preferred_field]
+        also = [row for row in reserved if row.field != intent.preferred_field]
+        reserved = preferred + also
+    if limit is None:
+        return reserved + others
+    room = max(limit - len(reserved), 0)
+    return reserved + others[:room]
+```
+
+Do not rewrite aliases. Do not auto-confirm.
+
+- [ ] **Step 4: Run green**
 
 ```bash
 uv run --project backend pytest backend/tests/wind/test_price_semantics.py backend/tests/wind/test_field_search.py -v
 ```
+
+Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -203,37 +229,44 @@ git commit -m "fix: keep adj and raw close candidates before applying search lim
 
 ---
 
-### Task 4: Map `s_dq_adjclose_backward` through `get_price`
+### Task 4: Serve 前复权 close through `get_price` with `adjust_type="pre"`
 
 **Files:**
-- Modify: `backend/src/factor_platform/wind/adapter.py` (`ADJUSTED_PRICE_FIELD_MAP` or a dedicated forward-adjust map)
-- Modify: `backend/src/factor_platform/wind/planner.py` (`_price_output_by_source` construction)
-- Modify: `backend/tests/wind/test_planner.py`
-
-**Why:** `ADJUST_BY_FIELD["s_dq_adjclose_backward"] = "pre"` is dead: `_price_output_by_source` is built only from `PRICE_FIELD_MAP` and `ADJUSTED_PRICE_FIELD_MAP`, which map `close` → `s_dq_adjclose`, not the backward column. Confirmed 前复权 close currently plans `execute_generic_query_plan`.
+- Modify: `backend/src/factor_platform/wind/adapter.py:458-477` and `get_price` stock-field selection ~653-663 and value copy ~746-758
+- Modify: `backend/src/factor_platform/wind/planner.py:88-92` (`_price_output_by_source`)
+- Test: `backend/tests/wind/test_planner.py`
 
 **Interfaces:**
-- Consumes: `FieldSelection(field="s_dq_adjclose_backward", table="ashareeodprices")`
-- Produces: `wind.get_price` step with `fields=["close"]` and `adjust_type="pre"` **and** adapter actually reading `s_dq_adjclose_backward` when `adjust_type == "pre"`.
+- Consumes: `FieldSelection(logical_name="close", table="ashareeodprices", field="s_dq_adjclose_backward")`
+- Produces: an `ExecutionStep` with `tool="wind.get_price"`, `arguments["fields"]==["close"]`, `arguments["adjust_type"]=="pre"`. Adapter, when `adjust_type in {"pre", "pre_volume"}`, reads column `s_dq_adjclose_backward` for the `close` output, not `s_dq_adjclose`.
 
-Read `get_price` in `adapter.py` before editing. Today `pre` and `post` are both in `ADJUSTED_CLOSE_TYPES` and both read `s_dq_adjclose`. **That is the bug.** Split:
-
-- `adjust_type in {"post", "post_volume"}` → `s_dq_adjclose`
-- `adjust_type in {"pre", "pre_volume"}` → `s_dq_adjclose_backward`
-
-- [ ] **Step 1: Failing planner test** (copy `momentum_spec` / `confirmed_close` style)
+Today `_price_output_by_source` is:
 
 ```python
-def test_confirmed_forward_adj_close_uses_get_price_pre() -> None:
+self._price_output_by_source: dict[str, str] = {
+    source.lower(): output
+    for mapping in (PRICE_FIELD_MAP, ADJUSTED_PRICE_FIELD_MAP)
+    for output, source in mapping.items()
+}
+```
+
+`ADJUSTED_PRICE_FIELD_MAP["close"]` is `"s_dq_adjclose"` only, so `s_dq_adjclose_backward` is not a `get_price` source and `_retrieval_step` falls through to `execute_generic_query_plan`. `ADJUST_BY_FIELD["s_dq_adjclose_backward"] = "pre"` is unused. `get_price` treats `pre` and `post` as the same `ADJUSTED_CLOSE_TYPES` set and copies `s_dq_adjclose`.
+
+- [ ] **Step 1: Failing planner test** (add next to the other price-adjustment tests; reuse `momentum_spec`, `request`, fixture `planner`)
+
+```python
+def test_confirmed_forward_adj_close_uses_get_price_pre(planner: WindPlanner) -> None:
     spec = momentum_spec()
-    selection = FieldSelection(
-        logical_name="close",
-        table="ashareeodprices",
-        field="s_dq_adjclose_backward",
-        time_role=FieldTimeRole.OBSERVATION,
-    )
-    plan = planner.plan(spec, [selection], request())
-    price_step = next(s for s in plan.steps if s.tool.endswith("get_price"))
+    selection = [
+        FieldSelection(
+            logical_name="close",
+            table="ashareeodprices",
+            field="s_dq_adjclose_backward",
+            time_role=FieldTimeRole.OBSERVATION,
+        )
+    ]
+    plan = planner.plan(spec, selection, request())
+    price_step = next(s for s in plan.steps if s.tool == "wind.get_price")
     assert price_step.arguments["adjust_type"] == "pre"
     assert price_step.arguments["fields"] == ["close"]
 ```
@@ -244,17 +277,63 @@ def test_confirmed_forward_adj_close_uses_get_price_pre() -> None:
 uv run --project backend pytest backend/tests/wind/test_planner.py::test_confirmed_forward_adj_close_uses_get_price_pre -v
 ```
 
-Expected: FAIL — no `get_price` step (generic query instead).
+Expected: FAIL — `StopIteration` (no `wind.get_price` step).
 
-- [ ] **Step 3: Wire source map + adapter column**
+- [ ] **Step 3: Minimal wiring**
 
-Add `s_dq_adjclose_backward` to the planner source map as output `"close"`. In `get_price`, when `adjust_type` is `pre` / `pre_volume`, select `s_dq_adjclose_backward` not `s_dq_adjclose`. Add/adjust an adapter unit test if one already pins `pre` → `s_dq_adjclose`.
+In `adapter.py` next to `ADJUSTED_PRICE_FIELD_MAP`:
 
-- [ ] **Step 4: Run**
+```python
+FORWARD_ADJUSTED_PRICE_FIELD_MAP = {
+    "open": "s_dq_adjopen",   # keep existing if no dedicated forward OHLC columns
+    "high": "s_dq_adjhigh",
+    "low": "s_dq_adjlow",
+    "close": "s_dq_adjclose_backward",
+    "prev_close": "s_dq_adjpreclose",
+}
+PRE_ADJUST_TYPES = {"pre", "pre_volume"}
+POST_ADJUST_TYPES = {"post", "post_volume"}
+```
+
+If Wind has no distinct 前复权 open/high/low columns in this replica, **only** change `close` (and leave other keys pointing at the existing adj columns). The required behavior is for `close`.
+
+In `get_price`, replace the single `ADJUSTED_PRICE_FIELD_MAP` lookup:
+
+```python
+if adjust_type in PRE_ADJUST_TYPES:
+    adj_map = FORWARD_ADJUSTED_PRICE_FIELD_MAP
+elif adjust_type in POST_ADJUST_TYPES:
+    adj_map = ADJUSTED_PRICE_FIELD_MAP
+else:
+    adj_map = {}
+```
+
+Use `adj_map` both when building `stock_fields` and when copying values (`adjusted_values = _numeric_column(raw, adj_map[field])`).
+
+In `planner.py` `__init__`, include the forward map in `_price_output_by_source`:
+
+```python
+from factor_platform.wind.adapter import (
+    ADJUSTED_PRICE_FIELD_MAP,
+    FORWARD_ADJUSTED_PRICE_FIELD_MAP,
+    PRICE_FIELD_MAP,
+)
+self._price_output_by_source = {
+    source.lower(): output
+    for mapping in (PRICE_FIELD_MAP, ADJUSTED_PRICE_FIELD_MAP, FORWARD_ADJUSTED_PRICE_FIELD_MAP)
+    for output, source in mapping.items()
+}
+```
+
+Export `FORWARD_ADJUSTED_PRICE_FIELD_MAP` from `adapter.py` `__all__` if the module has one; otherwise the import is enough.
+
+- [ ] **Step 4: Run green**
 
 ```bash
 uv run --project backend pytest backend/tests/wind/test_planner.py backend/tests/wind/test_adapter_contract.py -v
 ```
+
+Expected: PASS. Existing `s_dq_adjclose` tests still expect `adjust_type=="post"` and `fields==["close"]`.
 
 - [ ] **Step 5: Commit**
 
@@ -265,55 +344,84 @@ git commit -m "fix: serve forward-adjusted close via get_price pre adjustment"
 
 ---
 
-### Task 5: Non-price `get_price` fields must not inherit price adjustment
+### Task 5: Volume and limit fields must not inherit price adjustment
 
 **Files:**
-- Modify: `backend/src/factor_platform/wind/planner.py` (`_adjust_type_for`)
-- Modify: `backend/tests/wind/test_planner.py`
+- Modify: `backend/src/factor_platform/wind/planner.py:332-337` (`_adjust_type_for`)
+- Modify: `backend/tests/wind/test_planner.py:416-438` (`test_unmapped_price_field_falls_back_to_data_rules` currently **expects** volume + `use_adjusted_price=True` → `adjust_type=="post"`; that expectation is the bug)
 
 **Interfaces:**
-- Consumes: `selection.field`, `ADJUST_BY_FIELD`, `PRICE_FIELD_MAP` keys that are not OHLC/prev_close
-- Produces: `volume` / `total_turnover` / `limit_up` / `limit_down` source fields get `adjust_type="none"` even when `DataRules.use_adjusted_price is True`. OHLC/prev_close still use `ADJUST_BY_FIELD`.
+- Consumes: `FieldSelection.field`, `ADJUST_BY_FIELD`, `PRICE_FIELD_MAP`
+- Produces: `_adjust_type_for(selection, spec) -> str`. For `s_dq_volume`, `s_dq_amount`, `s_dq_limit`, `s_dq_stopping` always `"none"`. OHLC / prev_close still use `ADJUST_BY_FIELD`.
 
-- [ ] **Step 1: Failing test**
+- [ ] **Step 1: Write a failing test and change the parametrize expectation**
+
+Replace `test_unmapped_price_field_falls_back_to_data_rules` with:
 
 ```python
-def test_confirmed_volume_does_not_inherit_post_adjustment() -> None:
+@pytest.mark.parametrize("use_adjusted_price", [True, False])
+def test_confirmed_volume_does_not_inherit_price_adjustment(
+    planner: WindPlanner, use_adjusted_price: bool
+) -> None:
     spec = momentum_spec()
-    spec.data_rules = DataRules(use_adjusted_price=True)
-    selection = FieldSelection(
-        logical_name="volume",
-        table="ashareeodprices",
-        field="s_dq_volume",
-        time_role=FieldTimeRole.OBSERVATION,
-    )
-    plan = planner.plan(spec, [selection], request())
-    price_step = next(s for s in plan.steps if s.tool.endswith("get_price"))
+    spec.variables[0].logical_name = "volume"
+    spec.formula_ast.args[0].args[0].name = "volume"
+    spec.data_rules = DataRules(use_adjusted_price=use_adjusted_price)
+    selection = [
+        FieldSelection(
+            logical_name="volume",
+            table="ashareeodprices",
+            field="s_dq_volume",
+            time_role=FieldTimeRole.OBSERVATION,
+        )
+    ]
+    plan = planner.plan(spec, selection, request())
+    price_step = next(s for s in plan.steps if s.tool == "wind.get_price")
     assert price_step.arguments["adjust_type"] == "none"
     assert price_step.arguments["fields"] == ["volume"]
 ```
 
-Match the existing output name for volume in `_price_output_by_source` if it is not `"volume"`.
+The formula_ast surgery matches the existing volume test in this file (rolling_return’s inner variable renamed to `volume`).
 
-- [ ] **Step 2: Run red** — expect `adjust_type == "post"`.
+- [ ] **Step 2: Run red**
+
+```bash
+uv run --project backend pytest backend/tests/wind/test_planner.py::test_confirmed_volume_does_not_inherit_price_adjustment -v
+```
+
+Expected: FAIL when `use_adjusted_price=True` — `assert "post" == "none"`.
 
 - [ ] **Step 3: Implementation**
 
 ```python
-_PRICE_ADJUST_FIELDS = frozenset(ADJUST_BY_FIELD)
+_NON_PRICE_GET_PRICE_FIELDS = frozenset(
+    {
+        PRICE_FIELD_MAP["volume"],
+        PRICE_FIELD_MAP["total_turnover"],
+        PRICE_FIELD_MAP["limit_up"],
+        PRICE_FIELD_MAP["limit_down"],
+    }
+)
+
 
 def _adjust_type_for(selection: FieldSelection, spec: FactorSpec) -> str:
     mapped = ADJUST_BY_FIELD.get(selection.field.lower())
     if mapped is not None:
         return mapped
-    if selection.field.lower() in {"s_dq_volume", "s_dq_amount", "s_dq_limit", "s_dq_stopping"}:
+    if selection.field.lower() in _NON_PRICE_GET_PRICE_FIELDS:
         return "none"
     return "post" if spec.data_rules.use_adjusted_price else "none"
 ```
 
-Prefer deriving the non-price set from `PRICE_FIELD_MAP` values minus OHLC/prev_close rather than a second literal list, if that stays readable.
+Import `PRICE_FIELD_MAP` at the top of `planner.py` (already imported for the source map). `PRICE_FIELD_MAP` values are already lowercase (`s_dq_volume`, …).
 
-- [ ] **Step 4: Run** `uv run --project backend pytest backend/tests/wind/test_planner.py -v`
+- [ ] **Step 4: Run green**
+
+```bash
+uv run --project backend pytest backend/tests/wind/test_planner.py -v
+```
+
+Expected: PASS, including the raw/adj close tests from Task 6 of the P1/P2 work.
 
 - [ ] **Step 5: Commit**
 
@@ -330,9 +438,10 @@ git commit -m "fix: do not apply price adjustment to volume and limit fields"
 - Create: `.github/workflows/offline-gates.yml`
 
 **Interfaces:**
-- Produces: on `push` / `pull_request` to `main`, one job (or backend + frontend jobs) that uses **no repository secrets**.
+- Consumes: repo at `main` with no secrets
+- Produces: workflow `offline-gates` on `push` and `pull_request` to `main`
 
-- [ ] **Step 1: Workflow file** (exact shape)
+- [ ] **Step 1: Add the workflow**
 
 ```yaml
 name: offline-gates
@@ -344,9 +453,6 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: .
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
@@ -374,41 +480,72 @@ jobs:
           npm run build
 ```
 
-Golden cases run as part of `pytest backend/tests`. Do **not** set `WIND_*` or `KIMI_*`. Real-dictionary tests skip without `windquery/`. Compose contract tests run as part of pytest.
+Do not add `env:` blocks with Wind or Kimi. Dictionary tests skip without `windquery/`. Compose contract tests run inside pytest.
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 2: Confirm no secrets in the file**
+
+```bash
+rg -n "WIND_|KIMI_|PASSWORD|API_KEY|SECRET" .github/workflows/offline-gates.yml
+```
+
+Expected: no matches (`MANIFEST_SIGNING_KEY` must not appear either).
+
+- [ ] **Step 3: Commit**
 
 ```bash
 git add .github/workflows/offline-gates.yml
 git commit -m "ci: add offline ruff mypy pytest vitest and frontend build gates"
 ```
 
-Push happens when the user asks, or with the rest of this plan’s last push. The first green run on GitHub is the evidence; do not invent a pass in docs before the Actions tab shows it.
+Do not write “CI passed” in docs until the Actions run for the pushed SHA is green.
 
 ---
 
-### Task 7: Full offline gate rerun on this tree
+### Task 7: Rerun the full offline gate and record the SHA
 
 **Files:**
-- Create: `docs/acceptance/2026-08-27-offline-gates.md` **only after commands run**
+- Create: `docs/acceptance/2026-08-27-offline-gates.md` (only after the commands run)
+- Modify: `README.md` “当前状态” 门禁表, `handoff.md` 测试状态 B, `docs/使用说明.md` 安装验证段 — **one** latest-offline-bar paragraph, keep 2026-08-14-coding-final as the last real Wind/Kimi/browser bar
 
-- [ ] **Step 1: Run and paste actual output**
+**Interfaces:** none. The evidence file is the deliverable.
+
+- [ ] **Step 1: Run** (must be after Tasks 1–5 so the dictionary test and wind tests are green)
 
 ```bash
+git rev-parse HEAD
 uv run --project backend ruff check backend/src backend/tests
 uv run --project backend mypy backend/src
 uv run --project backend pytest backend/tests -q
 npm --prefix frontend test -- --run
 npm --prefix frontend run lint
 npm --prefix frontend run build
-uv run --project backend pytest backend/tests/golden -q
 ```
 
-Expected after Task 1: backend has **0 failures** (dictionary ceiling gone). If something else fails, **stop and fix**; do not write a fake pass.
+Expected: every command exit 0. If pytest still has failures, **stop and fix**; do not write a pass.
 
-- [ ] **Step 2: Write the evidence file** with date, SHA (`git rev-parse HEAD`), and each command’s exit code / summary line. Update `README.md` / `handoff.md` / `docs/使用说明.md` **one** “latest offline bar” paragraph to this SHA. Keep the 2026-08-14-coding-final numbers as the last **real Wind/Kimi/browser** bar.
+- [ ] **Step 2: Write `docs/acceptance/2026-08-27-offline-gates.md`**
 
-- [ ] **Step 3: Commit**
+```markdown
+# Offline gates
+
+Date: 2026-08-27
+SHA: <paste git rev-parse HEAD>
+
+| Command | Exit | Summary |
+|---|---|---|
+| ruff | 0 | All checks passed |
+| mypy | 0 | <paste "Success: no issues found in N source files"> |
+| pytest backend/tests | 0 | <paste "N passed, M skipped"> |
+| vitest --run | 0 | <paste "Tests N passed"> |
+| npm run lint | 0 | tsc --noEmit clean |
+| npm run build | 0 | production build ok |
+```
+
+Fill the table with **actual** numbers from Step 1. Do not copy 698/41 if the new run differs.
+
+- [ ] **Step 3: Point README / handoff / 使用说明 at this file for “latest offline bar”, leave coding-final numbers for the real-component bar**
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add docs/acceptance/2026-08-27-offline-gates.md README.md handoff.md docs/使用说明.md
@@ -417,51 +554,42 @@ git commit -m "docs: record offline gate rerun after remaining-todo fixes"
 
 ---
 
-### Task 8: Reports + library UI regression (no real Wind)
+### Task 8: Reports and library UI regression without live Wind
 
 **Files:**
 - Create: `docs/acceptance/2026-08-27-ui-regression.md`
-- Existing tests already cover much of this; extend if a hole is real:
+- Existing tests (do not weaken): `frontend/src/features/reports/ReportsPage.test.tsx`, `frontend/src/features/library/LibraryPage.test.tsx`, `frontend/src/features/workbench/confirmations.test.tsx`
 
-  - `frontend/src/features/reports/ReportsPage.test.tsx`
-  - `frontend/src/features/library/LibraryPage.test.tsx`
+**Interfaces:**
+- Consumes: fixture PDFs in `backend/tests/fixtures/reports/`; `APP_ENV=test` FakeLLM path
+- Produces: evidence that (1) 「进入因子工作流」 stays disabled until formula gate + dates, (2) enabled path POSTs `/api/reports/{id}/sessions`, (3) LibraryPage is not 「待实现」, (4) completed ResultPane unreviewed copy is `入库将标注「未复核」` not `不得作为正式发布`
 
-**Procedure:**
-
-1. `APP_ENV=test` backend + `npm --prefix frontend run dev` (or existing test app).
-2. Upload `backend/tests/fixtures/reports/` a legal PDF; envelope dates required; 「进入因子工作流」 disabled until formula gate + dates; enabled path POSTs `/api/reports/{id}/sessions` not `POST /api/sessions`.
-3. Library page lists stored `review_status`; does not show 「待实现」.
-4. Workbench completed ResultPane: unreviewed does **not** say 「不得作为正式发布」; 「发布到因子库」 present.
-
-Use `browser-control` if driving a real browser; Vitest + Playwright-in-CI is enough for this task if the existing component tests already lock the gates. Do **not** call real Kimi. Fake provider / fixture upload is correct.
-
-If browser-control is used, record screenshots under `docs/acceptance/2026-08-27-ui-regression/` and list them in the markdown. Strip any cookie/credential from shots.
-
-- [ ] **Step 1: Exercise the two pages; write evidence**
-- [ ] **Step 2: Commit only evidence + any real test gap fill**
+- [ ] **Step 1: Run the existing component tests**
 
 ```bash
-git add docs/acceptance/2026-08-27-ui-regression.md frontend/src/features/reports frontend/src/features/library
-git commit -m "test: record reports and library UI regression without live Wind"
+npm --prefix frontend test -- --run src/features/reports/ReportsPage.test.tsx src/features/library/LibraryPage.test.tsx src/features/workbench/confirmations.test.tsx
+```
+
+Expected: PASS (already locking the four gates). If any fail, fix in this task.
+
+- [ ] **Step 2: Write the evidence file** listing the four assertions, the command, and the pass counts. Optional: start `APP_ENV=test` backend + Vite and click through with browser-control; if used, save screenshots under `docs/acceptance/2026-08-27-ui-regression/` and confirm they contain no cookies or connection strings. Do **not** call real Kimi.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add docs/acceptance/2026-08-27-ui-regression.md
+git commit -m "docs: record reports and library UI regression without live Wind"
 ```
 
 ---
 
-## Verification matrix
+## Self-review
 
-| After | Command | Expected |
-|---|---|---|
-| Task 1 | dictionary test | PASS or SKIP (no local 字典); never FAIL on 12126 |
-| Task 3–5 | `pytest backend/tests/wind` | PASS |
-| Task 6 | workflow file present; no secrets in YAML | |
-| Task 7 | all offline commands exit 0 | documented with SHA |
-| Task 8 | reports enter-workflow + library list | evidence file |
+**Spec coverage (2026-08-27 audit “我们能直接解决”):**
 
-## Spec coverage
-
-| Remaining doable item from the 2026-08-27 audit | Task |
+| Audit item | Task |
 |---|---|
-| 本地已与 `8818cea`/`69f7b84` 同步 | 无需 pull；本计划在最新 `main` 上做 |
+| 同步本地到 `8818cea` | Already done (`ce2f1c5` is ahead; no pull task) |
 | 字典测试上界 | 1 |
 | handoff Notebook 过时描述 | 2 |
 | `limit` 挤掉未复权收盘价 | 3 |
@@ -471,4 +599,19 @@ git commit -m "test: record reports and library UI regression without live Wind"
 | P1/P2 后重跑离线门禁 | 7 |
 | 研报/因子库浏览器回归 | 8 |
 | 文档测试口径 | 7 |
-| 隐藏集入库 | **已在 `69f7b84` 完成** |
+| 隐藏集入库 | Done in `69f7b84` |
+
+**Placeholder scan:** no TBD / “handle edge cases” / “similar to Task N”.
+
+**Type consistency:** `apply_price_semantics(..., limit: int | None)` unchanged; `_adjust_type_for(selection, spec) -> str`; `FORWARD_ADJUSTED_PRICE_FIELD_MAP` only introduced in Task 4 and imported in the same task’s planner snippet.
+
+## Verification matrix
+
+| After | Command | Expected |
+|---|---|---|
+| Task 1 | dictionary test | PASS or SKIP; never FAIL on 12126 |
+| Task 3 | `pytest backend/tests/wind/test_price_semantics.py` | PASS |
+| Task 4–5 | `pytest backend/tests/wind/test_planner.py` | PASS |
+| Task 6 | workflow exists; `rg WIND_\|KIMI_` empty | |
+| Task 7 | all six commands exit 0 | evidence file with this SHA |
+| Task 8 | frontend feature tests PASS | evidence file |
