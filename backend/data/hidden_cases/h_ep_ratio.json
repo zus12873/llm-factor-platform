@@ -1,0 +1,92 @@
+{
+  "case_id": "h_ep_ratio",
+  "description": "隐藏：盈利价格比",
+  "category": "valuation",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "净利润除以总市值得到盈利价格比"
+  },
+  "provider_draft": {
+    "factor_name": "h_ep_ratio",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "call",
+          "op": "divide",
+          "args": [
+            {
+              "type": "variable",
+              "name": "net_profit"
+            },
+            {
+              "type": "variable",
+              "name": "market_cap"
+            }
+          ]
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "net_profit",
+        "meaning": "净利润"
+      },
+      {
+        "logical_name": "market_cap",
+        "meaning": "总市值"
+      }
+    ],
+    "formula_explanation": "rank(net_profit/market_cap)"
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "call",
+        "op": "divide",
+        "args": [
+          {
+            "type": "variable",
+            "name": "net_profit"
+          },
+          {
+            "type": "variable",
+            "name": "market_cap"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "net_profit",
+      "table": "ashareincome",
+      "field": "net_profit_excl_min_int_inc"
+    },
+    {
+      "logical_name": "market_cap",
+      "table": "ashareeodderivativeindicator",
+      "field": "s_val_mv"
+    }
+  ],
+  "acceptance": [
+    "单位陷阱：净利润按元、市值按万元，必须换算"
+  ]
+}

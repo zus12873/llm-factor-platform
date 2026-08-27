@@ -1,0 +1,53 @@
+{
+  "case_id": "h_vague_momentum_window",
+  "description": "隐藏：动量窗口不明",
+  "category": "ambiguous",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "买入近期涨得好的股票"
+  },
+  "provider_draft": {
+    "factor_name": "h_vague_momentum_window",
+    "hypothesis": "",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "variable",
+          "name": "momentum"
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "momentum",
+        "meaning": "动量"
+      }
+    ],
+    "formula_explanation": "rank(momentum)"
+  },
+  "expected_blocking_question_ids": [
+    "direction"
+  ],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "variable",
+        "name": "momentum"
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.get_price"
+  ],
+  "expected_fields": [],
+  "acceptance": []
+}

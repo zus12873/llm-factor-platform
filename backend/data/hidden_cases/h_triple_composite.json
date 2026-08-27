@@ -1,0 +1,174 @@
+{
+  "case_id": "h_triple_composite",
+  "description": "隐藏：三因子复合",
+  "category": "composite",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "把估值、盈利和动量三个维度等权复合"
+  },
+  "provider_draft": {
+    "factor_name": "h_triple_composite",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "add",
+      "args": [
+        {
+          "type": "call",
+          "op": "add",
+          "args": [
+            {
+              "type": "call",
+              "op": "rank",
+              "args": [
+                {
+                  "type": "call",
+                  "op": "negative",
+                  "args": [
+                    {
+                      "type": "variable",
+                      "name": "pe_ttm"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "call",
+              "op": "rank",
+              "args": [
+                {
+                  "type": "variable",
+                  "name": "roe_ttm"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "call",
+          "op": "rank",
+          "args": [
+            {
+              "type": "call",
+              "op": "rolling_return",
+              "args": [
+                {
+                  "type": "variable",
+                  "name": "close"
+                }
+              ],
+              "params": {
+                "window": 20
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "close",
+        "meaning": "后复权收盘价"
+      },
+      {
+        "logical_name": "pe_ttm",
+        "meaning": "市盈率 PE_TTM"
+      },
+      {
+        "logical_name": "roe_ttm",
+        "meaning": "净资产收益率 ROE_TTM"
+      }
+    ],
+    "formula_explanation": "rank(negative(pe_ttm))+rank(roe_ttm)+rank(rolling_return(close,20))"
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "add",
+    "args": [
+      {
+        "type": "call",
+        "op": "add",
+        "args": [
+          {
+            "type": "call",
+            "op": "rank",
+            "args": [
+              {
+                "type": "call",
+                "op": "negative",
+                "args": [
+                  {
+                    "type": "variable",
+                    "name": "pe_ttm"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "op": "rank",
+            "args": [
+              {
+                "type": "variable",
+                "name": "roe_ttm"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "call",
+        "op": "rank",
+        "args": [
+          {
+            "type": "call",
+            "op": "rolling_return",
+            "args": [
+              {
+                "type": "variable",
+                "name": "close"
+              }
+            ],
+            "params": {
+              "window": 20
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan",
+    "wind.get_price",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "close",
+      "table": "ashareeodprices",
+      "field": "s_dq_adjclose"
+    },
+    {
+      "logical_name": "pe_ttm",
+      "table": "ashareeodderivativeindicator",
+      "field": "s_val_pe_ttm"
+    },
+    {
+      "logical_name": "roe_ttm",
+      "table": "asharettmhis",
+      "field": "s_fa_roe_ttm"
+    }
+  ],
+  "acceptance": []
+}

@@ -1,0 +1,62 @@
+{
+  "case_id": "h_pit_revenue",
+  "description": "隐藏：点时营收",
+  "category": "point_in_time_financial",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "使用公告日之后才可得的营业收入构建因子"
+  },
+  "provider_draft": {
+    "factor_name": "h_pit_revenue",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "variable",
+          "name": "oper_rev"
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "oper_rev",
+        "meaning": "营业收入",
+        "point_in_time_required": true
+      }
+    ],
+    "formula_explanation": "rank(oper_rev)"
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "variable",
+        "name": "oper_rev"
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "oper_rev",
+      "table": "ashareincome",
+      "field": "oper_rev"
+    }
+  ],
+  "acceptance": []
+}

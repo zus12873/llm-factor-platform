@@ -1,0 +1,79 @@
+{
+  "case_id": "h_sse50_members",
+  "description": "隐藏：上证50成分内反转",
+  "category": "historical_membership",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000016.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "在上证50历史成分股内构建5日反转因子"
+  },
+  "provider_draft": {
+    "factor_name": "h_sse50_members",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "negative",
+      "args": [
+        {
+          "type": "call",
+          "op": "rolling_return",
+          "args": [
+            {
+              "type": "variable",
+              "name": "close"
+            }
+          ],
+          "params": {
+            "window": 5
+          }
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "close",
+        "meaning": "后复权收盘价"
+      }
+    ],
+    "formula_explanation": "negative(rolling_return(close,5))"
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "negative",
+    "args": [
+      {
+        "type": "call",
+        "op": "rolling_return",
+        "args": [
+          {
+            "type": "variable",
+            "name": "close"
+          }
+        ],
+        "params": {
+          "window": 5
+        }
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.get_price",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "close",
+      "table": "ashareeodprices",
+      "field": "s_dq_adjclose"
+    }
+  ],
+  "acceptance": []
+}

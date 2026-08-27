@@ -53,10 +53,9 @@ windquery/
 imgs/
 backend/data/generated/
 
-# Blind acceptance set. Kept out of the repository so it cannot be consulted —
-# accidentally or deliberately — while the implementation is being tuned. Run it
-# once, at final acceptance, and compare against the golden baseline.
-backend/data/hidden_cases/
+# Wind catalog JSONL is built from the licensed local dictionary; do not publish.
+# Historical hidden cases in backend/data/hidden_cases/ are now tracked (archived,
+# no longer a blind set). Do not add new unpublished blind files there.
 
 # IDE / OS
 .idea/

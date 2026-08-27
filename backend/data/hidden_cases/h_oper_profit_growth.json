@@ -1,0 +1,61 @@
+{
+  "case_id": "h_oper_profit_growth",
+  "description": "隐藏：营业利润同比",
+  "category": "growth",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "营业利润同比增长率衡量主业成长"
+  },
+  "provider_draft": {
+    "factor_name": "h_oper_profit_growth",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "variable",
+          "name": "oper_profit_yoy"
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "oper_profit_yoy",
+        "meaning": "营业利润同比增长率"
+      }
+    ],
+    "formula_explanation": "rank(oper_profit_yoy)"
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "variable",
+        "name": "oper_profit_yoy"
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "oper_profit_yoy",
+      "table": "asharefinancialindicator",
+      "field": "s_fa_yoyop"
+    }
+  ],
+  "acceptance": []
+}

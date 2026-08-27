@@ -110,7 +110,7 @@ def test_hidden_set_exists_and_is_disjoint_from_the_golden_set() -> None:
     """Overlap would turn the blind check into a re-run of the tuning set."""
     hidden = load_hidden_cases()
     if not hidden:
-        pytest.skip("hidden set not present (it is gitignored by design)")
+        pytest.skip("archived hidden cases not present in this checkout")
     golden_ids = {case.case_id for case in load_golden_cases()}
     assert not golden_ids & {case.case_id for case in hidden}
 

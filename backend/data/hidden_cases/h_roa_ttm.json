@@ -1,0 +1,61 @@
+{
+  "case_id": "h_roa_ttm",
+  "description": "隐藏：ROA_TTM",
+  "category": "profitability",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "总资产收益率 ROA_TTM 越高越好"
+  },
+  "provider_draft": {
+    "factor_name": "h_roa_ttm",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "variable",
+          "name": "roa_ttm"
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "roa_ttm",
+        "meaning": "总资产收益率 ROA_TTM"
+      }
+    ],
+    "formula_explanation": "rank(roa_ttm)"
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "variable",
+        "name": "roa_ttm"
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "roa_ttm",
+      "table": "asharettmhis",
+      "field": "s_fa_roa_ttm"
+    }
+  ],
+  "acceptance": []
+}

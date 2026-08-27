@@ -1,0 +1,52 @@
+{
+  "case_id": "h_vague_valuation_en",
+  "description": "隐藏：English vague value",
+  "category": "ambiguous",
+  "language": "en",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "Screen stocks using a value factor"
+  },
+  "provider_draft": {
+    "factor_name": "h_vague_valuation_en",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "variable",
+          "name": "value_factor"
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "value_factor",
+        "meaning": "value factor"
+      }
+    ],
+    "formula_explanation": "rank(value_factor)"
+  },
+  "expected_blocking_question_ids": [
+    "valuation_definition"
+  ],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "variable",
+        "name": "value_factor"
+      }
+    ]
+  },
+  "expected_tool_names": [],
+  "expected_fields": [],
+  "acceptance": []
+}

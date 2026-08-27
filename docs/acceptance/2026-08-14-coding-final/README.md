@@ -39,7 +39,7 @@
 - Frontend build：通过。
 - npm audit：0 vulnerabilities。
 - Golden suite：37/37，阻塞 recall/precision 100%，不必要追问 0%。
-- 原始隐藏案例集不存在；只有 2026-08-10 的历史结果 JSON，因此未创建替代集。
+- 终验当时：原始隐藏案例未随仓库分发。2026-08-27 已把本机 10 个历史 `hidden_cases` 入库；它们不再是盲测，不能回溯冒充本次终验的隐藏集重跑。
 
 ## HUMAN REVIEW COMPLETED（后续状态更新）
 

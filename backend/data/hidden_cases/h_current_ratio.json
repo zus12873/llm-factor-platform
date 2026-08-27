@@ -1,0 +1,90 @@
+{
+  "case_id": "h_current_ratio",
+  "description": "隐藏：流动比率",
+  "category": "quality",
+  "language": "zh",
+  "request": {
+    "asset_type": "stock",
+    "universe": "000300.SH",
+    "start_date": "2023-01-01",
+    "end_date": "2024-06-30",
+    "research_idea": "流动资产与流动负债之比，越高偿债能力越强"
+  },
+  "provider_draft": {
+    "factor_name": "h_current_ratio",
+    "hypothesis": "",
+    "direction": "higher_is_better",
+    "rebalance_frequency": "monthly",
+    "formula_ast": {
+      "type": "call",
+      "op": "rank",
+      "args": [
+        {
+          "type": "call",
+          "op": "divide",
+          "args": [
+            {
+              "type": "variable",
+              "name": "cur_assets"
+            },
+            {
+              "type": "variable",
+              "name": "cur_liab"
+            }
+          ]
+        }
+      ]
+    },
+    "variables": [
+      {
+        "logical_name": "cur_assets",
+        "meaning": "流动资产合计"
+      },
+      {
+        "logical_name": "cur_liab",
+        "meaning": "流动负债合计"
+      }
+    ],
+    "formula_explanation": "rank(cur_assets/cur_liab)"
+  },
+  "expected_blocking_question_ids": [],
+  "expected_formula_ast": {
+    "type": "call",
+    "op": "rank",
+    "args": [
+      {
+        "type": "call",
+        "op": "divide",
+        "args": [
+          {
+            "type": "variable",
+            "name": "cur_assets"
+          },
+          {
+            "type": "variable",
+            "name": "cur_liab"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_tool_names": [
+    "wind.execute_generic_query_plan",
+    "wind.index_components",
+    "wind.is_st_stock",
+    "wind.is_suspended"
+  ],
+  "expected_fields": [
+    {
+      "logical_name": "cur_assets",
+      "table": "asharebalancesheet",
+      "field": "tot_cur_assets"
+    },
+    {
+      "logical_name": "cur_liab",
+      "table": "asharebalancesheet",
+      "field": "tot_cur_liab"
+    }
+  ],
+  "acceptance": []
+}

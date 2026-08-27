@@ -30,6 +30,6 @@
 
 第一次完整 mypy 门禁曾以 exit 1 发现 `reports/extractor.py` 对可空 AST 的类型收窄缺失；加入确定性非空断言后，重新执行全部门禁并得到上表最终结果。
 
-原始隐藏案例文件当前不存在。`docs/acceptance/2026-08-10/hidden.json` 是历史运行报告而非输入案例，故没有重建或冒充重跑。
+终验当时原始隐藏案例未入库。2026-08-27 已归档本机 10 个 `backend/data/hidden_cases/*.json`；它们不再是盲测。`docs/acceptance/2026-08-10/hidden.json` 仍是历史运行报告而非输入。
 
 当前目录没有 `.git`；`git status` 返回“not a git repository”。本轮没有 commit、push 或 PR，也不声明分支或远端一致性。

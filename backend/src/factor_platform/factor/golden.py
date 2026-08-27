@@ -76,10 +76,11 @@ def load_golden_cases(directory: str | Path | None = None) -> list[GoldenCase]:
 
 
 def load_hidden_cases(directory: str | Path | None = None) -> list[GoldenCase]:
-    """Load the blind acceptance set.
+    """Load the archived hidden cases.
 
-    Returns an empty list when the directory is absent, which is the normal state
-    for a fresh clone: the set is gitignored on purpose.
+    These files are tracked historical fixtures, not a blind set. An empty
+    directory still returns ``[]`` so a checkout without the files does not
+    crash the suite.
     """
     return _load_from(hidden_cases_dir(directory))
 
