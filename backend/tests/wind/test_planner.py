@@ -374,6 +374,22 @@ def test_confirmed_adjclose_requests_post_adjustment(planner: WindPlanner) -> No
     assert price_step.arguments["fields"] == ["close"]
 
 
+def test_confirmed_forward_adj_close_uses_get_price_pre(planner: WindPlanner) -> None:
+    spec = momentum_spec()
+    selection = [
+        FieldSelection(
+            logical_name="close",
+            table="ashareeodprices",
+            field="s_dq_adjclose_backward",
+            time_role=FieldTimeRole.OBSERVATION,
+        )
+    ]
+    plan = planner.plan(spec, selection, request())
+    price_step = next(s for s in plan.steps if s.tool == "wind.get_price")
+    assert price_step.arguments["adjust_type"] == "pre"
+    assert price_step.arguments["fields"] == ["close"]
+
+
 def test_confirmed_adjclose_is_not_inverted_by_unadjusted_data_rule(
     planner: WindPlanner,
 ) -> None:

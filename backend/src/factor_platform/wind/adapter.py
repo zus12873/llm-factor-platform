@@ -473,8 +473,17 @@ ADJUSTED_PRICE_FIELD_MAP = {
     "close": "s_dq_adjclose",
     "prev_close": "s_dq_adjpreclose",
 }
+FORWARD_ADJUSTED_PRICE_FIELD_MAP = {
+    "open": "s_dq_adjopen",  # keep existing if no dedicated forward OHLC columns
+    "high": "s_dq_adjhigh",
+    "low": "s_dq_adjlow",
+    "close": "s_dq_adjclose_backward",
+    "prev_close": "s_dq_adjpreclose",
+}
 LIMIT_FIELDS = {"limit_up", "limit_down"}
-ADJUSTED_CLOSE_TYPES = {"pre", "pre_volume", "post", "post_volume"}
+PRE_ADJUST_TYPES = {"pre", "pre_volume"}
+POST_ADJUST_TYPES = {"post", "post_volume"}
+ADJUSTED_CLOSE_TYPES = PRE_ADJUST_TYPES | POST_ADJUST_TYPES
 INDEX_PRICE_FIELD_MAP = {
     field: source for field, source in PRICE_FIELD_MAP.items() if field not in LIMIT_FIELDS
 }
@@ -651,12 +660,18 @@ def get_price(
     wind_codes = [rq_to_wind(code) for code in ids]
     display_ids = [wind_to_rq(code) for code in wind_codes]
     use_adjusted_price = adjust_type in ADJUSTED_CLOSE_TYPES
+    if adjust_type in PRE_ADJUST_TYPES:
+        adj_map = FORWARD_ADJUSTED_PRICE_FIELD_MAP
+    elif adjust_type in POST_ADJUST_TYPES:
+        adj_map = ADJUSTED_PRICE_FIELD_MAP
+    else:
+        adj_map = {}
 
     stock_fields = []
     if use_adjusted_price:
         for field in fields_list:
-            if field in ADJUSTED_PRICE_FIELD_MAP:
-                stock_fields.append(ADJUSTED_PRICE_FIELD_MAP[field])
+            if field in adj_map:
+                stock_fields.append(adj_map[field])
             else:
                 stock_fields.append(PRICE_FIELD_MAP[field])
         if any(field in LIMIT_FIELDS for field in fields_list):
@@ -747,8 +762,8 @@ def get_price(
         source_field = PRICE_FIELD_MAP[field]
         values = _numeric_column(raw, source_field)
         if use_adjusted_price:
-            if field in ADJUSTED_PRICE_FIELD_MAP:
-                adjusted_values = _numeric_column(raw, ADJUSTED_PRICE_FIELD_MAP[field])
+            if field in adj_map:
+                adjusted_values = _numeric_column(raw, adj_map[field])
                 values = values.mask(stock_mask, adjusted_values)
             elif field in LIMIT_FIELDS:
                 close = _numeric_column(raw, "s_dq_close")

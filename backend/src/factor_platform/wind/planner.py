@@ -41,7 +41,11 @@ from factor_platform.domain.models import (
     ResearchRequest,
 )
 from factor_platform.factor.metric_registry import MetricRegistry
-from factor_platform.wind.adapter import ADJUSTED_PRICE_FIELD_MAP, PRICE_FIELD_MAP
+from factor_platform.wind.adapter import (
+    ADJUSTED_PRICE_FIELD_MAP,
+    FORWARD_ADJUSTED_PRICE_FIELD_MAP,
+    PRICE_FIELD_MAP,
+)
 from factor_platform.wind.capabilities import CapabilityCatalog
 from factor_platform.wind.metadata_catalog import MetadataCatalog
 
@@ -103,7 +107,11 @@ class WindPlanner:
         )
         self._price_output_by_source: dict[str, str] = {
             source.lower(): output
-            for mapping in (PRICE_FIELD_MAP, ADJUSTED_PRICE_FIELD_MAP)
+            for mapping in (
+                PRICE_FIELD_MAP,
+                ADJUSTED_PRICE_FIELD_MAP,
+                FORWARD_ADJUSTED_PRICE_FIELD_MAP,
+            )
             for output, source in mapping.items()
         }
 
