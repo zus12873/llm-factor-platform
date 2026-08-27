@@ -91,12 +91,12 @@ Git：
 
 ### 字段语义（复权 vs close）
 
-检索是排序 + 标签层，不是静默改写（已合入 `main`）：
+检索是排序 + 标签层，不是静默改写（已合入 `main`；Tasks 3–5 已关审查残留）：
 
 - `收盘价` 别名仍是 `s_dq_close`；`close ≠ adj_close`；
-- 动量 / 收益 / 波动类查询会抬高后复权并贴标签；`收盘价` 别名命中时未复权行仍列出。生产 `discover_fields` 默认 `limit=5` 下，**未命中该别名**的拥挤检索仍可能把未复权行挤出列表（残留，见下）；
+- 动量 / 收益 / 波动类查询会抬高后复权并贴标签；`收盘价` 别名命中或生产 `discover_fields` → `FieldSearch.search` 注入 `s_dq_close` 时，未复权行在 `limit=5` 下仍保留（`apply_price_semantics` 预留，见 `backend/tests/wind/test_price_semantics.py`）；
 - 确认闸门仍在：不自动确认字段；
-- 规划器 `adjust_type` 跟已确认字段：`s_dq_close` → `none`（即使 `use_adjusted_price` 为 True）；`s_dq_adjclose` → `post`；`s_dq_preclose` 同样不因数据规则被反转。
+- 规划器 `adjust_type` 跟已确认字段：`s_dq_close` → `none`（即使 `use_adjusted_price` 为 True）；`s_dq_adjclose` → `post`；`s_dq_adjclose_backward` → `pre` 且走 `wind.get_price`；`s_dq_preclose` 同样不因数据规则被反转；成交量 / limit 字段不继承 `use_adjusted_price`（见 `backend/tests/wind/test_planner.py`）。
 
 ### 指标口径确认
 
@@ -124,21 +124,15 @@ Git：
 - 验收文档里的指标审核已记为 `reviewed`（见 [`docs/acceptance/metric-review-evidence.md`](docs/acceptance/metric-review-evidence.md)）。
 - 按当时任务要求，**没有**改 `backend/data/metric_definitions.yaml`。文档状态 ≠ 运行时注册表。界面仍按 YAML 的 `unreviewed` / `disputed` 闸门工作。若要运行时显示 `reviewed`，需另行授权改注册数据。
 
-### 3. 字段语义残留（非原 P1 缺口）
-
-原缺口已关。审查留下的次要项，不是「close 被当成 adj_close」：
-
-- 检索 `limit` 在注入优先字段后仍可能挤掉未复权行；
-- `s_dq_adjclose_backward` → `adjust_type=pre` 在 `get_price` 路径上未接通（该列不在价格输出映射里）；
-- 成交量等未映射列的 `adjust_type` 仍回退到 `use_adjusted_price`。
-
-### 4. 本计划明确不做的
+### 3. 本计划明确不做的
 
 - 多因子指数 UI（`indices` 服务已有单测，本轮无页面）；
 - 用 embeddings 替换 BM25；
 - 把前端从 loopback 暴露出去；
 - 重建隐藏黄金集；
 - force-push / 自动 push。
+
+字段语义曾列的三项审查残留（`limit` 挤掉未复权行、`s_dq_adjclose_backward` 未走 `get_price`、成交量继承 `use_adjusted_price`）已由 Tasks 3–5 关闭；覆盖测试见 `backend/tests/wind/test_price_semantics.py` 与 `backend/tests/wind/test_planner.py`。不要当作未完成事项重做。
 
 ## 测试状态
 
@@ -225,8 +219,7 @@ Git：
 
 1. 在有 Docker 的机器按 [`docs/acceptance/compose-smoke.md`](docs/acceptance/compose-smoke.md) 补真实 Compose 冒烟，用实测输出覆盖「未执行」；不要把契约 13 passed 写成冒烟通过；
 2. 若产品要求运行时显示口径已复核，另行授权后改 `metric_definitions.yaml`，不要把文档里的 `reviewed` 当成代码状态；
-3. 需要时再处理字段语义残留（`limit` 挤掉未复权行、前复权 close 未走 `get_price`）；
-4. 需要时再跑完整离线门禁、secret scan 和 `git diff` 复核。未要求不要重跑真实 Wind / Kimi。
+3. 需要时再跑 secret scan、`git diff` 复核，以及（若要远端证据）触发 GitHub Actions 离线门禁工作流。本机六命令离线门禁已在 Task 7 记过（见 [`docs/acceptance/2026-08-27-offline-gates.md`](docs/acceptance/2026-08-27-offline-gates.md)）；未要求不要重跑真实 Wind / Kimi，也不要重做已关闭的字段语义 Tasks 3–5。
 
 不要使用 `git add .` 或 `git add -A`。不要 force-push。push 须用户明确要求。
 
