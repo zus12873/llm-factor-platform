@@ -184,13 +184,21 @@ def apply_price_semantics(
             merged.append(extra)
 
     labelled = [annotate_candidate(row, intent) for row in merged]
+    reserved_names = tuple(
+        name
+        for name in (intent.preferred_field, *intent.also_list)
+        if name is not None
+    )
+    reserved = [row for row in labelled if row.field in reserved_names]
+    others = [row for row in labelled if row.field not in reserved_names]
     if intent.preferred_field is not None:
-        preferred = [row for row in labelled if row.field == intent.preferred_field]
-        rest = [row for row in labelled if row.field != intent.preferred_field]
-        labelled = preferred + rest
-    if limit is not None:
-        labelled = labelled[:limit]
-    return labelled
+        preferred = [row for row in reserved if row.field == intent.preferred_field]
+        also = [row for row in reserved if row.field != intent.preferred_field]
+        reserved = preferred + also
+    if limit is None:
+        return reserved + others
+    room = max(limit - len(reserved), 0)
+    return reserved + others[:room]
 
 
 __all__ = [

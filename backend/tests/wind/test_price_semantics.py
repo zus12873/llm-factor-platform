@@ -297,3 +297,18 @@ def test_catalog_search_for_close_lists_both(catalog_search: FieldSearch) -> Non
     assert "s_dq_adjclose" in fields
     assert "s_dq_close" in fields
     assert hits[0].field == "s_dq_adjclose"
+
+
+def test_limit_does_not_drop_unadjusted_close_from_a_crowded_pool() -> None:
+    req = DataRequirement(logical_name="close", meaning="动量")
+    crowded = [
+        FieldCandidate(table="ashareeodprices", field=f"s_dq_other{i}")
+        for i in range(8)
+    ] + [
+        FieldCandidate(table="ashareeodprices", field="s_dq_adjclose"),
+        FieldCandidate(table="ashareeodprices", field="s_dq_close"),
+    ]
+    out = apply_price_semantics(crowded, req, use_adjusted_price=True, limit=5)
+    fields = [row.field for row in out]
+    assert "s_dq_adjclose" in fields
+    assert "s_dq_close" in fields
