@@ -464,10 +464,17 @@ def test_catalog_returns_none_for_an_unknown_field() -> None:
 
 @requires_real_dictionary
 def test_real_dictionary_yields_metadata_for_thousands_of_fields() -> None:
-    """Sanity bound on the local dictionary: PDF damage caps what is recoverable."""
+    """A real WDS dump is large; never cap how many fields it may contain."""
     records = DictionaryBuilder(REAL_DICTIONARY).build()
-    assert 6000 <= len(records) <= 9000, f"got {len(records)} records"
+    assert len(records) >= 6000, f"got {len(records)} records"
     assert all(record.metadata_source == "WDS" for record in records)
+    by_key = {(record.table.lower(), record.field.lower()): record for record in records}
+    close = by_key.get(("ashareeodprices", "s_dq_close"))
+    adj = by_key.get(("ashareeodprices", "s_dq_adjclose"))
+    assert close is not None, "s_dq_close missing from dictionary"
+    assert adj is not None, "s_dq_adjclose missing from dictionary"
+    assert close.name_zh
+    assert close.frequency is Frequency.DAILY or close.frequency is None
 
 
 @requires_real_dictionary
