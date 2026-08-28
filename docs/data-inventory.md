@@ -9,9 +9,9 @@
 |---|---|
 | `backend/data/golden_cases/` | 37 个黄金案例 |
 | `backend/data/hidden_cases/` | 10 个历史案例（2026-08-27 入库；**不再是盲测**） |
-| `backend/data/metric_definitions.yaml` | 口径注册表（运行时仍多为 `unreviewed`） |
+| `backend/data/metric_definitions.yaml` | 口径注册表（老师确认清单对应的 11 项为 `reviewed`；两个已知错误映射为 `disputed`） |
 | `backend/data/wind_aliases.yaml` | 手写中文别名 → Wind 表.字段 |
-| `backend/data/wind_field_units.yaml` | 单位 overlay（条目仍 `verified: false`） |
+| `backend/data/wind_field_units.yaml` | 单位 overlay（`s_dq_volume` 已确认；其余条目仍多为 `verified: false`） |
 | `backend/data/generated/wind_fields.jsonl` | **仅** `table` + `field` 标识符，无中文释义 |
 | `backend/tests/fixtures/reports/` | 合法测试 PDF |
 | `docs/acceptance/` | 验收文档与脱敏截图 |

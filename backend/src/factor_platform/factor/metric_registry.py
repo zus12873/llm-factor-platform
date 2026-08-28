@@ -174,12 +174,20 @@ class MetricRegistry:
                 ),
             )
 
+        review_reason = (
+            f"已由 {definition.reviewer} 复核"
+            if definition.reviewer
+            else "已完成人工复核"
+        )
+        if definition.reviewed_at:
+            review_reason += f"（{definition.reviewed_at}）"
+
         return GateVerdict(
             key=key,
             allowed=True,
             requires_warning=False,
             status=definition.review_status,
-            reason=f"已由 {definition.reviewer} 于 {definition.reviewed_at} 复核",
+            reason=review_reason,
         )
 
     def enforce(self, key: str) -> GateVerdict:

@@ -73,11 +73,23 @@ def test_an_empty_sample_warns_rather_than_blocks() -> None:
 
 
 def test_unreviewed_source_magnitude_warns_but_allows_trial(
-    registry: MetricRegistry,
 ) -> None:
-    report = DataValidator(registry).validate(
+    pending = MetricRegistry.from_mapping(
+        {
+            "TEST_PENDING": {
+                "display_zh": "待复核测试口径",
+                "definition": "d",
+                "wind_table": "t",
+                "wind_field": "f",
+                "unit": "percent",
+                "plausible_range": [-100.0, 100.0],
+                "review_status": "unreviewed",
+            }
+        }
+    )
+    report = DataValidator(pending).validate(
         {"roe_ttm": frame([[3000.0] * 5] * 6)},
-        metric_keys={"roe_ttm": "ROE_TTM"},
+        metric_keys={"roe_ttm": "TEST_PENDING"},
     )
     assert report.has_warning("implausible_input_magnitude")
     assert not report.has_error("implausible_input_magnitude")
@@ -235,14 +247,24 @@ def test_composite_result_can_skip_source_metric_bounds(
         composite, metric_keys=["ROE_TTM"], apply_metric_bounds=False
     )
     assert not report.has_error("implausible_magnitude")
-    assert report.has_warning("unreviewed_metric")
+    assert not report.has_warning("unreviewed_metric")
 
 
-def test_an_unreviewed_metric_warns_so_the_label_travels(
-    registry: MetricRegistry,
-) -> None:
+def test_an_unreviewed_metric_warns_so_the_label_travels() -> None:
+    pending = MetricRegistry.from_mapping(
+        {
+            "TEST_PENDING": {
+                "display_zh": "待复核测试口径",
+                "definition": "d",
+                "wind_table": "t",
+                "wind_field": "f",
+                "unit": "percent",
+                "review_status": "unreviewed",
+            }
+        }
+    )
     sane = frame([[12.0, 15.0, 8.0, 20.0, 11.0]] * 6)
-    report = ResultValidator(registry).validate(sane, metric_keys=["ROE_TTM"])
+    report = ResultValidator(pending).validate(sane, metric_keys=["TEST_PENDING"])
     assert report.has_warning("unreviewed_metric")
 
 

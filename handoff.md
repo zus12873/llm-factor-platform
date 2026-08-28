@@ -104,7 +104,9 @@ Git：
 - 已完成带教老师人工确认。
 - 验收文档中的相关指标审核状态已由 `unreviewed` 更新为 `reviewed`。
 - 详细记录见 [`docs/acceptance/metric-review-evidence.md`](docs/acceptance/metric-review-evidence.md)。
-- 本次确认任务按要求只更新文档，没有修改 `backend/data/metric_definitions.yaml` 或单位元数据。若后续要求运行时界面同步显示 `reviewed`，需另行取得授权并更新运行时注册数据，不能把文档状态误当成代码状态。
+- 后续已取得明确授权并同步运行时注册表：9 个现有对应口径更新为 `reviewed`，补登记 `CFO_GROWTH_YOY` 与 `S_DQ_VOLUME`；`S_DQ_VOLUME` 的“手”单位口径也已标记为确认。
+- 两个已知错误映射 `FLOAT_MV`、`CFO_WRONG_MAPPING` 不属于确认清单，继续保持 `disputed` 并由平台拒绝。
+- 未提供老师姓名或确认日期，因此没有补造个人身份和日期；复核证据以 [`metric-review-evidence.md`](docs/acceptance/metric-review-evidence.md) 为准。
 
 ## 当前未完成事项
 
@@ -120,12 +122,7 @@ Git：
 
 有 Docker 的机器按该文件「冒烟命令」一节重跑，用真实输出替换「未执行」，再标 PASS 或真实失败。
 
-### 2. 口径注册表运行时状态
-
-- 验收文档里的指标审核已记为 `reviewed`（见 [`docs/acceptance/metric-review-evidence.md`](docs/acceptance/metric-review-evidence.md)）。
-- 按当时任务要求，**没有**改 `backend/data/metric_definitions.yaml`。文档状态 ≠ 运行时注册表。界面仍按 YAML 的 `unreviewed` / `disputed` 闸门工作。若要运行时显示 `reviewed`，需另行授权改注册数据。
-
-### 3. 本计划明确不做的
+### 2. 本计划明确不做的
 
 - 多因子指数 UI（`indices` 服务已有单测，本轮无页面）；
 - 用 embeddings 替换 BM25；
@@ -224,7 +221,7 @@ Git：
 推荐顺序：
 
 1. 在有 Docker 的机器按 [`docs/acceptance/compose-smoke.md`](docs/acceptance/compose-smoke.md) 补真实 Compose 冒烟，用实测输出覆盖「未执行」；不要把契约 13 passed 写成冒烟通过；
-2. 若产品要求运行时显示口径已复核，另行授权后改 `metric_definitions.yaml`，不要把文档里的 `reviewed` 当成代码状态；
+2. 口径确认清单已同步到运行时注册表；未来若变更字段、单位或定义，仍须取得新的业务确认并更新复核证据，不得直接放开现有 `disputed` 映射；
 3. 需要时再跑 secret scan 与 `git diff` 复核。GitHub Actions 离线门禁已在 `8d771b9` 跑绿（见 [`docs/acceptance/2026-08-27-offline-gates.md`](docs/acceptance/2026-08-27-offline-gates.md)），不要当作未完成项重做；未要求不要重跑真实 Wind / Kimi，也不要重做已关闭的字段语义 Tasks 3–5。
 
 不要使用 `git add .` 或 `git add -A`。不要 force-push。push 须用户明确要求。

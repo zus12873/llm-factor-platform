@@ -38,11 +38,11 @@ uv run --project backend factor-platform run-case momentum_20d --real-wind
 
 按量 / Open Platform 专项报告不在本仓库。不要把断裂路径 `docs/acceptance/2026-08-14/` 当成 live 状态。
 
-### Task 10.5 — 口径抽样确认（文档层）
+### Task 10.5 — 口径抽样确认与运行时同步（已完成）
 
 带教老师已确认当前指标定义可用。记录：[`metric-review-evidence.md`](metric-review-evidence.md)。
 
-**运行时 YAML 未改**：`backend/data/metric_definitions.yaml` 里登记口径仍是 `unreviewed`（另有 `FLOAT_MV`、`CFO_WRONG_MAPPING` 为 `disputed`）。文档 `reviewed` ≠ 代码闸门。若要运行时显示已复核，需另行授权改注册表。
+后续已取得明确授权并同步 `backend/data/metric_definitions.yaml`：确认清单对应的 11 个登记现为 `reviewed`。`FLOAT_MV`、`CFO_WRONG_MAPPING` 是已知错误映射，不属于确认清单，继续保持 `disputed`。
 
 ## 仍未完成
 
@@ -61,12 +61,11 @@ uv run --project backend factor-platform verify-field aindexmembers s_con_indate
 
 ### Task 9.5 — Wind 元数据核对
 
-`backend/data/wind_field_units.yaml` 中条目仍为 `verified: false`（以文件为准）。接入真实库后仍应对以下两项做实测核对，它们各自都是 10,000 倍量级的静默错误来源：
+`backend/data/wind_field_units.yaml` 中除 `s_dq_volume` 外的条目仍多为 `verified: false`（以文件为准）。接入真实库后仍应对财报与行情的跨单位换算做实测核对，这是 10,000 倍量级的静默错误来源：
 
-- `ashareeodprices.s_dq_volume` —— 单位是股还是万股（直接影响换手率口径）
 - 财报科目按元 vs 行情表按万元 —— 混用会差 10,000 倍
 
-老师文档确认含 `S_DQ_VOLUME`（见 metric-review-evidence），**没有**改单位 YAML。
+老师确认清单包含 `S_DQ_VOLUME`；现有“手”单位口径已同步为 `verified: true`，见 [`metric-review-evidence.md`](metric-review-evidence.md)。
 
 ### Docker / Compose 真实冒烟
 

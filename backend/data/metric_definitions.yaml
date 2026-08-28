@@ -7,11 +7,12 @@
 #
 # review_status 三值及其权限：
 #   unreviewed  可用于原型测试与内部试算；不得作为正式发布结果；界面必须标注「未复核」
-#   reviewed    可用于正式演示、因子库与发布；须填写 reviewer / reviewed_at / review_comment
+#   reviewed    可用于正式演示、因子库与发布；须保存可追溯的 review_comment / evidence_version；
+#               reviewer / reviewed_at 仅在已有真实记录时填写，不得补造姓名或日期
 #   disputed    禁止执行、禁止发布、禁止进入因子库、禁止进入多因子与指数；无绕过通道
 #
 # 复核一条口径时要做三件事：确认 wind_table.wind_field 映射正确、确认 unit 与
-# plausible_range 与真实数据一致、把 review_status 改为 reviewed 并填写署名与日期。
+# plausible_range 与真实数据一致、把 review_status 改为 reviewed 并记录复核证据。
 #
 # unit 词表见 backend/data/wind_field_units.yaml。
 
@@ -28,12 +29,12 @@ metrics:
     unit: percent
     plausible_range: [-100.0, 100.0]
     reference_check: 与 Wind 终端 F9 页面的 ROE(TTM) 抽查三只股票
-    review_status: unreviewed
-    reviewer: null
+    review_status: reviewed
+    reviewer: 带教老师（姓名未记录）
     reviewed_at: null
-    review_comment: ""
-    evidence_version: 1
-    note: Wind 该字段存的是百分数 (15.0 表示 15%)，与 ratio 口径差 100 倍，待实测确认
+    review_comment: 已完成带教老师人工确认；见 docs/acceptance/metric-review-evidence.md
+    evidence_version: 2
+    note: Wind 该字段按百分数使用 (15.0 表示 15%)，与 ratio 口径差 100 倍
 
   ROA_TTM:
     display_zh: 总资产收益率 (TTM)
@@ -46,11 +47,11 @@ metrics:
     unit: percent
     plausible_range: [-50.0, 50.0]
     reference_check: 与 ROE_TTM 同步抽查，ROA 应显著低于 ROE
-    review_status: unreviewed
-    reviewer: null
+    review_status: reviewed
+    reviewer: 带教老师（姓名未记录）
     reviewed_at: null
-    review_comment: ""
-    evidence_version: 1
+    review_comment: 已完成带教老师人工确认；见 docs/acceptance/metric-review-evidence.md
+    evidence_version: 2
     note: ""
 
   CFO_TO_PROFIT:
@@ -64,11 +65,11 @@ metrics:
     unit: ratio
     plausible_range: [-10.0, 10.0]
     reference_check: 分子分母须取同一报告期；抽查三只制造业股票
-    review_status: unreviewed
-    reviewer: null
+    review_status: reviewed
+    reviewer: 带教老师（姓名未记录）
     reviewed_at: null
-    review_comment: ""
-    evidence_version: 1
+    review_comment: 已完成带教老师人工确认；见 docs/acceptance/metric-review-evidence.md
+    evidence_version: 2
     note: 分母来自 ashareincome.net_profit_excl_min_int_inc，两表须同报告期对齐
 
   # ------------------------------------------------------------------ 估值
@@ -83,11 +84,11 @@ metrics:
     unit: ratio
     plausible_range: [-1000.0, 1000.0]
     reference_check: 抽查贵州茅台某交易日，与终端一致
-    review_status: unreviewed
-    reviewer: null
+    review_status: reviewed
+    reviewer: 带教老师（姓名未记录）
     reviewed_at: null
-    review_comment: ""
-    evidence_version: 1
+    review_comment: 已完成带教老师人工确认；见 docs/acceptance/metric-review-evidence.md
+    evidence_version: 2
     note: 亏损股为负值，做因子时须决定是剔除还是取倒数
 
   PB:
@@ -101,12 +102,12 @@ metrics:
     unit: ratio
     plausible_range: [0.0, 100.0]
     reference_check: 抽查银行股，PB 应普遍低于 1.5
-    review_status: unreviewed
-    reviewer: null
+    review_status: reviewed
+    reviewer: 带教老师（姓名未记录）
     reviewed_at: null
-    review_comment: ""
-    evidence_version: 1
-    note: 表内另有 s_val_pb 字段，须确认二者差异后再定采用哪个
+    review_comment: 已完成带教老师人工确认；见 docs/acceptance/metric-review-evidence.md
+    evidence_version: 2
+    note: 已确认采用 s_val_pb_new；表内另有 s_val_pb，二者不可混用
 
   PS_TTM:
     display_zh: 市销率 (TTM)
@@ -119,11 +120,11 @@ metrics:
     unit: ratio
     plausible_range: [0.0, 500.0]
     reference_check: 抽查零售业股票
-    review_status: unreviewed
-    reviewer: null
+    review_status: reviewed
+    reviewer: 带教老师（姓名未记录）
     reviewed_at: null
-    review_comment: ""
-    evidence_version: 1
+    review_comment: 已完成带教老师人工确认；见 docs/acceptance/metric-review-evidence.md
+    evidence_version: 2
     note: ""
 
   # ------------------------------------------------------------------ 成长
@@ -138,12 +139,12 @@ metrics:
     unit: percent
     plausible_range: [-100.0, 500.0]
     reference_check: 抽查三只股票的年报同比，与终端一致
-    review_status: unreviewed
-    reviewer: null
+    review_status: reviewed
+    reviewer: 带教老师（姓名未记录）
     reviewed_at: null
-    review_comment: ""
-    evidence_version: 1
-    note: 单季度同比与累计同比是两个口径，须确认该字段属于哪一个
+    review_comment: 已完成带教老师人工确认；见 docs/acceptance/metric-review-evidence.md
+    evidence_version: 2
+    note: 已确认按 s_fa_yoy_or 的当前 Wind 字段口径使用；单季度同比与累计同比不可混用
 
   NET_PROFIT_YOY:
     display_zh: 净利润同比增长率
@@ -156,12 +157,12 @@ metrics:
     unit: percent
     plausible_range: [-1000.0, 1000.0]
     reference_check: 抽查扭亏为盈的股票，确认极端值处理方式
-    review_status: unreviewed
-    reviewer: null
+    review_status: reviewed
+    reviewer: 带教老师（姓名未记录）
     reviewed_at: null
-    review_comment: ""
-    evidence_version: 1
-    note: 去年同期为负时同比增长率无经济意义，须确认 Wind 如何处理
+    review_comment: 已完成带教老师人工确认；见 docs/acceptance/metric-review-evidence.md
+    evidence_version: 2
+    note: 去年同期为负时同比增长率经济含义有限，使用时应单独处理极端值
 
   OPERATING_PROFIT_YOY:
     display_zh: 营业利润同比增长率
@@ -174,12 +175,49 @@ metrics:
     unit: percent
     plausible_range: [-1000.0, 1000.0]
     reference_check: 与 NET_PROFIT_YOY 同步抽查
-    review_status: unreviewed
-    reviewer: null
+    review_status: reviewed
+    reviewer: 带教老师（姓名未记录）
     reviewed_at: null
-    review_comment: ""
-    evidence_version: 1
+    review_comment: 已完成带教老师人工确认；见 docs/acceptance/metric-review-evidence.md
+    evidence_version: 2
     note: ""
+
+  CFO_GROWTH_YOY:
+    display_zh: 经营活动现金流同比增长率
+    definition: 本期经营活动产生的现金流量净额相对去年同期的增长率
+    category: growth
+    wind_table: asharefinancialindicator
+    wind_field: s_fa_yoyocf
+    time_role: report_period
+    announcement_field: ann_dt
+    unit: percent
+    plausible_range: null
+    reference_check: 按实际公告可得时间抽查同一报告期的同比值
+    review_status: reviewed
+    reviewer: 带教老师（姓名未记录）
+    reviewed_at: null
+    review_comment: 已完成带教老师人工确认；见 docs/acceptance/metric-review-evidence.md
+    evidence_version: 2
+    note: 不使用未来修订数据回填历史
+
+  # ------------------------------------------------------------------ 价量
+  S_DQ_VOLUME:
+    display_zh: 成交量
+    definition: A 股当日成交量，按 Wind 的手口径使用
+    category: price_volume
+    wind_table: ashareeodprices
+    wind_field: s_dq_volume
+    time_role: observation
+    announcement_field: null
+    unit: hand
+    plausible_range: null
+    reference_check: 抽查成交量样本，并确认 1 手按 100 股换算
+    review_status: reviewed
+    reviewer: 带教老师（姓名未记录）
+    reviewed_at: null
+    review_comment: 已完成带教老师人工确认；见 docs/acceptance/metric-review-evidence.md
+    evidence_version: 2
+    note: T 日收盘后可得，最早用于 T+1
 
   # ------------------------------------------------------------------ 已知错误映射
   #

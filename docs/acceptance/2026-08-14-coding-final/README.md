@@ -48,7 +48,7 @@
 定义使用。当前验收文档状态为 `reviewed`。本更新不改变本轮真实组件测试结果和
 `READY_WITH_HUMAN_REVIEW_PENDING` 这一历史验收结论。
 
-确认记录（文档层；运行时 YAML 仍为 `unreviewed`）：
+确认记录（后续已获授权同步运行时 YAML；不追溯改变本次历史验收结论）：
 
 - [metric-review-evidence.md](../metric-review-evidence.md)
 

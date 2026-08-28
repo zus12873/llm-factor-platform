@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 
 from factor_platform.domain.models import FactorSpec
+from factor_platform.factor.metric_registry import MetricRegistry
 from factor_platform.library.provenance import (
     ComponentVersions,
     InputProvenance,
@@ -156,13 +157,34 @@ def test_a_disputed_metric_cannot_be_published(
         publish(library, artifact, metric_keys=["FLOAT_MV"])
 
 
-def test_an_unreviewed_metric_publishes_carrying_its_label(
+def test_a_reviewed_metric_publishes_without_an_unreviewed_label(
     library: FactorLibrary, artifact: Path
 ) -> None:
-    """The label must travel with the entry; the context that produced it is gone."""
     entry = publish(library, artifact, metric_keys=["ROE_TTM"])
+    assert entry.review_status == "reviewed"
+    assert entry.review_note == ""
+
+
+def test_an_unreviewed_metric_publishes_carrying_its_label(
+    artifact: Path, tmp_path: Path
+) -> None:
+    """The label must travel with the entry; the context that produced it is gone."""
+    pending = MetricRegistry.from_mapping(
+        {
+            "TEST_PENDING": {
+                "display_zh": "待复核测试口径",
+                "definition": "d",
+                "wind_table": "t",
+                "wind_field": "f",
+                "unit": "ratio",
+                "review_status": "unreviewed",
+            }
+        }
+    )
+    library = FactorLibrary(tmp_path / "pending-library", registry=pending)
+    entry = publish(library, artifact, metric_keys=["TEST_PENDING"])
     assert entry.review_status == "unreviewed"
-    assert "ROE_TTM" in entry.review_note
+    assert "TEST_PENDING" in entry.review_note
 
 
 def test_declaring_no_metric_is_treated_as_unreviewed(

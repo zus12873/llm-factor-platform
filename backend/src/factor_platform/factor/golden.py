@@ -7,14 +7,10 @@ double as acceptance fixtures and (via ``provider_draft``) as the canned LLM res
 that lets the CLI run offline.
 
 Two sets exist. The **golden** set is visible during development and is what the
-implementation is tuned against. The **hidden** set is held back and run once, at
-final acceptance, to answer a question the golden set structurally cannot: does
-the platform generalize, or has it been fitted to the cases it could see? Hidden
-cases are gitignored so they cannot leak into the repository history.
-
-That isolation is only as strong as the discipline behind it — the hidden set here
-was authored by the same party that wrote the implementation, so it detects
-accidental overfitting, not the deliberate kind.
+implementation is tuned against. The files under ``hidden_cases`` are tracked
+historical acceptance fixtures. They are no longer blind and must not be reported
+as an independent hidden-set result. A new blind acceptance set has to be supplied
+outside the repository by someone who did not tune the implementation.
 """
 
 from __future__ import annotations

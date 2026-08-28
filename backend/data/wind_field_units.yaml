@@ -5,9 +5,9 @@
 # a market-cap field read as yuan instead of ten-thousand yuan is off by 10,000x,
 # and every downstream check would still pass.
 #
-# So every entry here is hand-written and starts life `verified: false`. Task 10.5
-# turns this file into the metric-definition registry and routes each entry to a
-# human for sign-off; until then, treat these as claims, not facts.
+# So every entry here is hand-written and starts life `verified: false`; it may
+# change to `true` only after a recorded human sign-off. Unverified entries remain
+# claims rather than facts.
 #
 # A field absent from this file gets `unit: null`. That is deliberate — an unknown
 # unit must stay unknown rather than default to something plausible.
@@ -43,8 +43,8 @@ units:
   # --- volume and turnover ---
   ashareeodprices.s_dq_volume:
     unit: hand
-    verified: false
-    note: information_schema 与本地 WDS 均描述为成交量（手）；仍待老师确认研究换算习惯
+    verified: true
+    note: information_schema 与本地 WDS 均描述为成交量（手）；带教老师已确认按现有单位口径使用，见 docs/acceptance/metric-review-evidence.md
   ashareeodprices.s_dq_amount:
     unit: ten_thousand_cny
     verified: false

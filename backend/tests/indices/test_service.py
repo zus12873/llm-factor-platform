@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from factor_platform.factor.metric_registry import MetricRegistry
 from factor_platform.indices.service import (
     HIGHER_IS_BETTER,
     LOWER_IS_BETTER,
@@ -178,12 +179,35 @@ def test_a_disputed_metric_cannot_reach_an_index() -> None:
         generate_index(composite(), IndexRule(top_n=2), metric_keys=["FLOAT_MV"])
 
 
-def test_an_unreviewed_metric_labels_the_index() -> None:
+def test_a_reviewed_metric_labels_the_index_as_reviewed() -> None:
     artifact = generate_index(
         composite(), IndexRule(top_n=2), metric_keys=["ROE_TTM"]
     )
+    assert artifact.review_status == "reviewed"
+    assert artifact.review_note == ""
+
+
+def test_an_unreviewed_metric_labels_the_index() -> None:
+    pending = MetricRegistry.from_mapping(
+        {
+            "TEST_PENDING": {
+                "display_zh": "待复核测试口径",
+                "definition": "d",
+                "wind_table": "t",
+                "wind_field": "f",
+                "unit": "ratio",
+                "review_status": "unreviewed",
+            }
+        }
+    )
+    artifact = generate_index(
+        composite(),
+        IndexRule(top_n=2),
+        metric_keys=["TEST_PENDING"],
+        registry=pending,
+    )
     assert artifact.review_status == "unreviewed"
-    assert "ROE_TTM" in artifact.review_note
+    assert "TEST_PENDING" in artifact.review_note
 
 
 def test_declaring_no_metric_is_treated_as_unreviewed() -> None:

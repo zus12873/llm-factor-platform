@@ -312,9 +312,9 @@ def run_suite(
 ) -> None:
     """Run an acceptance suite offline and print its metrics report.
 
-    The hidden suite is the blind check: run it once, at final acceptance, and
-    compare against the golden baseline. A large gap between the two is the
-    signal that the implementation was fitted to the cases it could see.
+    The ``hidden`` name is retained for CLI compatibility, but the checked-in
+    cases are archived historical fixtures and are no longer a blind acceptance
+    set. A new blind set must be supplied externally for an independent check.
     """
     if case_set not in {"golden", "hidden"}:
         typer.echo(f"error: unknown set {case_set!r} (expected golden or hidden)", err=True)
@@ -322,11 +322,7 @@ def run_suite(
 
     cases = load_golden_cases() if case_set == "golden" else load_hidden_cases()
     if not cases:
-        typer.echo(
-            f"error: {case_set} set is empty"
-            + (" (it is gitignored; supply it locally)" if case_set == "hidden" else ""),
-            err=True,
-        )
+        typer.echo(f"error: {case_set} set is empty", err=True)
         raise typer.Exit(code=1)
 
     result = run_case_suite(cases, suite=case_set)

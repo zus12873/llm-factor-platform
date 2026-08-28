@@ -44,6 +44,8 @@ def test_registry_covers_the_first_release_metrics(registry: MetricRegistry) -> 
         "REVENUE_YOY",
         "NET_PROFIT_YOY",
         "OPERATING_PROFIT_YOY",
+        "CFO_GROWTH_YOY",
+        "S_DQ_VOLUME",
     ):
         assert registry.get(key) is not None, f"{key} missing from the registry"
 
@@ -69,16 +71,52 @@ def test_every_definition_carries_the_fields_a_reviewer_needs(
         assert definition.unit is not None
 
 
-def test_first_release_metrics_start_unreviewed(registry: MetricRegistry) -> None:
-    """Nothing may claim review it has not had."""
-    assert registry.get("ROE_TTM").review_status is ReviewStatus.UNREVIEWED
+def test_teacher_confirmed_metrics_are_reviewed(registry: MetricRegistry) -> None:
+    confirmed = (
+        "ROE_TTM",
+        "ROA_TTM",
+        "CFO_TO_PROFIT",
+        "PE_TTM",
+        "PB",
+        "PS_TTM",
+        "REVENUE_YOY",
+        "NET_PROFIT_YOY",
+        "OPERATING_PROFIT_YOY",
+        "CFO_GROWTH_YOY",
+        "S_DQ_VOLUME",
+    )
+    for key in confirmed:
+        definition = registry.get(key)
+        assert definition is not None
+        assert definition.review_status is ReviewStatus.REVIEWED
+        assert definition.review_comment
 
 
 # --------------------------------------------------------------------------- the gate
 
 
-def test_unreviewed_metric_is_allowed_but_flagged(registry: MetricRegistry) -> None:
+def test_confirmed_metric_passes_without_a_warning(registry: MetricRegistry) -> None:
     verdict = registry.gate("ROE_TTM")
+    assert verdict.allowed is True
+    assert verdict.requires_warning is False
+    assert "带教老师" in verdict.reason
+    assert "None" not in verdict.reason
+
+
+def test_unreviewed_metric_is_allowed_but_flagged() -> None:
+    pending = MetricRegistry.from_mapping(
+        {
+            "TEST_PENDING": {
+                "display_zh": "待复核测试口径",
+                "definition": "d",
+                "wind_table": "t",
+                "wind_field": "f",
+                "unit": "ratio",
+                "review_status": "unreviewed",
+            }
+        }
+    )
+    verdict = pending.gate("TEST_PENDING")
     assert verdict.allowed is True
     assert verdict.requires_warning is True
     assert "未复核" in verdict.reason
@@ -103,6 +141,7 @@ def test_reviewed_metric_passes_without_a_warning() -> None:
     verdict = registry.gate("TEST_OK")
     assert verdict.allowed is True
     assert verdict.requires_warning is False
+    assert verdict.reason == "已由 advisor 复核（2026-08-10）"
 
 
 def test_disputed_metric_is_refused(registry: MetricRegistry) -> None:
@@ -117,7 +156,7 @@ def test_disputed_metric_raises_when_enforced(registry: MetricRegistry) -> None:
         registry.enforce("FLOAT_MV")
 
 
-def test_enforcing_an_unreviewed_metric_does_not_raise(registry: MetricRegistry) -> None:
+def test_enforcing_a_reviewed_metric_does_not_raise(registry: MetricRegistry) -> None:
     registry.enforce("ROE_TTM")
 
 
